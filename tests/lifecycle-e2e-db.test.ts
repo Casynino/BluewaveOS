@@ -390,9 +390,11 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     assert.equal(box.shipment?.status, "ARRIVED_TANZANIA");
     assert.ok(box.shipment?.actualArrival);
     assert.equal(await cargoStatus(s.cargoA), "ARRIVED_TANZANIA");
-    /* At the port is still in transit for the customer: nothing is said, and
-       the storage clock has not started. */
-    assert.equal(await prisma.notification.count({ where: { customerId: s.customerA, kind: "CARGO_ARRIVED_DAR" } }), 0);
+    /* The owner's rule: the container arriving is the goods arriving. The
+       customer is told once, and the storage clock starts on this day. */
+    assert.equal(await prisma.notification.count({ where: { customerId: s.customerA, kind: "CARGO_ARRIVED_DAR" } }), 1);
+    const dated = await prisma.cargo.findUniqueOrThrow({ where: { id: s.cargoA }, select: { darArrivedAt: true } });
+    assert.ok(dated.darArrivedAt, "the arrival day is on the consignment");
 
     /* Support and Finance get past the permission check — they are refused only
        because the step has already been taken. */

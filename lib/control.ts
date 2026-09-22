@@ -131,19 +131,22 @@ async function storageNotBilled(now: Date) {
   const cargo = await prisma.cargo.findMany({
     where: {
       deletedAt: null,
-      status: { in: ["RECEIVED_DAR", "READY_FOR_RELEASE"] },
-      darReceiving: { receivedAt: { lt: ago(freeDays, now) } },
+      status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR", "READY_FOR_RELEASE"] },
+      OR: [
+        { darArrivedAt: { lt: ago(freeDays, now) } },
+        { darArrivedAt: null, darReceiving: { receivedAt: { lt: ago(freeDays, now) } } },
+      ],
       invoices: {
         none: { status: { not: "CANCELLED" }, items: { some: { category: "Storage" } } },
       },
     },
-    select: { darReceiving: { select: { receivedAt: true } } },
+    select: { darArrivedAt: true, darReceiving: { select: { receivedAt: true } } },
   });
 
   const late = cargo
     .map((c) =>
       storagePosition({
-        receivedAt: storageStart(c.darReceiving?.receivedAt),
+        receivedAt: storageStart(c.darReceiving?.receivedAt, c.darArrivedAt),
         collectedAt: null,
         freeDays,
         perDay,

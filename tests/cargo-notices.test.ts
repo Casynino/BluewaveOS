@@ -177,7 +177,7 @@ describe("stage messages", () => {
     assert.equal(bluewaveStageOf("CONTAINER_LOADED"), "STORED_IN_CHINA");
     assert.equal(bluewaveStageOf("DEPARTED_CHINA"), "IN_TRANSIT");
     assert.equal(bluewaveStageOf("IN_TRANSIT"), "IN_TRANSIT");
-    assert.equal(bluewaveStageOf("ARRIVED_TANZANIA"), "IN_TRANSIT", "the port is not arrival");
+    assert.equal(bluewaveStageOf("ARRIVED_TANZANIA"), "ARRIVED_IN_DAR", "the container arriving is the goods arriving");
     assert.equal(bluewaveStageOf("RECEIVED_DAR"), "ARRIVED_IN_DAR");
     assert.equal(bluewaveStageOf("READY_FOR_RELEASE"), "READY_FOR_PICKUP");
     assert.equal(bluewaveStageOf("COLLECTED"), "COLLECTED");

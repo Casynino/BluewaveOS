@@ -163,7 +163,8 @@ export async function noticeSubject(
     fxRate = b.rate ? grouped(b.rate, 0) : null;
   }
 
-  const arrivedAt = cargo.darReceiving?.receivedAt ?? null;
+  const arrivedAt =
+    cargo.status === "MISSING_AT_DAR" ? null : (cargo.darArrivedAt ?? cargo.darReceiving?.receivedAt ?? null);
   const clock = arrivedAt
     ? storageState({
         arrivedAt,
@@ -318,6 +319,13 @@ export async function announceDarArrival(
   cargo: { id: string },
   options: { discrepancy?: boolean; actorId?: string | null }
 ) {
+  /* Goods whose container was never marked arrived arrive with this check-in;
+     goods already dated by their container keep that day. */
+  const receiving = await tx.darReceiving.findUnique({ where: { cargoId: cargo.id }, select: { receivedAt: true } });
+  await tx.cargo.updateMany({
+    where: { id: cargo.id, darArrivedAt: null },
+    data: { darArrivedAt: receiving?.receivedAt ?? new Date() },
+  });
   await announceCargoEvent(tx, "CARGO_ARRIVED_DAR", cargo.id, { issue: options.discrepancy });
   if (!options.discrepancy) {
     await announceIfReady(tx, cargo.id, options.actorId ? { id: options.actorId } : null);

@@ -509,11 +509,12 @@ export async function runManagementReport(
         prisma.cargo.findMany({
           where: {
             deletedAt: null,
-            darReceiving: { isNot: null },
-            status: { in: ["RECEIVED_DAR", "READY_FOR_RELEASE"] },
+            OR: [{ darArrivedAt: { not: null } }, { darReceiving: { isNot: null } }],
+            status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR", "READY_FOR_RELEASE"] },
           },
           select: {
             reference: true,
+            darArrivedAt: true,
             receiver: { select: { fullName: true, businessName: true } },
             darReceiving: { select: { receivedAt: true, container: { select: { reference: true } } } },
             invoices: {
@@ -527,7 +528,7 @@ export async function runManagementReport(
       const rows = cargo
         .map((c) => {
           const position = storagePosition({
-            receivedAt: storageStart(c.darReceiving?.receivedAt),
+            receivedAt: storageStart(c.darReceiving?.receivedAt, c.darArrivedAt),
             collectedAt: null,
             freeDays: company?.freeStorageDays ?? 7,
             perDay: company?.storagePerDay ?? 0,
@@ -541,7 +542,7 @@ export async function runManagementReport(
             c.reference,
             c.receiver.businessName || c.receiver.fullName,
             c.darReceiving?.container?.reference ?? "",
-            d(c.darReceiving?.receivedAt),
+            d(storageStart(c.darReceiving?.receivedAt, c.darArrivedAt)),
             position.daysHeld,
             position.chargeableDays,
             position.configured ? position.amount.toNumber() : "no rate set",

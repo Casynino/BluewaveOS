@@ -266,7 +266,7 @@ export default async function CargoDetailPage({
      two are deliberately different figures — a clerk who waived half of it last
      week needs to see both, or they will waive it again. */
   const storage = storagePosition({
-    receivedAt: storageStart(dar?.receivedAt),
+    receivedAt: storageStart(dar?.receivedAt, cargo.darArrivedAt),
     collectedAt: cargo.release?.releasedAt ?? null,
     freeDays: money?.freeStorageDays ?? 7,
     perDay: money?.storagePerDay ?? 0,

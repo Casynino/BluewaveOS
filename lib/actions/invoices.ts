@@ -1101,7 +1101,7 @@ export async function chargeStorage(
 
   const settings = await companySettings();
   const position = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
+    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
     collectedAt: invoice.cargo.release?.releasedAt ?? null,
     freeDays: settings?.freeStorageDays ?? 7,
     perDay: settings?.storagePerDay ?? 0,

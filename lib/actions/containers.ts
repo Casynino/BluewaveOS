@@ -1184,6 +1184,21 @@ export async function advanceContainer(
             await announceCargoEvent(tx, "CARGO_IN_TRANSIT", line.cargoId);
           }
         }
+
+        if (to === "ARRIVED") {
+          /* THE CONTAINER ARRIVED, SO ITS GOODS HAVE ARRIVED. The owner's rule:
+             this is the day each customer is told and the free-storage clock
+             starts. Dar's check-in afterwards counts the boxes; it does not move
+             the day. A consignment already dated keeps its date. */
+          const ids = container.cargoLines.map((l) => l.cargoId);
+          await tx.cargo.updateMany({
+            where: { id: { in: ids }, darArrivedAt: null, status: { not: "MISSING_AT_DAR" } },
+            data: { darArrivedAt: at },
+          });
+          for (const id of ids) {
+            await announceCargoEvent(tx, "CARGO_ARRIVED_DAR", id);
+          }
+        }
       }
 
       /* In the same transaction as the move it describes. */
@@ -1492,6 +1507,8 @@ export async function takeOffArrivedContainer(
         actor,
         `Taken off ${container.reference} after it landed: ${reason}`
       );
+      /* Never on that box, so never arrived with it: no storage clock. */
+      await tx.cargo.update({ where: { id: cargo.id }, data: { darArrivedAt: null } });
     }
 
     await tx.containerEvent.create({
@@ -1689,6 +1706,15 @@ export async function putOnArrivedContainer(
         actor,
         `Came off ${container.reference}: ${reason}`
       );
+      /* It arrived when its box did. */
+      const landed = await tx.shipment.findFirst({
+        where: { containerId: container.id },
+        select: { actualArrival: true },
+      });
+      await tx.cargo.updateMany({
+        where: { id: cargo.id, darArrivedAt: null },
+        data: { darArrivedAt: landed?.actualArrival ?? new Date() },
+      });
     }
     if (cargo.darReceiving) {
       await tx.darReceiving.update({
@@ -1826,6 +1852,13 @@ export async function undoContainerArrival(
       await tx.shipment.updateMany({
         where: { containerId: container.id },
         data: { status: "IN_TRANSIT", actualArrival: null },
+      });
+      /* Not arrived after all: the storage clock was never started. */
+      await tx.cargo.updateMany({
+        where: {
+          id: { in: container.cargoLines.filter((l) => l.cargo.status === "ARRIVED_TANZANIA").map((l) => l.cargoId) },
+        },
+        data: { darArrivedAt: null },
       });
       await setCargoStatusBulk(
         tx,

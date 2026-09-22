@@ -83,10 +83,12 @@ export function bluewaveStageOf(status: CargoStatus): BlueWaveStage | null {
       return "STORED_IN_CHINA";
     case "DEPARTED_CHINA":
     case "IN_TRANSIT":
-    /* At the port, not yet confirmed on our floor. */
-    case "ARRIVED_TANZANIA":
     case "MISSING_AT_DAR":
       return "IN_TRANSIT";
+    /* The owner's rule: when the container is marked arrived in Dar, its goods
+       have arrived — the customer is told and free storage starts that day.
+       Dar's check-in counts them onto the floor; it does not move the date. */
+    case "ARRIVED_TANZANIA":
     case "RECEIVED_DAR":
       return "ARRIVED_IN_DAR";
     case "READY_FOR_RELEASE":
@@ -153,7 +155,6 @@ export function bluewaveStageOfCode(stage: StageCode): BlueWaveStage | null {
       return "STORED_IN_CHINA";
     case "SHIPPED":
     case "AT_SEA":
-    case "AT_DAR_PORT":
       return "IN_TRANSIT";
     case "READY":
       return "READY_FOR_PICKUP";
@@ -270,6 +271,8 @@ export type JourneyInput = {
    * This is "Arrived in Dar", and the day the storage clock starts.
    */
   darReceivedAt?: Date | null;
+  /** The day the container was marked arrived in Dar (Cargo.darArrivedAt). */
+  darArrivedAt?: Date | null;
   /** Dar has a receiving row and has not signed the count off. */
   awaitingDarVerification: boolean;
   /** Dar booked the boxes in damaged, part damaged or wet. Repacked is not damage. */
@@ -344,7 +347,7 @@ const STAGE_LABEL: Record<StageCode, string> = {
   PACKED: "Container packed and sealed in Foshan",
   SHIPPED: "Shipped from China",
   AT_SEA: "At sea",
-  AT_DAR_PORT: "At Dar es Salaam port — on its way to our warehouse",
+  AT_DAR_PORT: "Arrived in Dar es Salaam — being checked in at our warehouse",
   DAR_VERIFICATION: "Arrived in Dar — being checked in",
   RECEIVED_DAR: "At our Dar warehouse — invoice being prepared",
   PRICING: "At our Dar warehouse — price being confirmed",
@@ -512,15 +515,20 @@ export function publicJourney(input: JourneyInput): Journey {
 
   const departedAt =
     container?.departedAt ?? stamps.DEPARTED_CHINA ?? null;
-  /* Arrived in Dar is the floor's confirmation, never the ship's arrival. */
-  const arrivedAtDar = input.darReceivedAt ?? stamps.RECEIVED_DAR ?? null;
-  const atPort = rank >= 5 && !(rank >= 6);
+  /* Arrived in Dar is the day the container was marked arrived — the owner's
+     rule — or, for goods with no such day, the Dar check-in. A consignment
+     reported missing did not arrive, whatever its box did. */
+  const missing = status === "MISSING_AT_DAR";
+  const arrivedAtDar = missing
+    ? null
+    : (input.darArrivedAt ?? stamps.ARRIVED_TANZANIA ?? input.darReceivedAt ?? stamps.RECEIVED_DAR ?? null);
+  const atPort = false;
 
   const reached: Record<StageKey, boolean> = {
     RECEIVED_IN_CHINA: rank >= 1 || ready,
     STORED_IN_CHINA: rank >= 2 || ready,
     IN_TRANSIT: rank >= 3 || ready,
-    ARRIVED_IN_DAR: rank >= 6 || ready,
+    ARRIVED_IN_DAR: (rank >= 5 && !missing) || ready,
     READY_FOR_PICKUP: ready,
     COLLECTED: handedOver,
   };
@@ -528,6 +536,7 @@ export function publicJourney(input: JourneyInput): Journey {
   const etaOpen = container?.eta && !reached.ARRIVED_IN_DAR && !atPort ? container.eta : null;
 
   const arrivedDetail: Partial<Record<StageCode, string>> = {
+    AT_DAR_PORT: "Being checked in at our warehouse",
     DAR_VERIFICATION: "Being checked in",
     PRICING: "Price being confirmed",
     RECEIVED_DAR: "Invoice being prepared",
@@ -570,7 +579,7 @@ export function publicJourney(input: JourneyInput): Journey {
       /* The expected day is printed by the page beside this step; only a date
          that has already gone by, or the last leg, needs words. */
       detail: atPort && status !== "MISSING_AT_DAR"
-        ? "At Dar es Salaam port — on its way to our warehouse"
+        ? "Arrived in Dar es Salaam — being checked in at our warehouse"
         : etaOpen && etaOpen.getTime() < now.getTime()
           ? "Running later than planned"
           : null,

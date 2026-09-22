@@ -308,6 +308,7 @@ export function journeyOf(cargo: JourneyCargo, now = new Date()): Journey {
     ),
     receivedAtDar: dar !== null,
     darReceivedAt: dar?.receivedAt ?? null,
+    darArrivedAt: cargo.darArrivedAt ?? null,
     awaitingDarVerification: dar !== null && !dar.verified,
     /* Repacked is not damage — the floor put a burst carton back together,
        which is a kindness and not something to alarm a customer with. */
@@ -333,6 +334,8 @@ export type TrackingSource = {
   reference: string;
   service: ServiceType;
   status: CargoStatus;
+  /** The day its container was marked arrived in Dar; the storage clock's start. */
+  darArrivedAt?: Date | null;
   description: string;
   sender: { fullName: string };
   chinaReceiving: {
@@ -492,7 +495,7 @@ function noteFor(input: {
     return {
       sw: "Umefika Dar es Salaam salama.",
       en:
-        `Arrived at our ${ROUTE.destinationCity} warehouse on ${dayMonthYear(input.receivedDarAt)}` +
+        `Arrived in ${ROUTE.destinationCity} on ${dayMonthYear(input.receivedDarAt)}` +
         (input.darPackages !== null
           ? `, ${input.darPackages} ${input.darPackages === 1 ? "package" : "packages"} counted`
           : "") +
@@ -639,9 +642,13 @@ export function publicTracking(input: {
   /* The floor clock, counted from the day Dar booked the boxes in — the day
      they started taking up room. See lib/storage-fee.ts. */
   let storage: PublicStorage | null = null;
-  if (cargo.darReceiving && settings) {
+  const clockFrom =
+    cargo.status === "MISSING_AT_DAR"
+      ? null
+      : storageStart(cargo.darReceiving?.receivedAt, cargo.darArrivedAt);
+  if (clockFrom && settings) {
     const position = storagePosition({
-      receivedAt: storageStart(cargo.darReceiving.receivedAt),
+      receivedAt: clockFrom,
       collectedAt: handedOverAt,
       freeDays: settings.freeStorageDays,
       perDay: dec(settings.storagePerDay),
@@ -650,14 +657,14 @@ export function publicTracking(input: {
     /* Today's rate, not a bill's: nothing has been billed for this yet, so there
        is no pinned rate to honour and no older bill to contradict. */
     const clock = storageState({
-      arrivedAt: cargo.darReceiving.receivedAt,
+      arrivedAt: clockFrom,
       freeDays: settings.freeStorageDays,
       perDay: null,
       currency: settings.storageCurrency,
-      now: cargo.darReceiving.receivedAt,
+      now: clockFrom,
     });
     storage = {
-      arrivedAt: cargo.darReceiving.receivedAt.toISOString(),
+      arrivedAt: clockFrom.toISOString(),
       freeUntil: clock.lastFreeDay.toISOString(),
       daysInWarehouse: position.daysHeld,
       freeDays: position.freeDays,
@@ -718,7 +725,7 @@ export function publicTracking(input: {
       receivedChinaAt: cargo.chinaReceiving?.receivedAt ?? stamps.RECEIVED_CHINA ?? null,
       departedAt: journey.steps.find((s) => s.key === "IN_TRANSIT")?.at ?? null,
       arrivedAt: atPortSince,
-      receivedDarAt: cargo.darReceiving?.receivedAt ?? null,
+      receivedDarAt: clockFrom ?? cargo.darReceiving?.receivedAt ?? null,
       handedOverAt,
       eta: journey.eta,
       freeDays: settings?.freeStorageDays ?? 0,

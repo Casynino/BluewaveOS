@@ -519,6 +519,10 @@ model Cargo {
   darReceiving    DarReceiving?
   deliveryNote    DeliveryNote?
   containerLines  ContainerCargo[]
+  /// ARRIVED IN DAR: the day its container was marked arrived in Dar es Salaam
+  /// (or, failing that, the Dar check-in). The customer is told then, and the
+  /// free-storage clock counts from this day. Cleared if the arrival is undone.
+  darArrivedAt    DateTime?
   invoices        Invoice[]
   pickupNote      PickupNote?
   release         Release?

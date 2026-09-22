@@ -104,7 +104,7 @@ export default async function InvoicePage({
     where: { id: "singleton" },
   });
   const storage = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
+    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
     collectedAt: null,
     freeDays: settings?.freeStorageDays ?? 7,
     perDay: settings?.storagePerDay ?? 0,
@@ -152,7 +152,7 @@ export default async function InvoicePage({
     freeStorageDays: settings?.freeStorageDays ?? null,
     storagePerDay: settings && Number(settings.storagePerDay) > 0 ? Number(settings.storagePerDay).toString() : null,
     storageCurrency: settings?.storageCurrency ?? "USD",
-    storageFrom: storageStart(invoice.cargo.darReceiving?.receivedAt),
+    storageFrom: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
     pickupAddress: await pickupAddress(prisma),
     pickupNoteId: activeNote?.id ?? null,
     pickupNoteNumber: activeNote?.noteNumber ?? null,

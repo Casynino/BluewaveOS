@@ -186,7 +186,7 @@ describe("public journey", () => {
     assert.equal(j.stage, "SHIPPED");
   });
 
-  test("a container at the port is still in transit — arrived is the warehouse's word", () => {
+  test("a container marked arrived means the goods have arrived in Dar, being checked in", () => {
     const j = publicJourney(
       input({
         status: "ARRIVED_TANZANIA",
@@ -199,11 +199,10 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.stage, "AT_DAR_PORT");
-    assert.equal(j.headline, "At Dar es Salaam port — on its way to our warehouse");
-    assert.equal(j.current, "IN_TRANSIT");
-    assert.equal(state(j, "IN_TRANSIT"), "current");
-    assert.equal(state(j, "ARRIVED_IN_DAR"), "upcoming");
-    assert.match(detail(j, "IN_TRANSIT") ?? "", /port/);
+    assert.equal(j.headline, "Arrived in Dar es Salaam — being checked in at our warehouse");
+    assert.equal(j.current, "ARRIVED_IN_DAR");
+    assert.equal(state(j, "IN_TRANSIT"), "done");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
     assert.equal(j.eta, null, "no ETA once the ship is in");
   });
 

@@ -93,7 +93,7 @@ export default async function PortalCargoPage({
     select: { freeStorageDays: true, storagePerDay: true, storageCurrency: true },
   });
   /* The clock runs from the day Dar booked the boxes in, until they leave. */
-  const clockFrom = storageStart(cargo.darReceiving?.receivedAt);
+  const clockFrom = storageStart(cargo.darReceiving?.receivedAt, cargo.darArrivedAt);
   const storage =
     clockFrom && !["COLLECTED", "DELIVERED", "CANCELLED"].includes(cargo.status)
       ? storageState({
@@ -146,7 +146,7 @@ export default async function PortalCargoPage({
           <p className="mt-1.5 text-sm text-muted-foreground">
             {t(
               locale,
-              "The container has reached Dar es Salaam port. Your cargo counts as arrived once our warehouse confirms it on the floor — we will tell you that day, and free storage starts then."
+              "Your cargo has arrived in Dar es Salaam and is being checked in at our warehouse. Free storage started the day it arrived."
             )}
           </p>
         </Card>

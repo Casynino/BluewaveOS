@@ -397,7 +397,7 @@ export async function ContainerMoney({
                 ? Number(settings.storagePerDay).toString()
                 : null,
             storageCurrency: settings?.storageCurrency ?? "USD",
-            storageFrom: storageStart(c.darReceiving?.receivedAt),
+            storageFrom: storageStart(c.darReceiving?.receivedAt, c.darArrivedAt),
           }),
         };
       })(),

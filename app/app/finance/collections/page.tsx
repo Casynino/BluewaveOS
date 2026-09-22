@@ -177,6 +177,7 @@ export default async function CollectionsPage({
           chinaReceiving: { select: { cbm: true } },
           packages: { where: { deletedAt: null }, select: { id: true, cargoType: true } },
           pickupNote: { select: { status: true, onCredit: true } },
+          darArrivedAt: true,
           darReceiving: { select: { receivedAt: true, cbm: true } },
           contacts: {
             orderBy: { createdAt: "desc" },
@@ -292,7 +293,7 @@ export default async function CollectionsPage({
         rate: rateOf(invoice.fxRate),
         storage: Number(
           storagePosition({
-            receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
+            receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
             collectedAt: null,
             freeDays: settings?.freeStorageDays ?? 0,
             perDay: settings?.storagePerDay ?? 0,

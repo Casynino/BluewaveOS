@@ -75,11 +75,17 @@ export function storageState(input: {
 }
 
 /**
- * WHEN THE CLOCK STARTED: the Dar check-in, and only that.
+ * WHEN THE CLOCK STARTED: the day the goods arrived in Dar.
  *
- * Kept as a function rather than read inline so every screen asks the same
- * question the same way; null while Dar has not confirmed the boxes.
+ * That is the day their container was marked arrived (Cargo.darArrivedAt), by
+ * the owner's rule; a consignment with no such day — checked in without a
+ * container arrival on record — counts from its Dar check-in. Kept as a
+ * function so every screen asks the same question the same way; null while
+ * the goods have not arrived.
  */
-export function storageStart(receivedAt: Date | null | undefined): Date | null {
-  return receivedAt ?? null;
+export function storageStart(
+  receivedAt: Date | null | undefined,
+  darArrivedAt?: Date | null
+): Date | null {
+  return darArrivedAt ?? receivedAt ?? null;
 }

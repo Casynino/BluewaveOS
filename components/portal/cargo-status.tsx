@@ -16,7 +16,7 @@ const WHERE: Record<StageCode, [string, string | null]> = {
   PACKED: ["Stored in China", "Container packed and sealed"],
   SHIPPED: ["In transit", "Left China"],
   AT_SEA: ["In transit", "At sea"],
-  AT_DAR_PORT: ["In transit", "At Dar port — on its way to our warehouse"],
+  AT_DAR_PORT: ["Arrived in Dar es Salaam", "Being checked in at our warehouse"],
   DAR_VERIFICATION: ["Arrived in Dar es Salaam", "Being checked in"],
   RECEIVED_DAR: ["Arrived in Dar es Salaam", "Invoice being prepared"],
   PRICING: ["Arrived in Dar es Salaam", "Price being confirmed"],
