@@ -80,10 +80,10 @@ type View = keyof typeof VIEWS;
 /*
   ACTIVE IS WHAT HAS LANDED AND IS NOT FINISHED WITH.
 
-  A box still on the water has no cargo to count, no bill to chase and nothing
-  to check in — it is watched, not worked — so it lives under In transit alone
-  and Active is the two states on the ground. A closed container is finished:
-  nothing can be added to it and it is opened again only to be read.
+  Everything that has left China and is not finished with: at sea, at the port
+  waiting to be checked in, and checked in with money still to collect. A
+  closed container is finished — nothing can be added to it and it is opened
+  again only to be read — so it is the one state Active leaves out.
 
   "Waiting for prices" is not a chip. It is a cut across the same rows rather
   than a place a container is in, and it is reached from the band above the
@@ -316,10 +316,10 @@ export default async function ArrivedContainersPage({
   /* Counts follow the search but never the chip's own filter, so a chip cannot
      read zero because you are standing on a different one. */
   const counts: Record<View, number> = {
-    /* Landed and not yet closed. A box still on the water is not "active" work
-       for anybody in Dar — it is a date — so it lives under In transit only. */
-    active: matched.filter((r) => r.state === "checkin" || r.state === "checked")
-      .length,
+    /* Every sailing still being worked: at sea, waiting to be checked in, or
+       counted and waiting on its money. Only a closed container drops out —
+       the owner's rule, so one list holds everything that is not finished. */
+    active: matched.filter((r) => r.state !== "history").length,
     sea: matched.filter((r) => r.state === "sea").length,
     checkin: matched.filter((r) => r.state === "checkin").length,
     checked: matched.filter((r) => r.state === "checked").length,
@@ -335,7 +335,7 @@ export default async function ArrivedContainersPage({
   const shown = matched.filter((r) => {
     if (chosen === "all") return true;
     if (chosen === "active")
-      return r.state === "checkin" || r.state === "checked";
+      return r.state !== "history";
     if (chosen === "pricing") return r.toPrice > 0;
     return r.state === chosen;
   });
