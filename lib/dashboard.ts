@@ -1,8 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { Prisma, type Role } from "@prisma/client";
 
-import { balanceOf, outstandingOf, paymentTzs } from "@/lib/invoice-balance";
+import { BALANCE_SELECT, balanceOf, outstandingOf, paymentTzs } from "@/lib/invoice-balance";
 import { owedAcross } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -459,11 +461,30 @@ export async function revenueTrend(months = 6) {
  * Bands rather than an average, because an average of thirty days hides one
  * invoice at a hundred and twenty, and that one is the whole problem.
  */
-export async function receivablesAgeing() {
-  const invoices = await prisma.invoice.findMany({
+/**
+ * EVERY OPEN BILL, AS A BALANCE AND NOTHING ELSE.
+ *
+ * Three tiles on one dashboard ask the same question — what is still owed —
+ * and each was reading every live invoice with every payment row hanging off
+ * it. Read once per request, six columns wide, and shared.
+ */
+const openBalances = cache(async () =>
+  prisma.invoice.findMany({
     where: { status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
-    include: { payments: true },
-  });
+    select: { ...BALANCE_SELECT, issuedAt: true },
+  })
+);
+
+/** The same for the whole book, live bills and drafts alike. */
+const allBalances = cache(async () =>
+  prisma.invoice.findMany({
+    where: { status: { not: "CANCELLED" } },
+    select: { ...BALANCE_SELECT, status: true },
+  })
+);
+
+export async function receivablesAgeing() {
+  const invoices = await openBalances();
 
   const bands = { current: 0, d30: 0, d60: 0, d90: 0 };
   const now = Date.now();
@@ -490,10 +511,7 @@ export async function companyOverview() {
     prisma.container.count({
       where: { deletedAt: null, status: { notIn: ["CLOSED"] } },
     }),
-    prisma.invoice.findMany({
-      where: { status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] } },
-      include: { payments: true },
-    }),
+    openBalances(),
     prisma.container.findMany({
       where: { deletedAt: null, status: { in: ["OPEN", "LOADING"] } },
       select: { capacityCbm: true, cargoLines: { select: { cbm: true } } },
@@ -790,10 +808,7 @@ export async function attentionItems(role?: Role): Promise<AttentionRow[]> {
 /** The money position, in the two currencies the business actually uses. */
 export async function moneyPosition() {
   const [invoices, unbilled, expenses, fx] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { status: { not: "CANCELLED" } },
-      include: { payments: true },
-    }),
+    allBalances(),
     prisma.cargo.count({
       where: {
         deletedAt: null,
@@ -1157,10 +1172,7 @@ export async function financeDesk() {
     discrepancies,
     openCases,
   ] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { status: { not: "CANCELLED" } },
-      include: { payments: true },
-    }),
+    allBalances(),
     /* Landed, every line checked off by Dar, and not yet billed. This is the
        queue this desk exists to clear. */
     prisma.container.count({

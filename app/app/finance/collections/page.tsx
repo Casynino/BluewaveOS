@@ -132,14 +132,33 @@ export default async function CollectionsPage({
   const chosen: View = view && view in VIEWS ? (view as View) : "all";
   const order: Sort = sort && sort in SORTS ? (sort as Sort) : "newest";
 
-  /* The storage line on the message comes from settings, so a rate change
-     reaches every message without anybody editing a template. */
-  const settings = await prisma.companySetting.findUnique({
-    where: { id: "singleton" },
-    select: { freeStorageDays: true, storagePerDay: true, storageCurrency: true },
-  });
-
-  const invoices = await prisma.invoice.findMany({
+  /* Four reads that have nothing to say to each other, asked at once rather
+     than one after another: the list is the slow one and there is no reason
+     for the settings, the rate and the two counts to queue behind it. */
+  const [settings, categories, today, unpricedLanded, invoices] = await Promise.all([
+    /* The storage line on the message comes from settings, so a rate change
+       reaches every message without anybody editing a template. */
+    prisma.companySetting.findUnique({
+      where: { id: "singleton" },
+      select: { freeStorageDays: true, storagePerDay: true, storageCurrency: true },
+    }),
+    /* The rate book's categories, for the price dialog. */
+    bookCategories(),
+    prisma.exchangeRate.findFirst({
+      where: { active: true },
+      orderBy: { effectiveFrom: "desc" },
+      select: { rate: true },
+    }),
+    /* Landed in Dar with no bill out: money nobody can chase until its price is
+       confirmed, so it is named here rather than missing from the list. */
+    prisma.cargo.count({
+      where: {
+        deletedAt: null,
+        status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR"] },
+        invoices: { none: { status: { notIn: ["DRAFT", "CANCELLED"] } } },
+      },
+    }),
+    prisma.invoice.findMany({
     where: {
       status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] },
       ...(query
@@ -163,9 +182,35 @@ export default async function CollectionsPage({
           }
         : {}),
     },
-    include: {
+    /* Named column by column. This list is every live bill in the book, and
+       each whole invoice row with its whole payment rows hanging off it is
+       forty columns per bill to print six. */
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      currency: true,
+      total: true,
+      totalTzs: true,
+      fxRate: true,
+      billableCbm: true,
+      rateBasis: true,
+      standardRate: true,
+      appliedRate: true,
+      issuedAt: true,
+      dueAt: true,
       customer: { select: { id: true, fullName: true, phone: true } },
-      payments: true,
+      payments: {
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          currency: true,
+          fxRate: true,
+          baseCurrencyAmount: true,
+          creditedAmount: true,
+        },
+      },
       items: { select: { unit: true, category: true, quantity: true } },
       cargo: {
         select: {
@@ -187,12 +232,13 @@ export default async function CollectionsPage({
           containerLines: {
             take: 1,
             orderBy: { createdAt: "desc" },
-            include: { container: { select: { reference: true } } },
+            select: { container: { select: { reference: true } } },
           },
         },
       },
     },
-  });
+    }),
+  ]);
 
   /*
     WHAT MOVED EACH PRICE — AND NOTHING WHEN NOTHING DID.
@@ -224,10 +270,23 @@ export default async function CollectionsPage({
     orderBy: { createdAt: "asc" },
     select: { entityId: true, field: true, oldValue: true },
   });
+  /* Filed under the row it belongs to once. Walking the whole history per
+     rendered row is that work repeated for every bill in the book, and this
+     list is every live bill in the book. Each change keeps the place it had in
+     the read, so a row still reads them oldest first across all three
+     entities — which is what decides the category it was changed FROM. */
+  const historyBy = new Map<string, { seq: number; field: string; oldValue: string | null }[]>();
+  history.forEach((change, seq) => {
+    const kept = historyBy.get(change.entityId);
+    const row = { seq, field: change.field, oldValue: change.oldValue };
+    if (kept) kept.push(row);
+    else historyBy.set(change.entityId, [row]);
+  });
   const changeOf = (invoice: (typeof invoices)[number]): PriceChange => {
     const c = cargoOf(invoice);
-    const ids = new Set([invoice.id, c.id, ...c.packages.map((p) => p.id)]);
-    const mine = history.filter((h) => ids.has(h.entityId));
+    const mine = [invoice.id, c.id, ...c.packages.map((p) => p.id)]
+      .flatMap((id) => historyBy.get(id) ?? [])
+      .sort((a, b) => a.seq - b.seq);
     const nowCategory = categoryOf(invoice);
     const wasCategory = mine.find(
       (h) => (h.field === "cargoType" || h.field === "commodity") && h.oldValue
@@ -257,15 +316,7 @@ export default async function CollectionsPage({
     };
   };
 
-  /* The rate book's categories, for the price dialog. */
-  const categories = await bookCategories();
-
   const now = Date.now();
-  const today = await prisma.exchangeRate.findFirst({
-    where: { active: true },
-    orderBy: { effectiveFrom: "desc" },
-    select: { rate: true },
-  });
   const todayRate = today ? Number(today.rate) : 0;
   /* Each bill at the rate frozen onto it — what its customer was quoted. */
   const rateOf = (fx: unknown) => (Number(fx) > 1 ? Number(fx) : todayRate);
@@ -361,16 +412,6 @@ export default async function CollectionsPage({
     });
 
   const overdue = rows.filter((r) => r.late > 0).length;
-
-  /* Landed in Dar with no bill out: money nobody can chase until its price is
-     confirmed, so it is named here rather than missing from the list. */
-  const unpricedLanded = await prisma.cargo.count({
-    where: {
-      deletedAt: null,
-      status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR"] },
-      invoices: { none: { status: { notIn: ["DRAFT", "CANCELLED"] } } },
-    },
-  });
 
   return (
     <div className="space-y-6">
