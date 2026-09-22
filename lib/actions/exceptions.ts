@@ -334,8 +334,16 @@ export async function updateException(
       verification is what the release engine checks. Leaving the flag set on a
       resolved case means cargo everybody agrees is fine can never be handed
       over, and somebody eventually works around the system to release it.
+
+      ON THE MOVE, NEVER ON THE RESTING STATE. `moving`, not `status`: the
+      permission above is asked for the transition, so reading the resting
+      state here let a desk holding only `exception.raise` clear a release
+      blocker by adding a note to a case that was already resolved. The flag is
+      re-raised by a later Dar receiving or damage report, and that new
+      discrepancy is a new answer somebody with `exception.resolve` has to
+      give — not one an old case can be made to give again.
     */
-    if ((status === "RESOLVED" || status === "CLOSED") && before.cargoId) {
+    if ((moving === "RESOLVED" || moving === "CLOSED") && before.cargoId) {
       await tx.darReceiving.updateMany({
         where: { cargoId: before.cargoId },
         data: { discrepancy: false },
@@ -360,7 +368,7 @@ export async function updateException(
          consequence worth being able to find from the case rather than only
          from the cargo. */
       clearedDiscrepancy:
-        (status === "RESOLVED" || status === "CLOSED") && Boolean(before.cargoId),
+        (moving === "RESOLVED" || moving === "CLOSED") && Boolean(before.cargoId),
       reason: data.note || data.resolution || null,
     },
   });

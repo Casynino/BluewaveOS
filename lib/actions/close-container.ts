@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { can, canAny } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import {
   advanceContainer,
@@ -177,6 +178,52 @@ export async function closeContainer(
     select: { id: true, reference: true, status: true },
   });
   const destinationOf = new Map(destinations.map((c) => [c.id, c]));
+
+  /*
+    EVERY DISPOSAL IS AUTHORISED BEFORE THE FIRST ONE IS MADE.
+
+    The steps below are the floor's own actions, and each one authorizes itself
+    by THROWING. `container.close` is Finance's, the manager's and the owner's,
+    and Finance holds neither `receiving.dar` nor `container.load` — so a
+    Finance desk answering "it went on the next sailing" took the consignment
+    off this manifest, which commits, and then hit a throw putting it on the
+    other box. That left the goods on no container at all, with the sentence
+    written for exactly that state never reaching the screen because the throw
+    is not a returned error. Consignments answered earlier in the list were
+    already committed too.
+  */
+  const blocked = decisions
+    .map((decision) => {
+      if (decision.outcome.kind === "missing") {
+        return can(actor.role, "receiving.dar")
+          ? null
+          : `${decision.reference} can only be reported missing by the Dar floor.`;
+      }
+      const to = destinationOf.get((decision.outcome as { containerId: string }).containerId);
+      if (!to || to.id === container.id) return null;
+      if (to.status === "ARRIVED") {
+        return can(actor.role, "container.amendArrived")
+          ? null
+          : `${decision.reference} cannot be moved onto ${to.reference} from your desk.`;
+      }
+      if (!can(actor.role, "container.amendArrived")) {
+        return `${decision.reference} cannot be taken off ${container.reference} from your desk.`;
+      }
+      const onward =
+        to.status === "OPEN" || to.status === "LOADING"
+          ? can(actor.role, "container.load")
+          : canAny(actor.role, ["container.load", "shipment.edit"]);
+      return onward
+        ? null
+        : `${decision.reference} cannot be put on ${to.reference} from your desk — that is the loading bay's.`;
+    })
+    .filter((message): message is string => message !== null);
+  if (blocked.length > 0) {
+    return {
+      error: `${container.reference} was not closed, and nothing has moved. ${blocked.join(" ")}`,
+      outstanding: outstanding.map((c) => c.reference),
+    };
+  }
 
   const moved: string[] = [];
   const reportedMissing: string[] = [];

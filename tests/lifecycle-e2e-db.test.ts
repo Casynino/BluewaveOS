@@ -20,8 +20,8 @@ import { Prisma, PrismaClient } from "@prisma/client";
   is loaded. Everything else is the real code against the real database.
 */
 const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test(\?|$)/.test(url)) {
-  throw new Error(`Refusing to run: DATABASE_URL must point at bluewave_test (got ${url || "nothing"}).`);
+if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
+  throw new Error(`Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`);
 }
 
 /* Uploaded photos land in a throwaway folder, never in the project or a blob store. */

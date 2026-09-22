@@ -17,8 +17,8 @@ import { PrismaClient } from "@prisma/client";
   against bluewave_test.
 */
 const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test(\?|$)/.test(url)) {
-  throw new Error(`Refusing to run: DATABASE_URL must point at bluewave_test (got ${url || "nothing"}).`);
+if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
+  throw new Error(`Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`);
 }
 
 const load = createRequire(import.meta.url);

@@ -20,6 +20,7 @@ import { ROLE_LABELS, SERVICE_LABEL } from "@/lib/constants";
 import { formatCurrency } from "@/lib/currency";
 import { formatCbm, formatDate, formatRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 import { primeLocale, T } from "@/lib/server-t";
@@ -66,11 +67,17 @@ function Facts({ items }: { items: [string, string | null | undefined][] }) {
  * no money for that reason — a quotation shows against a service request, which
  * is Support's and the office's work, and the collections China works do not
  * have one.
+ *
+ * `rate.view` is what decides that, not the role: the desks that quote are the
+ * ones that hold the rate book to quote from, and the floor holds neither. The
+ * figure was on the row for everybody who could open the screen while only the
+ * control that writes it was hidden, which is not a permission — the action
+ * itself asks the same question again.
  */
 export default async function RequestsPage() {
   await primeLocale();
   const viewer = await requirePermission("request.view");
-  const china = viewer.role === "CHINA_WAREHOUSE";
+  const mayQuote = can(viewer.role, "rate.view");
 
   const [quotes, pickups, bookings, staff] = await Promise.all([
     prisma.quoteRequest.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
@@ -299,7 +306,7 @@ export default async function RequestsPage() {
                           ],
                           [
                             "Quoted",
-                            booking.quotedAmount
+                            mayQuote && booking.quotedAmount
                               ? formatCurrency(booking.quotedAmount, booking.quotedCurrency)
                               : null,
                           ],
@@ -334,7 +341,7 @@ export default async function RequestsPage() {
                       staff={staffOptions}
                     />
                     <RequestFiles bookingId={booking.id} files={booking.documents} />
-                    {china ? null : (
+                    {mayQuote ? (
                       <>
                         <QuoteControl
                           id={booking.id}
@@ -356,7 +363,7 @@ export default async function RequestsPage() {
                           }
                         />
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </Card>
               </li>

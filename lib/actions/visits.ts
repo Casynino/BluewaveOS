@@ -9,7 +9,7 @@ import { generatePublicKey, nextVisitReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseAnyPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
-import { screenPublicRequest } from "@/lib/public-guard";
+import { screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
 import { can } from "@/lib/rbac";
 import { authorize, currentUser, type SessionUser } from "@/lib/session";
 
@@ -126,21 +126,25 @@ export async function submitVisitRequest(_prev: VisitState, formData: FormData):
   const screened = await screenPublicRequest(formData, input.contactPhone);
   if (screened) return screened;
 
-  /* A second press of Send is the same request, not a second trip. */
+  const customerId = await sessionCustomerId();
+
+  /* A second press of Send is the same request, not a second trip. The row it
+     finds was matched on a phone number and nothing else, so its key goes back
+     only to somebody the row already belongs to — see `statusKeyFor`. */
   const recent = await prisma.businessVisitRequest.findFirst({
     where: { contactPhone: input.contactPhone, createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) } },
-    select: { reference: true, publicKey: true },
+    select: { reference: true, publicKey: true, customerId: true },
     orderBy: { createdAt: "desc" },
   });
   if (recent) {
+    const key = statusKeyFor(recent, customerId);
     return {
       ok: `We already have this visit request. Your reference is ${recent.reference}.`,
       reference: recent.reference,
-      statusHref: statusHref(recent.reference, recent.publicKey),
+      ...(key ? { statusHref: statusHref(recent.reference, key) } : {}),
     };
   }
 
-  const customerId = await sessionCustomerId();
   const request = await prisma.$transaction(async (tx) => {
     const reference = await nextVisitReference(tx);
     const created = await tx.businessVisitRequest.create({

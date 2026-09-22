@@ -9,6 +9,7 @@ import { formDate } from "@/lib/dates";
 import { nextCustomerCode, shippingMarkFor } from "@/lib/ids";
 import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { formMessage } from "@/lib/safe-error";
 import { authorize, type SessionUser } from "@/lib/session";
 
@@ -84,9 +85,18 @@ export async function assignRequest(
   if (assignedToId) {
     const staff = await prisma.user.findFirst({
       where: { id: assignedToId, active: true, status: "ACTIVE" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, role: true },
     });
     if (!staff) return { error: "That member of staff is not on the system." };
+    /* The id arrives in a request body, and "active" is not the test the
+       sentence above this function promises. Without this the queue could be
+       handed to a customer's own portal login — an active account holding no
+       staff permission at all — and the board would read "assigned" over a
+       request nobody can open. The same check guards the three sibling queues
+       in visits.ts, sourcing.ts and tickets.ts. */
+    if (!can(staff.role, "request.view")) {
+      return { error: "That person cannot open the requests queue." };
+    }
   }
 
   const before =
@@ -229,6 +239,20 @@ export async function quoteServiceRequest(
   const gate = await desk("request.manage");
   if (!gate.actor) return { error: gate.error };
   const actor: SessionUser = gate.actor;
+
+  /*
+    THE FLOOR WORKS THE QUEUE; IT DOES NOT PRICE IT.
+
+    `request.manage` is Foshan's as well as the counter's, because a collection
+    in China is a China job — and that permission says nothing about money. A
+    figure typed here goes to the customer in a notification with the currency
+    beside it, which is the one thing the floor is deliberately never shown.
+    `rate.view` is the desks that hold the rate book to quote from: the
+    counter, Finance, the manager and the owner.
+  */
+  if (!can(actor.role, "rate.view")) {
+    return { error: "Quoting a request is the counter's, Finance's and the office's." };
+  }
 
   const id = String(formData.get("id") ?? "");
   const parsed = quoteSchema.safeParse({
