@@ -231,6 +231,18 @@ export default async function ContainerPage({
           canDepart={can(user.role, "container.depart")}
           canArrive={can(user.role, "container.arrive")}
           canClose={can(user.role, "container.close")}
+          sailing={(() => {
+            const due = expectedArrival(
+              container.shipment?.departureDate ?? null,
+              container.shipment?.eta ?? null
+            );
+            if (!due) return null;
+            return {
+              departed: formatDate(container.shipment?.departureDate) ?? null,
+              due: formatDate(due) ?? null,
+              late: !container.shipment?.actualArrival && due.getTime() < Date.now(),
+            };
+          })()}
         />
         {container.status === "CLOSED" ? (
           <p className="text-sm text-muted-foreground">

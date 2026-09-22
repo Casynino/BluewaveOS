@@ -31,6 +31,7 @@ import { formatCbm } from "@/lib/format";
 import { distinctMark } from "@/lib/customer-name";
 
 import { useT } from "@/components/app/locale-provider";
+import { cn } from "@/lib/utils";
 import { Tm, Tx } from "@/components/app/tx";
 type Waiting = {
   id: string;
@@ -316,7 +317,7 @@ const NEXT_STEP: Record<string, Step | null> = {
   DEPARTED: {
     to: "ARRIVED",
     heading: "At sea — on the way to Dar es Salaam",
-    body: "Press when the container is at Dar es Salaam port. The goods stay in transit for the customer until Dar checks each consignment in — that is their \"Arrived in Dar\" and the first day of free storage.",
+    body: "Press when the container has arrived in Dar es Salaam. Every consignment on it counts as arrived that day: each customer is told, and their free storage starts. Dar then checks the boxes in.",
     button: "The container has arrived in Dar",
     icon: <Anchor />,
     waiting: "Dar, Finance or Support records the arrival.",
@@ -324,7 +325,7 @@ const NEXT_STEP: Record<string, Step | null> = {
   IN_TRANSIT: {
     to: "ARRIVED",
     heading: "At sea — on the way to Dar es Salaam",
-    body: "Press when the container is at Dar es Salaam port. The goods stay in transit for the customer until Dar checks each consignment in — that is their \"Arrived in Dar\" and the first day of free storage.",
+    body: "Press when the container has arrived in Dar es Salaam. Every consignment on it counts as arrived that day: each customer is told, and their free storage starts. Dar then checks the boxes in.",
     button: "The container has arrived in Dar",
     icon: <Anchor />,
     waiting: "Dar, Finance or Support records the arrival.",
@@ -380,12 +381,15 @@ export function AdvancePanel({
   canDepart,
   canArrive,
   canClose,
+  sailing,
 }: {
   containerId: string;
   status: string;
   canDepart: boolean;
   canArrive: boolean;
   canClose: boolean;
+  /** Left China, due in Dar, and whether that day has gone by. */
+  sailing?: { departed: string | null; due: string | null; late: boolean } | null;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
@@ -411,6 +415,36 @@ export function AdvancePanel({
           {allowed ? tx(step.body) : tx(step.waiting)}
         </p>
       </div>
+
+      {/* THE DAY IT IS DUE, WHERE THE BOX IS BEING WORKED. Every desk reads the
+          same date the customer is reading, and a sailing past its day says so
+          rather than leaving somebody to count. */}
+      {sailing?.due ? (
+        <dl className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border bg-card px-4 py-3">
+          {sailing.departed ? (
+            <div>
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tx("Left China")}
+              </dt>
+              <dd className="tnum mt-0.5 text-sm font-medium">{sailing.departed}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {tx("Expected in Dar")}
+            </dt>
+            <dd className="tnum mt-0.5 text-sm font-medium">{sailing.due}</dd>
+          </div>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium",
+              sailing.late ? "bg-destructive/15 text-destructive" : "bg-brand/10 text-brand"
+            )}
+          >
+            {sailing.late ? tx("Delayed") : tx("Thirty-five days at sea")}
+          </span>
+        </dl>
+      ) : null}
       {allowed ? (
         /* ONE PRESS, NOT A FORM. The moment of the press is the date: the
            action takes now when no date is sent. */

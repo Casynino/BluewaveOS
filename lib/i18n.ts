@@ -6141,6 +6141,8 @@ const ZH: Record<string, string> = {
   "In transit — at Dar port": "运输中——在达累斯萨拉姆港",
   "At Dar es Salaam port — on its way to our warehouse": "在达累斯萨拉姆港——正运往我们的仓库",
   "Delayed at sea — later than expected": "海上延误——晚于预计时间",
+  "Thirty-five days at sea": "海上三十五天",
+  "Press when the container has arrived in Dar es Salaam. Every consignment on it counts as arrived that day: each customer is told, and their free storage starts. Dar then checks the boxes in.": "货柜抵达达累斯萨拉姆后点击。柜内每票货当天即视为已抵达：系统通知每位客户，免费仓储开始计算。随后达累斯萨拉姆仓库清点入库。",
   "Delayed — later than the thirty-five days this lane takes": "延误——超过本航线通常的三十五天",
   "Arrived in Dar es Salaam — being checked in at our warehouse": "已到达达累斯萨拉姆——正在仓库清点入库",
   "Being checked in at our warehouse": "正在仓库清点入库",
