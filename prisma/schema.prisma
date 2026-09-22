@@ -542,6 +542,15 @@ model Cargo {
   @@index([senderId, createdAt])
   @@index([receiverId, createdAt])
   @@index([deletedAt])
+  /// The floor list is every consignment at one stage, oldest touched first —
+  /// which is the order a warehouse works a shelf in. Without this the
+  /// database reads the whole table and sorts it to draw two hundred rows.
+  @@index([status, updatedAt])
+  /// A clerk's own intake, and the scan Postgres runs over every consignment
+  /// when a staff account is removed and this column has to be nulled.
+  @@index([createdById])
+  /// A supplier chasing a delivery nobody can name by reference.
+  @@index([supplierId])
 }
 
 /// One line of the consignment: a bale, a carton, a pallet. CBM is computed
@@ -723,6 +732,9 @@ model CargoPhoto {
   createdAt DateTime @default(now())
 
   @@index([cargoId, kind])
+  /// Evidence outlives the person who uploaded it, so removing a staff account
+  /// nulls this column across a table that only ever grows.
+  @@index([uploadedById])
 }
 
 /// Append-only. Every milestone the cargo passed, with who or what moved it.
@@ -744,6 +756,9 @@ model CargoStatusHistory {
   createdAt DateTime @default(now())
 
   @@index([cargoId, createdAt])
+  /// Append-only and unbounded. Nulling one departed clerk out of it was a
+  /// scan of every status change the company has ever recorded.
+  @@index([actorId])
 }
 
 // ---------------------------------------------------------------------------
@@ -786,6 +801,9 @@ model ChinaReceiving {
   updatedAt DateTime @updatedAt
 
   @@index([receivedAt])
+  /// Nulled across every receiving the Foshan counter ever wrote when the
+  /// clerk who wrote them leaves.
+  @@index([receivedById])
 }
 
 model DarReceiving {
@@ -833,6 +851,8 @@ model DarReceiving {
   @@index([containerId])
   @@index([receivedAt])
   @@index([discrepancy, verified])
+  /// As on the China side.
+  @@index([receivedById])
 }
 
 /// BlueWave Cargo's signature that the boxes were received in Foshan. Printable,
@@ -1181,6 +1201,8 @@ model CustomerRate {
   updatedAt DateTime @updatedAt
 
   @@index([customerId, active])
+  /// Republishing a book rate carries its agreed children onto the new row.
+  @@index([shippingRateId])
 }
 
 /// USD → TZS on a given day. An invoice pins the row it used; nothing ever
@@ -1312,6 +1334,8 @@ model Invoice {
   @@index([cargoId, status])
   @@index([status, issuedAt])
   @@index([status, createdAt])
+  /// Who issued it, and the scan that follows their account being removed.
+  @@index([issuedById])
 }
 
 model InvoiceItem {
@@ -1467,6 +1491,9 @@ model Payment {
   @@index([status, verifiedAt])
   @@index([writeOffOfId])
   @@index([recordedById])
+  /// Recorded is already indexed; verified is the other signature on the row,
+  /// and the one an audit reads by.
+  @@index([verifiedById])
 }
 
 model PaymentProof {
@@ -1636,6 +1663,9 @@ model ContainerExpense {
   @@index([deletedAt, createdAt])
   @@index([expenseDate])
   @@index([billedCustomerId])
+  /// The cost report adds a sailing up by what was bought and from whom.
+  @@index([expenseTypeId])
+  @@index([vendorId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1995,6 +2025,8 @@ model Conversation {
 
   @@index([status, lastMessageAt])
   @@index([customerId, lastMessageAt])
+  /// Support opens a consignment and asks what has been said about it.
+  @@index([cargoId])
 }
 
 model Message {
@@ -2277,6 +2309,9 @@ model PickupRequest {
   @@index([status, createdAt])
   @@index([customerId])
   @@index([assignedToId, status])
+  /// The only thread between a promise typed on the website and the boxes it
+  /// turned into, followed from the consignment's own page.
+  @@index([cargoId])
 }
 
 /// A file hung on a website request: a proforma the customer sent in, a photo
@@ -2717,6 +2752,10 @@ model FieldChange {
   createdAt DateTime @default(now())
 
   @@index([entity, entityId, createdAt])
+  /// Append-only and unbounded — every corrected weight the company has ever
+  /// recorded. Removing one clerk's account nulled this column across all of
+  /// it, a row at a time.
+  @@index([actorId])
 }
 
 /**
