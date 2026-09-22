@@ -370,14 +370,14 @@ export default async function HomePage() {
             <span className="text-bw-cyan">07</span> / Arrive in Tanzania
           </Label>
           <h2 id="arrive" className="bw-display mt-5 max-w-3xl text-[clamp(2.4rem,5.5vw,4.8rem)] uppercase">
-            Cleared, counted and ready in Kariakoo
+            Arrived, counted and ready in Dar es Salaam
           </h2>
           <ol className="mt-10 grid gap-px overflow-hidden rounded-[3px] bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Arrive", "The container lands at Dar es Salaam port."],
-              ["Clear", "Customs is handled; your cargo comes to our warehouse and is counted again."],
+              ["Arrive", "Your cargo is checked in at our Dar warehouse and counted again. Free storage starts that day."],
               ["Pay", "Your invoice in shillings, at the rate of the day it is issued."],
-              ["Collect", "Pickup note in your account; bring your ID to Kariakoo."],
+              ["Ready", "Once payment is confirmed your pickup note is issued and we tell you it is ready."],
+              ["Collect", "Bring your ID and pickup note to our Dar es Salaam warehouse."],
             ].map(([title, body]) => (
               <li key={title} className="bg-bw-night/70 p-5">
                 <p className="font-bw-display text-2xl font-semibold uppercase">{title}</p>

@@ -35,13 +35,11 @@ export const revalidate = 300;
 /* The stages a result shows, named once for somebody without a reference yet.
    The result page draws the same rail from the cargo's own record. */
 const STAGES = [
-  ["Received", "Foshan warehouse"],
-  ["Loaded", "Into a container"],
-  ["At sea", "Foshan → Dar es Salaam"],
-  ["Arrived", "Dar es Salaam port"],
-  ["Clearance", "Customs"],
-  ["Invoice", "Amount and where to pay"],
-  ["Ready", "For collection"],
+  ["Received in China", "Foshan warehouse"],
+  ["Stored in China", "Assigned to a container"],
+  ["In transit", "Foshan → Dar es Salaam"],
+  ["Arrived in Dar", "Checked in at our warehouse"],
+  ["Ready for pickup", "Paid, pickup note issued"],
   ["Collected", "Handed over to you"],
 ] as const;
 
@@ -71,7 +69,7 @@ export default async function TrackPage() {
               {[
                 ["China warehouse", "Received, stored, loaded"],
                 ["At sea", `About ${days} days`],
-                ["Dar es Salaam", "Arrived, cleared, ready"],
+                ["Dar es Salaam", "Arrived, ready, collected"],
               ].map(([title, note], i) => (
                 <div key={title} className="min-w-0">
                   <p className="bw-mono text-[0.68rem] text-bw-cyan">{String(i + 1).padStart(2, "0")}</p>

@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "How it works — China to Tanzania cargo, step by step",
   description:
-    "How sea cargo moves from your supplier in China to Dar es Salaam: our Foshan warehouse, weekly container shipping, arrival and clearance in Dar es Salaam, invoice, payment and collection in Kariakoo.",
+    "How sea cargo moves from your supplier in China to Dar es Salaam: our Foshan warehouse, weekly container shipping, arrival at our Dar es Salaam warehouse, invoice, payment and collection.",
   alternates: { canonical: "/how-it-works" },
   openGraph: {
     title: "How BlueWave Cargo works — China to Tanzania, step by step",
     description:
-      "Supplier to Foshan warehouse, container to Dar es Salaam, clearance, invoice and collection — what we do and what you do at every step.",
+      "Supplier to Foshan warehouse, container to Dar es Salaam, arrival, invoice and collection — what we do and what you do at every step.",
   },
 };
 
@@ -140,15 +140,9 @@ export default async function HowItWorksPage() {
           we: [
             "Bring the container from the port to our warehouse.",
             "Count your cargo again and compare it with the figures taken in Foshan. Both counts are kept.",
+            "Check it in on our warehouse floor. That is the day it counts as arrived, and free storage starts.",
           ],
-          you: ["Nothing yet — tracking shows when your cargo has arrived."],
-        },
-        {
-          place: "Dar es Salaam",
-          title: "Clearance",
-          kind: "clearance",
-          we: ["Take the cargo through customs clearance at Dar es Salaam."],
-          you: ["Keep your phone on. If the office needs anything from you, they will call."],
+          you: ["Nothing yet — we tell you the day your cargo has arrived."],
         },
         {
           place: "Office",
@@ -184,15 +178,15 @@ export default async function HowItWorksPage() {
           you: ["Receive the pickup note in your account and bring it with you."],
         },
         {
-          place: "Kariakoo",
+          place: "Dar es Salaam",
           title: "Collect your cargo",
           kind: "customer",
           we: [
             "Check the pickup note and your ID.",
             "Scan every box out against your consignment, so nothing leaves that is not yours and nothing of yours is left behind.",
           ],
-          you: ["Come to our warehouse in Kariakoo with your ID and pickup note."],
-          links: [["/contact", "Office address"]],
+          you: ["Come to our Dar es Salaam warehouse with your ID and pickup note once we tell you it is ready."],
+          links: [["/contact#dar-warehouse", "Warehouse address"]],
         },
       ],
     },
@@ -303,7 +297,7 @@ export default async function HowItWorksPage() {
                   "Check your invoice",
                   "Pay only to the accounts on the invoice",
                   "Receive your pickup note",
-                  "Collect in Kariakoo with your ID",
+                  "Collect at our Dar warehouse with your ID",
                 ],
               },
             ].map((stage) => (

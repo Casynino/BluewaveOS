@@ -10,9 +10,8 @@ export function corridorStations(transitDays: number): Station[] {
     { kind: "warehouse", place: "Foshan", title: "BlueWave warehouse", body: "Counted, weighed, measured and photographed. Every package gets its own reference and QR." },
     { kind: "loading", place: "Foshan", title: "Container loading", body: "Loose cargo shares a container; each consignment stays traceable on its own." },
     { kind: "sea", place: "Indian Ocean", title: "At sea", body: `About ${transitDays} days from departure to Dar es Salaam.` },
-    { kind: "port", place: "Dar es Salaam", title: "Arrival", body: "Container discharged; your cargo is counted again against the China figures." },
-    { kind: "clearance", place: "Dar es Salaam", title: "Clearance", body: "Customs handled through arrival, then into our warehouse." },
-    { kind: "customer", place: "Kariakoo", title: "You collect", body: "Pay the invoice, receive your pickup note, collect with your ID." },
+    { kind: "port", place: "Dar es Salaam", title: "Arrived in Dar", body: "Checked in at our Dar warehouse and counted again against the China figures. Free storage starts that day." },
+    { kind: "customer", place: "Dar es Salaam", title: "You collect", body: "Pay the invoice, receive your pickup note, collect with your ID." },
   ];
 }
 

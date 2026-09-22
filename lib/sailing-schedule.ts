@@ -88,7 +88,7 @@ export type Sailing = {
 
 /** The sentence that must sit under every arrival date on a public screen. */
 export const ARRIVAL_CAVEAT =
-  "Estimated arrival — subject to shipping, port, customs and clearance conditions.";
+  "Estimated arrival — subject to shipping and port conditions.";
 
 function utcMidnight(value: Date): Date {
   return new Date(

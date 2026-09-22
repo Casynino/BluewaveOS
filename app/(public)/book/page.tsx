@@ -141,7 +141,7 @@ export default async function Page({
                   ["We call you", "The office reads your request and rings or messages you on the number you gave."],
                   ["Space and price", "We confirm room on the sailing and the price from our rate book."],
                   ["Goods to Foshan", "Your supplier delivers to our warehouse — or we collect — before receiving closes."],
-                  ["Counted and tracked", "Each package gets a reference you can track until you collect in Kariakoo."],
+                  ["Counted and tracked", "Each package gets a reference you can track until you collect it in Dar es Salaam."],
                 ]}
               />
             </ReqBlock>

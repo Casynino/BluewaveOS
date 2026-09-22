@@ -58,7 +58,7 @@ export const NAV: NavGroup[] = [
     label: "BlueWave",
     intro: "The company behind the journey.",
     links: [
-      { href: "/how-it-works", label: "How it works", note: "China to Kariakoo, step by step" },
+      { href: "/how-it-works", label: "How it works", note: "China to Dar es Salaam, step by step" },
       { href: "/about", label: "About BlueWave", note: "Who we are, both offices" },
       { href: "/contact", label: "Contact", note: "Dar es Salaam and Foshan" },
     ],

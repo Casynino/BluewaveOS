@@ -312,7 +312,7 @@ export default async function ServicesPage() {
                 <h3 className="mt-3 font-bw-display text-3xl font-semibold uppercase text-bw-fg">Clearance through arrival</h3>
                 <p className="mt-3 leading-relaxed text-bw-muted">
                   Your cargo is cleared as part of its arrival. After that it is counted again against the Foshan figures
-                  and waits in our warehouse in Kariakoo for you.
+                  and waits in our Dar es Salaam warehouse for you.
                 </p>
                 {freeDays ? (
                   <p className="bw-mono mt-5 inline-block border border-bw-line bg-bw-panel px-3 py-2 text-xs uppercase tracking-[0.14em] text-bw-fg">

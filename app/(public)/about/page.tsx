@@ -88,11 +88,11 @@ export default async function AboutPage() {
             <div className="mt-8 max-w-2xl space-y-5 text-xl leading-relaxed text-bw-fg">
               <p>
                 {company.name} runs one route: China to Tanzania by sea. Our warehouse in Nanhai, Foshan receives your
-                goods from your suppliers. A container leaves every week for Dar es Salaam. Our office in Kariakoo hands
+                goods from your suppliers. A container leaves every week for Dar es Salaam, where our warehouse hands
                 the cargo over to you.
               </p>
               <p className="text-bw-muted">
-                Because the same company holds the goods from the Foshan door to the Kariakoo counter, there is one
+                Because the same company holds the goods from the Foshan door to the Dar es Salaam counter, there is one
                 reference, one set of figures and one office to call — not a chain of agents passing your cartons along.
               </p>
             </div>
@@ -153,7 +153,7 @@ export default async function AboutPage() {
               alt="Ship-to-shore cranes over a container terminal"
               code="TZ · Dar es Salaam"
               title="Office & warehouse"
-              lines={["Kariakoo, Dar es Salaam", "Arrival, recount, clearance", "Invoices, payments, collection"]}
+              lines={["Dar es Salaam", "Arrival, recount, storage", "Invoices, payments, collection"]}
             />
           </div>
         </Frame>

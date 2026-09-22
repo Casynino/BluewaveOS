@@ -169,7 +169,7 @@ export default async function SchedulePage() {
             <Step
               n="03"
               title="Estimated arrival"
-              body={`About ${transitDays} days at sea later it reaches Dar es Salaam. Then clearance, and your goods are ready to collect in Kariakoo.`}
+              body={`About ${transitDays} days at sea later it reaches Dar es Salaam. Then it is checked in at our Dar warehouse, and once it is paid your goods are ready for pickup.`}
               example={next ? `≈ ${DAY_MONTH.format(next.estimatedArrival)}` : null}
             />
           </ol>
