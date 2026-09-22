@@ -140,6 +140,8 @@ async function main() {
         vrn: process.env.COMPANY_VRN?.trim() || COMPANY.vrn,
         vatPercent: COMPANY.vatPercent,
         freeStorageDays: COMPANY.freeStorageDays,
+        storagePerDay: COMPANY.storagePerDay,
+        storageCurrency: COMPANY.storageCurrency,
         instagram: COMPANY.instagram,
         invoiceTerms: COMPANY.invoiceTerms,
       },

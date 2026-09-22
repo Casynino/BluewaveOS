@@ -33,10 +33,19 @@ export const COMPANY = {
   /** The company's invoice shows VAT at 0%. Changed in settings when that changes. */
   vatPercent: 0,
   freeStorageDays: 7,
+  /* What a day on the Dar floor costs once the free week is up. Printed on
+     every bill as the storage policy; changed in settings, not here. */
+  storagePerDay: 5,
+  storageCurrency: "USD",
   instagram: "bluewave_cargo",
+  /* The four the company prints, in its own order. VAT is not among them
+     while the company's rate is nil — a bill that names a tax it does not
+     charge is a bill somebody will argue with. */
   invoiceTerms: [
-    "Invoice must be paid within 48 hours.",
-    "All payments must be through our bank accounts or cash.",
+    "All payments must be made to our official bank account within 48-72 hours.",
+    "The invoice total includes customs, shipping and clearing charges.",
+    "Any USD rate change before payment will require a revised invoice.",
+    "Complaints must be raised within 24 hours of invoice issuance.",
   ].join("\n"),
 };
 
