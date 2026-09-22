@@ -6141,9 +6141,9 @@ const ZH: Record<string, string> = {
   "In transit — at Dar port": "运输中——在达累斯萨拉姆港",
   "At Dar es Salaam port — on its way to our warehouse": "在达累斯萨拉姆港——正运往我们的仓库",
   "Delayed at sea — later than expected": "海上延误——晚于预计时间",
-  "Thirty-five days at sea": "海上三十五天",
+  "35 days at sea": "海上35天",
   "Press when the container has arrived in Dar es Salaam. Every consignment on it counts as arrived that day: each customer is told, and their free storage starts. Dar then checks the boxes in.": "货柜抵达达累斯萨拉姆后点击。柜内每票货当天即视为已抵达：系统通知每位客户，免费仓储开始计算。随后达累斯萨拉姆仓库清点入库。",
-  "Delayed — later than the thirty-five days this lane takes": "延误——超过本航线通常的三十五天",
+  "Delayed — later than the 35 days at sea": "延误——超过海上35天",
   "Arrived in Dar es Salaam — being checked in at our warehouse": "已到达达累斯萨拉姆——正在仓库清点入库",
   "Being checked in at our warehouse": "正在仓库清点入库",
   "Your cargo has arrived in Dar es Salaam and is being checked in at our warehouse. Free storage started the day it arrived.": "您的货物已到达达累斯萨拉姆，正在仓库清点入库。免费仓储从到达当天开始计算。",
@@ -7941,8 +7941,8 @@ const ZH: Record<string, string> = {
     "航次由佛山修改——订舱的岗位。",
   "Expected in Dar": "预计到达达城",
   "thirty-five days after it left": "开航后三十五天",
-  "Left blank, this sailing is due {date} — thirty-five days after it leaves China.":
-    "不填则本航次预计 {date} 到港——离开中国后三十五天。",
+  "Left blank, this sailing is due {date} — 35 days at sea.":
+    "不填则本航次预计 {date} 到港——海上35天。",
   "Thirty-five days after departure, once there is a departure to count from.":
     "自开航日起三十五天，前提是已有开航日。",
   "This sailing is past the day it was due and the box is still at sea. The customers on it are being told it is delayed.":

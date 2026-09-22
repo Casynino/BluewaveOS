@@ -586,7 +586,7 @@ export function publicJourney(input: JourneyInput): Journey {
       label: "In transit",
       /* The expected day is printed by the page beside this step; only a date
          that has already gone by, or the last leg, needs words. */
-      detail: late ? "Delayed — later than the thirty-five days this lane takes" : null,
+      detail: late ? "Delayed — later than the 35 days at sea" : null,
       at: departedAt,
       atLabel: "Left China",
     },

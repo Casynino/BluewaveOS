@@ -441,7 +441,7 @@ export function AdvancePanel({
               sailing.late ? "bg-destructive/15 text-destructive" : "bg-brand/10 text-brand"
             )}
           >
-            {sailing.late ? tx("Delayed") : tx("Thirty-five days at sea")}
+            {sailing.late ? tx("Delayed") : tx("35 days at sea")}
           </span>
         </dl>
       ) : null}
@@ -612,7 +612,7 @@ export function VoyageForm({
               date to "make sure", which is how an estimate becomes a promise. */}
           {etaDefault ? (
             <p className="tnum text-xs text-muted-foreground">
-              {tx("Left blank, this sailing is due {date} — thirty-five days after it leaves China.").replace("{date}", etaDefault)}
+              {tx("Left blank, this sailing is due {date} — 35 days at sea.").replace("{date}", etaDefault)}
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
