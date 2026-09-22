@@ -49,6 +49,46 @@ export function unitOfBasis(basis: string | null | undefined): RateUnit | null {
   }
 }
 
+/**
+ * THE FOUR MEASURES A LINE MAY CHOOSE FOR ITSELF.
+ *
+ * The rate book sets a cargo type's measure, and a line may take a different
+ * one (CargoPackage.chargeUnit). Flat is not among them: a flat rate is a price
+ * for a consignment, not a way of measuring goods.
+ */
+export const LINE_UNITS = ["CBM", "TONNE", "PIECE", "BALE"] as const;
+export type LineBasis = "PER_CBM" | "PER_KG" | "PER_PIECE" | "PER_BALE";
+
+/** The English for each measure on a line; screens pass it through t(). */
+export const LINE_UNIT_LABEL: Record<RateUnit, string> = {
+  CBM: "CBM",
+  TONNE: "Tonne",
+  PIECE: "Piece",
+  BALE: "Bale",
+};
+
+export function basisOfUnit(unit: string | null | undefined): LineBasis | null {
+  switch (unit) {
+    case "CBM":
+      return "PER_CBM";
+    case "TONNE":
+      return "PER_KG";
+    case "PIECE":
+      return "PER_PIECE";
+    case "BALE":
+      return "PER_BALE";
+    default:
+      return null;
+  }
+}
+
+/** A stored chargeUnit, or null when it is not one a line may carry. */
+export function lineBasis(value: string | null | undefined): LineBasis | null {
+  return value === "PER_CBM" || value === "PER_KG" || value === "PER_PIECE" || value === "PER_BALE"
+    ? value
+    : null;
+}
+
 export function entryOfBasis(basis: string | null | undefined): RateEntry {
   switch (basis) {
     case "PER_KG":

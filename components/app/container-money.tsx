@@ -458,15 +458,19 @@ export async function ContainerMoney({
         }
         const w = waiting.get(c.id);
         if (!w || !mayConfirm) return null;
+        /* Blocked only for want of a rate in the unit its lines chose: the
+           dialog asks for that rate. */
+        const gap = w.blockedReason ? w.needsRate : null;
         return {
           standardRate: w.standardRate === null ? null : Number(w.standardRate),
           agreedRate: w.agreed && w.rate !== null ? Number(w.rate) : null,
           bookBasis: w.bookBasis,
-          basis: w.basis,
+          basis: gap ? gap.basis : w.basis,
           cbm: w.billableCbm === null ? null : Number(w.billableCbm),
           weightKg: w.weightKg === null ? null : Number(w.weightKg),
-          units: w.units === null ? null : Number(w.units),
-          freight: Number(w.freight),
+          units: gap ? Number(gap.units) : w.units === null ? null : Number(w.units),
+          rateNeeded: !!gap,
+          freight: gap ? Number(gap.freight) : Number(w.freight),
           extra: Number(w.extra),
           discount: Number(w.discountOff),
         };

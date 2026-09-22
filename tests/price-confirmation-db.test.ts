@@ -570,3 +570,185 @@ describe("the price for one cargo, set from the row", () => {
     });
   });
 });
+
+describe("a line charged by a measure the book does not price", () => {
+  test("is named, takes the rate typed on the row, keeps it through a re-count, and issues at it", async () => {
+    await inRollback(async (tx) => {
+      await rateBook(tx);
+      const me = await actor(tx);
+      const { cargo } = await darCargo(tx, "UNIT1", { cargoType: "TEST Shoes", cbm: "2" });
+      /* The helper's line stays on the book's measure: 2 CBM at 400. A second
+         line of the same goods goes by the bale, which the book has no price for. */
+      const bales = await tx.cargoPackage.create({
+        data: {
+          cargoId: cargo.id,
+          reference: "TEST-UNIT1-P2",
+          packageType: "BALE",
+          quantity: 12,
+          cbm: new Prisma.Decimal("1.5"),
+          cargoType: "TEST Shoes",
+          chargeUnit: "PER_BALE",
+        },
+      });
+
+      const list = await listLib.priceListFor({ id: cargo.id }, tx);
+      const row = list.rows[0];
+      assert.equal(
+        row.blockedReason,
+        'TEST-UNIT1-P2: "TEST Shoes" is charged by the bale on this line and the rate book has no per-bale price — enter the rate on the price list.'
+      );
+      assert.deepEqual(row.needsRate, { basis: "PER_BALE", units: "12", freight: "800" });
+      assert.deepEqual(row.lineUnits, ["PER_BALE"]);
+
+      /* Confirming before anybody types the rate blocks this row alone. */
+      const ctx = await lib.confirmContext(7, tx);
+      assert.ok(ctx, "a live exchange rate");
+      assert.equal((await lib.confirmCargoPrice(tx, me, cargo.id, ctx)).kind, "blocked");
+
+      const saved = await lib.setWaitingPrice(tx, me, {
+        cargoId: cargo.id,
+        basis: "PER_BALE",
+        rate: new Prisma.Decimal(40),
+        freight: null,
+        extra: null,
+        discount: null,
+        reason: "Agreed per bale",
+      });
+      assert.equal(saved.total.toString(), (await withVat(tx, "1280")).toString());
+
+      const draft = await tx.invoice.findFirstOrThrow({
+        where: { cargoId: cargo.id },
+        include: { items: true },
+      });
+      assert.equal(draft.status, "DRAFT");
+      assert.equal(draft.appliedRate?.toString(), "40");
+      assert.equal(draft.standardRate, null, "the book has no figure for a bale of these");
+      assert.equal(draft.rateBasis, "PER_BALE");
+      /* Line by line, never collapsed: 2 CBM × 400 and 12 bales × 40. */
+      assert.deepEqual(
+        draft.items
+          .map((i) => [i.unit, i.quantity.toString(), i.unitPrice.toString(), i.amount.toString()])
+          .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        [
+          ["bale", "12", "40", "480"],
+          ["CBM", "2", "400", "800"],
+        ]
+      );
+      assert.ok(
+        await tx.fieldChange.findFirst({
+          where: {
+            entityId: draft.id,
+            field: "appliedRate",
+            oldValue: "none: the rate book has no price per bale",
+            newValue: "40",
+            actorId: me.id,
+          },
+        }),
+        "the rate is recorded, the old value first"
+      );
+
+      /* Dar finds two more bales: the draft re-prices at the rate typed. */
+      await tx.cargoPackage.update({ where: { id: bales.id }, data: { quantity: 14 } });
+      const recount = await import("@/lib/invoice-reprice").then((m) =>
+        m.repriceDraftInvoices(tx, me, cargo.id, "Two more bales")
+      );
+      assert.equal(recount.blocked, null);
+      const recounted = await tx.invoice.findFirstOrThrow({ where: { id: draft.id } });
+      assert.equal(recounted.subtotal.toString(), "1360");
+      assert.equal(recounted.appliedRate?.toString(), "40");
+
+      const issued = await lib.confirmCargoPrice(tx, me, cargo.id, ctx);
+      assert.equal(issued.kind, "issued");
+      const bill = await tx.invoice.findFirstOrThrow({ where: { id: draft.id } });
+      assert.equal(bill.status, "ISSUED");
+      assert.equal(bill.total.toString(), (await withVat(tx, "1360")).toString());
+
+      /* An issued bill is not moved by a later change of measure. */
+      await tx.cargoPackage.update({ where: { id: bales.id }, data: { chargeUnit: null } });
+      const late = await import("@/lib/invoice-reprice").then((m) =>
+        m.repriceDraftInvoices(tx, me, cargo.id, "Measure changed back")
+      );
+      assert.deepEqual(late.repriced, []);
+      const still = await tx.invoice.findFirstOrThrow({ where: { id: draft.id } });
+      assert.equal(still.total.toString(), bill.total.toString());
+    });
+  });
+});
+
+describe("Dar changing a line's measure", () => {
+  test("is recorded old value first and re-prices a draft like any line correction", async () => {
+    await inRollback(async (tx) => {
+      await rateBook(tx);
+      /* The book prices these goods by the bale too, so the change prices. */
+      await tx.shippingRate.create({
+        data: {
+          service: "LCL",
+          cargoType: "TEST Clothes",
+          basis: "PER_BALE",
+          rate: new Prisma.Decimal(25),
+          effectiveFrom: new Date(Date.now() - 120_000),
+        },
+      });
+      await tx.shippingRate.create({
+        data: {
+          service: "LCL",
+          cargoType: "TEST Clothes",
+          basis: "PER_CBM",
+          rate: new Prisma.Decimal(300),
+          effectiveFrom: new Date(Date.now() - 60_000),
+        },
+      });
+      const finance = await actor(tx);
+      const darUser = await tx.user.findFirst({ where: { role: "DAR_WAREHOUSE" } });
+      assert.ok(darUser, "needs a Dar user");
+      const dar = { ...finance, id: darUser.id, name: darUser.name, email: darUser.email, role: darUser.role, department: darUser.department, warehouseId: darUser.warehouseId };
+      const { cargo } = await darCargo(tx, "UNIT2", { cargoType: "TEST Clothes", cbm: "2" });
+
+      const raised = await lib.priceWaitingCargo(tx, finance, cargo.id, {
+        reason: "test",
+        keepAgreedRate: true,
+      });
+      assert.equal(raised.kind, "raised");
+      const draft = await tx.invoice.findFirstOrThrow({ where: { cargoId: cargo.id } });
+      assert.equal(draft.subtotal.toString(), "600", "2 CBM at the newest rate, 300");
+
+      const line = await tx.cargoPackage.findFirstOrThrow({ where: { cargoId: cargo.id } });
+      const corrections = await import("@/lib/cargo-corrections");
+      const done = await corrections.applyPackageLine(tx, dar, {
+        cargoId: cargo.id,
+        packageId: line.id,
+        packageType: "BALE",
+        cargoType: "TEST Clothes",
+        description: null,
+        quantity: 2,
+        unit: "CM",
+        length: null,
+        width: null,
+        height: null,
+        weightKg: null,
+        cbm: 2,
+        balerNumber: null,
+        chargeUnit: "PER_BALE",
+        reason: "Customer's clothes go by the bale",
+      });
+      assert.equal(done.measurementMoved, true);
+      assert.ok(
+        await tx.fieldChange.findFirst({
+          where: { entityId: line.id, field: "chargeUnit", oldValue: null, newValue: "PER_BALE" },
+        })
+      );
+
+      /* Only the newest rate for a type is a candidate, and it is per CBM:
+         the older per-bale row does not price the line. */
+      const blocked = await (await import("@/lib/invoice-reprice")).repriceDraftInvoices(
+        tx,
+        dar,
+        cargo.id,
+        "Measure changed"
+      );
+      assert.match(blocked.blocked ?? "", /no per-bale price/);
+      const untouched = await tx.invoice.findFirstOrThrow({ where: { id: draft.id } });
+      assert.equal(untouched.subtotal.toString(), "600", "a blocked re-price leaves the draft as it was");
+    });
+  });
+});

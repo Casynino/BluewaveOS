@@ -190,3 +190,183 @@ describe("the receiving counter, for goods charged per piece", () => {
     assert.equal(readIntakeLines(form("")).error, undefined);
   });
 });
+
+/**
+ * A line that chose its own measure — the old system's "Quantity Measure" per
+ * item. Priced only by a rate in that measure; otherwise held and named.
+ */
+describe("a line charged by its own measure", () => {
+  test("in the book's own unit is priced as the book says", () => {
+    const v = valueWith(book, [
+      line({ cargoType: "Used clothes", quantity: 5, chargeUnit: "PER_BALE" }),
+      line({ reference: "P2", cargoType: "Shoes", cbm: D("2"), chargeUnit: "PER_CBM" }),
+    ]);
+    assert.equal(v.lines[0].blocked, null);
+    assert.equal(v.lines[0].amount.toFixed(2), "60.00");
+    assert.equal(v.lines[0].chargeUnit, "PER_BALE");
+    assert.equal(v.lines[1].amount.toFixed(2), "700.00");
+    assert.equal(v.unpriced, 0);
+  });
+
+  test("in a unit the book has no price in is blocked, with the reason", () => {
+    const v = valueWith(book, [
+      line({ cargoType: "Shoes", quantity: 12, cbm: D("3"), chargeUnit: "PER_BALE" }),
+    ]);
+    assert.equal(
+      v.lines[0].blocked,
+      '"Shoes" is charged by the bale on this line and the rate book has no per-bale price — enter the rate on the price list.'
+    );
+    assert.equal(v.lines[0].rate, null);
+    assert.equal(v.lines[0].unit, "PER_BALE");
+    assert.equal(v.lines[0].rateUnitMissing, "PER_BALE");
+    assert.equal(v.lines[0].amount.toFixed(2), "0.00");
+    assert.equal(v.unpriced, 1);
+  });
+
+  test("never borrows the general rate for goods priced in another unit", () => {
+    const withGeneral = {
+      ...book,
+      rates: [...book.rates, { cargoType: null, rate: D(5), basis: "PER_BALE", currency: "USD" }],
+    };
+    const v = valueWith(withGeneral, [
+      line({ cargoType: "Shoes", quantity: 12, chargeUnit: "PER_BALE" }),
+      /* A type the book has not banded takes the general rate, in its unit. */
+      line({ reference: "P2", cargoType: "Toys", quantity: 3, chargeUnit: "PER_BALE" }),
+      line({ reference: "P3", cargoType: "Toys", chargeUnit: "PER_PIECE", pieces: 9 }),
+    ]);
+    assert.match(v.lines[0].blocked ?? "", /no per-bale price/);
+    assert.equal(v.lines[1].blocked, null);
+    assert.equal(v.lines[1].amount.toFixed(2), "15.00");
+    assert.match(v.lines[2].blocked ?? "", /"Toys" is charged by the piece on this line/);
+  });
+
+  test("a rate typed for that unit prices those lines, and only those", () => {
+    const v = valueWith(
+      book,
+      [
+        line({ cargoType: "Shoes", quantity: 12, chargeUnit: "PER_BALE" }),
+        line({ reference: "P2", cargoType: "Shoes", cbm: D("2") }),
+        line({ reference: "P3", cargoType: "Used clothes", quantity: 2 }),
+      ],
+      { basis: "PER_BALE", rate: D(40) }
+    );
+    assert.equal(v.lines[0].blocked, null);
+    assert.equal(v.lines[0].typedRate, true);
+    assert.equal(v.lines[0].amount.toFixed(2), "480.00");
+    /* The book's own lines keep the book's rate, including a per-bale one. */
+    assert.equal(v.lines[1].amount.toFixed(2), "700.00");
+    assert.equal(v.lines[2].typedRate, false);
+    assert.equal(v.lines[2].amount.toFixed(2), "24.00");
+    assert.equal(v.subtotal.toFixed(2), "1204.00");
+  });
+
+  test("a rate typed in another unit does not reach the line", () => {
+    const v = valueWith(
+      book,
+      [line({ cargoType: "Shoes", quantity: 12, chargeUnit: "PER_BALE" })],
+      { basis: "PER_PIECE", rate: D(40) }
+    );
+    assert.match(v.lines[0].blocked ?? "", /no per-bale price/);
+  });
+
+  test("an agreed rate comes first, when it is in the line's unit", () => {
+    const agreedBook = {
+      rates: book.rates,
+      agreed: [
+        { cargoType: "Shoes", rate: D(300), basis: "PER_CBM", currency: "USD" },
+        { cargoType: "Used clothes", rate: D(10), basis: "PER_CBM", currency: "USD" },
+      ],
+    };
+    const v = valueWith(agreedBook, [
+      line({ cargoType: "Shoes", cbm: D("2"), chargeUnit: "PER_CBM" }),
+      /* Agreed per CBM, published per bale: a bale line takes the published. */
+      line({ reference: "P2", cargoType: "Used clothes", quantity: 4, chargeUnit: "PER_BALE" }),
+      /* No choice of its own: the agreed rate, as it always was. */
+      line({ reference: "P3", cargoType: "Used clothes", cbm: D("2") }),
+    ]);
+    assert.equal(v.lines[0].rate?.toString(), "300");
+    assert.equal(v.lines[0].amount.toFixed(2), "600.00");
+    assert.equal(v.lines[1].rate?.toString(), "12");
+    assert.equal(v.lines[1].amount.toFixed(2), "48.00");
+    assert.equal(v.lines[2].basis, "PER_CBM");
+    assert.equal(v.lines[2].amount.toFixed(2), "20.00");
+  });
+
+  test("by the tonne multiplies the kilos", () => {
+    const v = valueWith(book, [
+      line({ cargoType: "Bolt and Nuts", weightKg: D("1200"), chargeUnit: "PER_KG" }),
+    ]);
+    assert.equal(v.lines[0].amount.toFixed(2), "600.00");
+  });
+});
+
+describe("the receiving counter, with a measure per line", () => {
+  const form = (row: Record<string, string>) => {
+    const data = new FormData();
+    const fields: Record<string, string> = {
+      itemDescription: "Clothes",
+      itemDescriptionZh: "",
+      itemCargoType: "Shoes",
+      itemChargeUnit: "",
+      itemCbm: "0.5",
+      itemPackageType: "CARTON",
+      itemQuantity: "12",
+      itemPieces: "",
+      itemWeightKg: "",
+      itemReceiptNo: "0008",
+      ...row,
+    };
+    for (const [k, v] of Object.entries(fields)) data.append(k, v);
+    return data;
+  };
+  const units = { "Smart Mobile Phones": "PIECE" as const, Shoes: "CBM" as const };
+
+  test("stores a measure other than the book's", () => {
+    const read = readIntakeLines(form({ itemChargeUnit: "BALE", itemPackageType: "BALE" }), units);
+    assert.equal(read.error, undefined);
+    assert.equal(read.lines[0].chargeUnit, "PER_BALE");
+    assert.equal(read.lines[0].packageType, "BALE");
+    assert.equal(
+      readIntakeLines(form({ itemChargeUnit: "TONNE", itemWeightKg: "800" }), units).lines[0]
+        .chargeUnit,
+      "PER_KG"
+    );
+  });
+
+  test("leaves the book's own measure, or none, as null", () => {
+    assert.equal(readIntakeLines(form({ itemChargeUnit: "CBM" }), units).lines[0].chargeUnit, null);
+    assert.equal(readIntakeLines(form({}), units).lines[0].chargeUnit, null);
+    /* A type the book gives no unit: any choice is the line's own. */
+    assert.equal(
+      readIntakeLines(form({ itemCargoType: "Toys", itemChargeUnit: "CBM" }), units).lines[0]
+        .chargeUnit,
+      "PER_CBM"
+    );
+  });
+
+  test("asks for the figure the line's own measure multiplies", () => {
+    assert.match(
+      readIntakeLines(form({ itemChargeUnit: "PIECE" }), units).error ?? "",
+      /Item 1: this line is charged by the piece/
+    );
+    assert.match(
+      readIntakeLines(form({ itemChargeUnit: "TONNE" }), units).error ?? "",
+      /Item 1: this line is charged by the tonne/
+    );
+    /* Phones by the bale need no piece count. */
+    assert.equal(
+      readIntakeLines(
+        form({ itemCargoType: "Smart Mobile Phones", itemChargeUnit: "BALE" }),
+        units
+      ).error,
+      undefined
+    );
+  });
+
+  test("refuses a measure that is not one of the four", () => {
+    assert.match(
+      readIntakeLines(form({ itemChargeUnit: "FLAT" }), units).error ?? "",
+      /choose how it is charged/
+    );
+  });
+});

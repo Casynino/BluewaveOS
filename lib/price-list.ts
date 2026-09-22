@@ -91,6 +91,14 @@ export type PriceListRow = {
   totalTzs: number;
   total: number;
   blockedReason: string | null;
+  /**
+   * Blocked only because lines are charged in a unit the book has no price
+   * in: the unit to type a rate in, what it multiplies, and what the other
+   * lines already come to. The row's editor opens on it.
+   */
+  needsRate: { basis: RateBasis; units: string; freight: string } | null;
+  /** Measures lines chose for themselves (CargoPackage.chargeUnit). */
+  lineUnits: RateBasis[];
 };
 
 export type PriceList = {
@@ -121,7 +129,7 @@ export async function priceListFor(
         chinaReceiving: true,
         packages: {
           where: { deletedAt: null },
-          select: { cargoType: true },
+          select: { cargoType: true, chargeUnit: true },
         },
         invoices: {
           where: { status: "DRAFT" },
@@ -204,6 +212,7 @@ export async function priceListFor(
     let standardRate: Prisma.Decimal | null = null;
     let billableCbm: Prisma.Decimal | null = null;
     let blockedReason: string | null = null;
+    let needsRate: PriceListRow["needsRate"] = null;
     let agreed = false;
     let basis: RateBasis | null = null;
     let freight = new Prisma.Decimal(0);
@@ -251,6 +260,13 @@ export async function priceListFor(
           base.types.length === 0
             ? "No cargo type yet, and the rate book has no general rate. Choose a type."
             : priced.blockedReason;
+        needsRate = priced.needsRate
+          ? {
+              basis: priced.needsRate.basis,
+              units: priced.needsRate.quantity.toString(),
+              freight: priced.needsRate.freight.toString(),
+            }
+          : null;
       } else {
         total = applyVat(priced.amount, vatPercent, settings?.pricesIncludeVat ?? true).total;
         rate = priced.appliedRate;
@@ -283,6 +299,12 @@ export async function priceListFor(
       totalTzs: tzs ? Number(tzs) : 0,
       total: total ? Number(total) : 0,
       blockedReason,
+      needsRate,
+      lineUnits: [
+        ...new Set(
+          item.packages.map((p) => p.chargeUnit).filter((u): u is RateBasis => u !== null)
+        ),
+      ],
     });
   }
 

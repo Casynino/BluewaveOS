@@ -4,10 +4,11 @@ import { Prisma } from "@prisma/client";
 
 import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { usdToTzs } from "@/lib/currency";
-import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
+import { billingMeasurement, priceConsignment, typedRateOf } from "@/lib/invoice-draft";
 import { applyVat } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
+import type { TypedRate } from "@/lib/valuation";
 
 export type RepriceResult = {
   repriced: string[];
@@ -32,7 +33,9 @@ const ZERO = new Prisma.Decimal(0);
  * draft — storage, a charge, a discount — is kept and re-added, so VAT is taken
  * once on the whole. A per-CBM figure Finance typed onto the draft does not
  * survive: the lines under it are the book's again, and a header claiming a
- * special rate over them would contradict its own arithmetic.
+ * special rate over them would contradict its own arithmetic. The exception
+ * is a line charged in a unit the book has no price for: the rate typed for it
+ * is the only price it has, so it is carried forward onto the re-priced lines.
  *
  * Every total that moves is written to FieldChange before it takes effect.
  */
@@ -40,7 +43,10 @@ export async function repriceDraftInvoices(
   client: TxClient,
   actor: SessionUser,
   cargoId: string,
-  reason: string
+  reason: string,
+  /* A rate just typed on the price list. Absent, the one already on the draft
+     for a unit the book does not price is carried forward (typedRateOf). */
+  typed: TypedRate | null = null
 ): Promise<RepriceResult> {
   const cargo = await client.cargo.findFirst({
     where: { id: cargoId, deletedAt: null },
@@ -61,7 +67,8 @@ export async function repriceDraftInvoices(
       receiverId: cargo.receiverId,
       ...billingMeasurement(cargo),
     },
-    client
+    client,
+    typed ?? typedRateOf(cargo.invoices[0])
   );
   /* A gap in the rate book leaves the draft as it was and says so. A draft
      zeroed because a type has no live rate is worse than a stale one. */

@@ -1,7 +1,7 @@
 import type { PackageType } from "@prisma/client";
 
 import { DateOutOfRange, formDate } from "@/lib/dates";
-import type { RateUnit } from "@/lib/rate-basis";
+import { basisOfUnit, type LineBasis, type RateUnit } from "@/lib/rate-basis";
 
 /**
  * THE ITEM ROWS OFF THE RECEIVING FORM, AND WHAT IS REFUSED.
@@ -70,6 +70,11 @@ export type IntakeLine = {
   description: string;
   descriptionZh: string | null;
   cargoType: string | null;
+  /**
+   * The measure this line is charged by, when the clerk chose one other than
+   * the rate book's for its type. Null follows the book.
+   */
+  chargeUnit: LineBasis | null;
   packageType: PackageType;
   quantity: number;
   pieces: number | null;
@@ -119,6 +124,7 @@ export function readIntakeLines(
   const descriptions = get("itemDescription");
   const zh = get("itemDescriptionZh");
   const cargoTypes = get("itemCargoType");
+  const chargeUnits = get("itemChargeUnit");
   const cbms = get("itemCbm");
   const types = get("itemPackageType");
   const quantities = get("itemQuantity");
@@ -175,8 +181,26 @@ export function readIntakeLines(
       refusal ??= `Item ${row}: pieces is a whole number.`;
     }
     const cargoType = cargoTypes[i]?.trim() || null;
-    if (cargoType && units[cargoType] === "PIECE" && !(piecesValue && piecesValue > 0)) {
-      refusal ??= `Item ${row}: this cargo type is charged by the piece — count the pieces.`;
+    /*
+      EACH LINE MAY CHOOSE ITS OWN MEASURE, as the old system's items did. The
+      book's unit for the type is the default; a different one is stored on the
+      line, and the same one is not — null keeps meaning "whatever the book
+      says", so a line nobody changed follows the book if the book changes.
+      Anything but the four measures is refused rather than guessed at.
+    */
+    const bookUnit = cargoType ? (units[cargoType] ?? null) : null;
+    const typedUnit = chargeUnits[i]?.trim() || "";
+    const chosen = typedUnit ? basisOfUnit(typedUnit) : null;
+    if (typedUnit && !chosen) {
+      refusal ??= `Item ${row}: choose how it is charged — CBM, tonne, piece or bale.`;
+    }
+    const unit: RateUnit | null = chosen ? (typedUnit as RateUnit) : bookUnit;
+    if (unit === "PIECE" && !(piecesValue && piecesValue > 0)) {
+      refusal ??= `Item ${row}: this line is charged by the piece — count the pieces.`;
+    }
+    const weightValue = num(weights[i], row, "weight");
+    if (unit === "TONNE" && typedUnit && !(weightValue && weightValue > 0)) {
+      refusal ??= `Item ${row}: this line is charged by the tonne — weigh it.`;
     }
 
     lines.push({
@@ -184,6 +208,7 @@ export function readIntakeLines(
       description,
       descriptionZh: zh[i]?.trim() || null,
       cargoType,
+      chargeUnit: chosen && typedUnit !== bookUnit ? chosen : null,
       packageType: ((PACKAGE_TYPES as readonly string[]).includes(types[i])
         ? types[i]
         : "CARTON") as PackageType,
@@ -193,7 +218,7 @@ export function readIntakeLines(
       length: num(lengths[i], row, "length"),
       width: num(widths[i], row, "width"),
       height: num(heights[i], row, "height"),
-      weightKg: num(weights[i], row, "weight"),
+      weightKg: weightValue,
       netWeightKg: num(netWeights[i], row, "net weight"),
       modelNo: models[i]?.trim() || null,
       declaredUnitValue: num(unitValues[i], row, "unit price"),

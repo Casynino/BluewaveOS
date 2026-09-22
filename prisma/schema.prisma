@@ -655,6 +655,18 @@ model CargoPackage {
    */
   cargoType String?
 
+  /**
+   * WHAT THIS LINE IS CHARGED BY, WHEN IT IS NOT WHAT THE BOOK SAYS.
+   * The company's old system let each item choose its own measure: most bales
+   * of clothes go by the cubic metre, and one customer's go by the bale. Null
+   * follows the rate book's basis for the cargo type, which is what every line
+   * received before this existed does. Only PER_CBM, PER_KG, PER_PIECE and
+   * PER_BALE are ever written — a flat rate is not a way of measuring goods.
+   * A unit the book has no price in blocks the line until a rate is typed on
+   * the price list.
+   */
+  chargeUnit RateBasis?
+
   /// THE PHYSICAL FACT: which container this package actually went into.
   /// Nullable while it sits on the Foshan shelf. Per-package rather than
   /// per-cargo because a consignment that misses a sailing by two bales gets

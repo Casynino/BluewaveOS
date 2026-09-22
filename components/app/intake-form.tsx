@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { distinctMark } from "@/lib/customer-name";
 
 import { Tx } from "@/components/app/tx";
-import type { RateUnit } from "@/lib/rate-basis";
+import { LINE_UNITS, LINE_UNIT_LABEL, type RateUnit } from "@/lib/rate-basis";
 
 /* What the counter is told once a type is chosen. English keys, through t(). */
 const UNIT_HINT: Record<RateUnit, string> = {
@@ -61,6 +61,10 @@ type Line = {
   description: string;
   descriptionZh: string;
   cargoType: string;
+  /** What this line is charged by. Starts as the book's unit for the type. */
+  chargeUnit: RateUnit | "";
+  /** True once the clerk has chosen the unit themselves. */
+  unitByHand: boolean;
   packageType: string;
   quantity: string;
   pieces: string;
@@ -90,6 +94,8 @@ const blank = (key: number, receiptNo = ""): Line => ({
   description: "",
   descriptionZh: "",
   cargoType: "",
+  chargeUnit: "",
+  unitByHand: false,
   packageType: "CARTON",
   quantity: "1",
   pieces: "",
@@ -255,6 +261,19 @@ export function IntakeForm({
       rows.map((row) => {
         if (row.key !== key) return row;
         const next = { ...row, [field]: value } as Line;
+
+        /* The measure follows the cargo type until the clerk picks one: most
+           goods are charged the way the book charges their type, and the
+           clerk who chose "bale" for this customer's clothes does not want it
+           undone by correcting the type. */
+        if (field === "chargeUnit") {
+          next.unitByHand = true;
+          return next;
+        }
+        if (field === "cargoType" && !row.unitByHand) {
+          next.chargeUnit = units[value] ?? "";
+          return next;
+        }
 
         /* Typing in the volume box claims it. From then on the three sides are
            a note of how the goods were measured, not an instruction to
@@ -483,6 +502,10 @@ export function IntakeForm({
         <CardContent className="space-y-3">
           {lines.map((line, index) => {
             const cbm = Number(line.cbm) || null;
+            /* The line's own measure decides what the counter must not leave
+               blank, not the type's. */
+            const lineUnit: RateUnit | null = line.chargeUnit || units[line.cargoType] || null;
+            const bookUnit = units[line.cargoType] ?? null;
             return (
               <div
                 key={line.key}
@@ -526,7 +549,7 @@ export function IntakeForm({
                 <input
                   type="hidden"
                   name="itemPackageType"
-                  value={units[line.cargoType] === "BALE" ? "BALE" : "CARTON"}
+                  value={lineUnit === "BALE" ? "BALE" : "CARTON"}
                 />
 
                 {/* The receipt book number is how a box on the floor is matched to
@@ -558,7 +581,8 @@ export function IntakeForm({
                   />
                 </div>
 
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 grid grid-cols-[minmax(0,1fr)_7.5rem] gap-3">
+                <div className="space-y-1.5">
                   <Label htmlFor={`c-${line.key}`}>{t("Cargo type")}</Label>
                   <NativeSelect
                     id={`c-${line.key}`}
@@ -578,17 +602,42 @@ export function IntakeForm({
                       </option>
                     ))}
                   </NativeSelect>
-                  {units[line.cargoType] ? (
-                    <p className="text-xs font-medium text-brand">
-                      {t(UNIT_HINT[units[line.cargoType]!])}
-                    </p>
-                  ) : null}
                 </div>
+                {/* HOW THIS LINE IS CHARGED. The book's measure for the type,
+                    unless these goods go by another — a customer whose clothes
+                    are counted in bales. The measure only, never a price. */}
+                <div className="space-y-1.5">
+                  <Label htmlFor={`u-${line.key}`}>{t("Charged by")}</Label>
+                  <NativeSelect
+                    id={`u-${line.key}`}
+                    name="itemChargeUnit"
+                    value={line.chargeUnit}
+                    onChange={(e) => update(line.key, "chargeUnit", e.target.value)}
+                  >
+                    {line.chargeUnit === "" ? <option value="">—</option> : null}
+                    {LINE_UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {t(LINE_UNIT_LABEL[u])}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                </div>
+                {lineUnit ? (
+                  <p className="mt-1.5 text-xs font-medium text-brand">
+                    {t(UNIT_HINT[lineUnit])}
+                    {bookUnit && lineUnit !== bookUnit ? (
+                      <span className="block font-normal text-muted-foreground">
+                        {t("The rate book charges this type by")} {t(LINE_UNIT_LABEL[bookUnit])}.
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
 
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="space-y-1.5">
                     <Label htmlFor={`q-${line.key}`}>
-                      {units[line.cargoType] === "BALE" ? t("Bales") : t("Packages")}
+                      {lineUnit === "BALE" ? t("Bales") : t("Packages")}
                     </Label>
                     <Input
                       id={`q-${line.key}`}
@@ -603,7 +652,7 @@ export function IntakeForm({
                   <div className="space-y-1.5">
                     <Label htmlFor={`p-${line.key}`}>
                       {t("Pieces")}
-                      {units[line.cargoType] === "PIECE" ? (
+                      {lineUnit === "PIECE" ? (
                         <span className="text-destructive"> *</span>
                       ) : null}
                     </Label>
@@ -611,8 +660,8 @@ export function IntakeForm({
                       id={`p-${line.key}`}
                       name="itemPieces"
                       type="number"
-                      required={units[line.cargoType] === "PIECE"}
-                      min={units[line.cargoType] === "PIECE" ? 1 : 0}
+                      required={lineUnit === "PIECE"}
+                      min={lineUnit === "PIECE" ? 1 : 0}
                       inputMode="numeric"
                       value={line.pieces}
                       onChange={(e) => update(line.key, "pieces", e.target.value)}
@@ -621,7 +670,7 @@ export function IntakeForm({
                   <div className="space-y-1.5">
                     <Label htmlFor={`cbm-${line.key}`}>
                       {t("CBM")}
-                      {needsVolume(units[line.cargoType]) ? <span className="text-destructive"> *</span> : null}
+                      {needsVolume(lineUnit) ? <span className="text-destructive"> *</span> : null}
                     </Label>
                     <Input
                       id={`cbm-${line.key}`}
@@ -630,7 +679,7 @@ export function IntakeForm({
                       step="0.0001"
                       min={0}
                       inputMode="decimal"
-                      required={needsVolume(units[line.cargoType])}
+                      required={needsVolume(lineUnit)}
                       className="tnum font-medium"
                       value={line.cbm}
                       onChange={(e) => update(line.key, "cbm", e.target.value)}
@@ -640,14 +689,14 @@ export function IntakeForm({
                   <div className="space-y-1.5">
                     <Label htmlFor={`w-${line.key}`}>
                       {t("Weight kg")}
-                      {units[line.cargoType] === "TONNE" ? <span className="text-destructive"> *</span> : null}
+                      {lineUnit === "TONNE" ? <span className="text-destructive"> *</span> : null}
                     </Label>
                     <Input
                       id={`w-${line.key}`}
                       name="itemWeightKg"
                       type="number"
                       step="0.01"
-                      required={units[line.cargoType] === "TONNE"}
+                      required={lineUnit === "TONNE"}
                       min={0}
                       inputMode="decimal"
                       value={line.weightKg}

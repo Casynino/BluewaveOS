@@ -14,6 +14,7 @@ import { nextExceptionReference, packageReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import type { TxClient } from "@/lib/prisma";
 import { syncBoxes } from "@/lib/boxes";
+import type { LineBasis } from "@/lib/rate-basis";
 import { can, canAmendCargo, cargoCustody } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 
@@ -281,6 +282,11 @@ export type PackageLineInput = {
   netWeightKg?: number | null;
   modelNo?: string | null;
   declaredUnitValue?: number | null;
+  /**
+   * What the line is charged by, when not the rate book's unit for its type.
+   * Null follows the book; undefined leaves the saved choice alone.
+   */
+  chargeUnit?: LineBasis | null;
   /** Offered, not demanded. Blank is stored as the plain description of the act. */
   reason: string | null;
 };
@@ -302,6 +308,7 @@ const LINE_LABELS: Record<string, string> = {
   weightKg: "Weight (kg)",
   cbm: "CBM",
   balerNumber: "Bale number",
+  chargeUnit: "Charged by",
 };
 
 async function lineCargo(tx: TxClient, cargoId: string) {
@@ -503,6 +510,7 @@ export async function applyPackageLine(
     ...(input.declaredUnitValue !== undefined
       ? { declaredUnitValue: dec(input.declaredUnitValue) }
       : {}),
+    ...(input.chargeUnit !== undefined ? { chargeUnit: input.chargeUnit } : {}),
   };
 
   if (input.packageId) {
@@ -540,6 +548,8 @@ export async function applyPackageLine(
     if ("modelNo" in next) text("modelNo", before.modelNo, next.modelNo ?? null);
     if ("declaredUnitValue" in next)
       num("declaredUnitValue", before.declaredUnitValue, next.declaredUnitValue ?? null);
+    /* Null is "as the rate book charges the type". */
+    if ("chargeUnit" in next) text("chargeUnit", before.chargeUnit, next.chargeUnit ?? null);
 
     if (changes.length === 0) throw new CorrectionRefused("Nothing was changed.");
 
@@ -567,8 +577,10 @@ export async function applyPackageLine(
     });
     if (changes.some((c) => c.field === "quantity")) await syncBoxes(tx, before.id);
 
+    /* Anything a line's price is worked from: its type, its measure, and the
+       figure that measure multiplies. */
     const measurementMoved = changes.some((c) =>
-      ["cbm", "weightKg", "quantity", "cargoType"].includes(c.field)
+      ["cbm", "weightKg", "quantity", "cargoType", "chargeUnit", "pieces"].includes(c.field)
     );
     if (changes.some((c) => c.field === "cbm")) {
       await syncLineTotals(tx, actor, cargo.id, reason);
@@ -614,7 +626,7 @@ export async function applyPackageLine(
       entityId: created.id,
       field: "created",
       oldValue: null,
-      newValue: `${next.quantity} × ${next.packageType}${next.cargoType ? ` (${next.cargoType})` : ""}, ${cbm.toString()} CBM`,
+      newValue: `${next.quantity} × ${next.packageType}${next.cargoType ? ` (${next.cargoType})` : ""}, ${cbm.toString()} CBM${next.chargeUnit ? `, charged ${next.chargeUnit}` : ""}`,
       reason: input.reason?.trim() || "Line added",
     },
     tx

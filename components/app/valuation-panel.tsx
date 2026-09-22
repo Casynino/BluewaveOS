@@ -86,13 +86,20 @@ export function ValuationPanel({
                   {line.cargoType ?? "—"}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm">
-                  {line.basis === "PER_KG"
+                  {/* In the unit the line is charged by — its own choice where
+                      it made one — even when the book has no price in it. */}
+                  {line.unit === "PER_KG"
                     ? `${line.weightKg?.toString() ?? "—"} kg`
-                    : line.basis === "PER_PIECE"
+                    : line.unit === "PER_PIECE"
                       ? `${line.pieces ?? "—"} pcs`
-                      : line.basis === "PER_BALE"
+                      : line.unit === "PER_BALE"
                         ? `${line.quantity} ${line.quantity === 1 ? "bale" : "bales"}`
                         : formatCbm(line.cbm)}
+                  {line.chargeUnit ? (
+                    <span className="block text-xs text-muted-foreground">
+                      {T("Line charged")} {T(BASIS_LABEL[line.chargeUnit])}
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm text-muted-foreground">
                   {line.rate

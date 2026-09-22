@@ -7,6 +7,8 @@ import { formatCurrency, formatRate, roundMoney, usdToTzs } from "@/lib/currency
 import { nextInvoiceNumber } from "@/lib/ids";
 import { paymentSnapshotNow } from "@/lib/invoice-accounts";
 import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
+import { lineBasis, SLASH_UNIT } from "@/lib/rate-basis";
+import type { TypedRate } from "@/lib/valuation";
 import { repriceDraftInvoices } from "@/lib/invoice-reprice";
 import { announceCargoEvent } from "@/lib/cargo-events";
 import { applyVat, companySettings, currentExchangeRate } from "@/lib/pricing";
@@ -121,7 +123,13 @@ export async function priceWaitingCargo(
   client: TxClient,
   actor: Actor,
   cargoId: string,
-  options: { reason: string; keepAgreedRate: boolean }
+  options: {
+    reason: string;
+    keepAgreedRate: boolean;
+    /* A rate typed on the price list for lines the book cannot price in their
+       own unit. See TypedRate. */
+    typed?: TypedRate | null;
+  }
 ): Promise<PriceOutcome> {
   await lockCargoForPricing(client, cargoId);
 
@@ -151,7 +159,8 @@ export async function priceWaitingCargo(
       client,
       actor,
       cargo.id,
-      options.reason
+      options.reason,
+      options.typed ?? null
     );
     if (result.blocked) {
       return { kind: "blocked", reference: cargo.reference, reason: result.blocked };
@@ -172,7 +181,8 @@ export async function priceWaitingCargo(
       receiverId: cargo.receiverId,
       ...billingMeasurement(cargo),
     },
-    client
+    client,
+    options.typed ?? null
   );
   if (priced.blockedReason) {
     return { kind: "blocked", reference: cargo.reference, reason: priced.blockedReason };
@@ -648,9 +658,56 @@ export async function setWaitingPrice(
   /* Both boxes empty is the request to go back to the book, and that is the
      one case where an agreement already on the draft is deliberately dropped. */
   const fromBook = input.rate === null && input.freight === null;
+
+  /*
+    A RATE FOR THE LINES THE BOOK CANNOT PRICE.
+
+    A line charged by the bale when its goods are only priced by the cubic
+    metre has no book figure, and the rate typed here is its price. It prices
+    those lines and only those: the draft is raised or re-priced with it, the
+    lines the book does price keep the book's rate, and nothing is collapsed
+    into one line. The rate before and after goes to FieldChange like any
+    agreed rate.
+  */
+  const gapBasis = input.rate !== null ? lineBasis(input.basis) : null;
+  const gapCargo = gapBasis
+    ? await client.cargo.findFirst({
+        where: { id: input.cargoId, deletedAt: null },
+        include: { darReceiving: true, chinaReceiving: true },
+      })
+    : null;
+  const gap =
+    gapBasis && gapCargo
+      ? (
+          await priceConsignment(
+            {
+              id: gapCargo.id,
+              description: gapCargo.description,
+              commodity: gapCargo.commodity,
+              service: gapCargo.service,
+              receiverId: gapCargo.receiverId,
+              ...billingMeasurement(gapCargo),
+            },
+            client
+          )
+        ).needsRate?.basis === gapBasis
+      : false;
+  const rateBefore = gap
+    ? ((
+        await client.invoice.findFirst({
+          where: { cargoId: input.cargoId, status: "DRAFT" },
+          orderBy: { createdAt: "asc" },
+          select: { appliedRate: true },
+        })
+      )?.appliedRate ?? null)
+    : null;
+
   const priced = await priceWaitingCargo(client, actor, input.cargoId, {
     reason,
-    keepAgreedRate: !fromBook,
+    /* A new rate for the gap re-prices the draft with it; an earlier one on
+       the draft must not stand in its way. */
+    keepAgreedRate: !fromBook && !gap,
+    typed: gap ? { basis: gapBasis!, rate: input.rate! } : null,
   });
   if (priced.kind === "blocked") {
     throw new PriceListRefused(`${priced.reference}: ${priced.reason}`);
@@ -687,6 +744,9 @@ export async function setWaitingPrice(
   }
 
   const freightItems = invoice.items.filter((i) => i.category === "Freight");
+  /* In the gap the draft was just priced with the typed rate; what it said
+     before is what the change is recorded against. */
+  const recordedRate = gap ? rateBefore : invoice.appliedRate;
   let appliedRate = invoice.appliedRate;
   let rateBasis = invoice.rateBasis;
   let billableCbm = invoice.billableCbm;
@@ -714,7 +774,12 @@ export async function setWaitingPrice(
     });
   };
 
-  if (input.rate !== null) {
+  if (gap) {
+    /* Priced line by line already: the typed rate on the lines charged in its
+       unit, the book's on the rest. */
+    appliedRate = input.rate;
+    rateBasis = input.basis;
+  } else if (input.rate !== null) {
     const unit = FREIGHT_UNIT[input.basis];
     /*
       THE PER-LINE WORKING SURVIVES WHERE IT CAN.
@@ -846,7 +911,7 @@ export async function setWaitingPrice(
   const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
 
   if (
-    (invoice.appliedRate?.toString() ?? null) !== (appliedRate?.toString() ?? null)
+    (recordedRate?.toString() ?? null) !== (appliedRate?.toString() ?? null)
   ) {
     await recordFieldChange(
       {
@@ -854,7 +919,9 @@ export async function setWaitingPrice(
         entity: "Invoice",
         entityId: invoice.id,
         field: "appliedRate",
-        oldValue: invoice.appliedRate?.toString() ?? "from the rate book",
+        oldValue:
+          recordedRate?.toString() ??
+          (gap ? `none: the rate book has no price per ${SLASH_UNIT[input.basis]}` : "from the rate book"),
         newValue: appliedRate?.toString() ?? "typed as a total",
         reason,
       },
@@ -884,8 +951,9 @@ export async function setWaitingPrice(
       billableCbm,
       billableKg,
       /* A book draft at mixed rates has no standard to measure against; the
-         old figure becomes it, so the agreement is still visible as one. */
-      standardRate: invoice.standardRate ?? invoice.appliedRate ?? undefined,
+         old figure becomes it, so the agreement is still visible as one. A
+         rate for a unit the book does not price has no standard at all. */
+      standardRate: gap ? null : (invoice.standardRate ?? invoice.appliedRate ?? undefined),
       discount: off ?? new Prisma.Decimal(0),
       subtotal,
       vatAmount,

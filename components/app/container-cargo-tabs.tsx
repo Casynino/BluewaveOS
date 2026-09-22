@@ -97,6 +97,8 @@ export type CargoRow = {
     weightKg: number | null;
     /** Pieces or bales, for a rate charged per piece or per bale. */
     units: number | null;
+    /** The book has no price in `basis` for lines charged by it. */
+    rateNeeded?: boolean;
     freight: number;
     extra: number;
     discount: number;
@@ -511,6 +513,7 @@ function CargoTableRow({
                 cbm={row.edit.cbm}
                 weightKg={row.edit.weightKg}
                 units={row.edit.units}
+                rateNeeded={row.edit.rateNeeded ?? false}
                 freight={row.edit.freight}
                 extra={row.edit.extra}
                 discount={row.edit.discount}

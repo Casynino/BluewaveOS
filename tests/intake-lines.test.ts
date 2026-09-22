@@ -156,6 +156,7 @@ describe("what a good delivery reads as", () => {
         description: "Shoes",
         descriptionZh: "鞋",
         cargoType: "General",
+        chargeUnit: null,
         packageType: "CARTON",
         quantity: 4,
         pieces: 200,

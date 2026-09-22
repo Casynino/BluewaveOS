@@ -4,7 +4,8 @@ import { Prisma, type RateBasis, type ServiceType } from "@prisma/client";
 
 import { prisma, type TxClient } from "@/lib/prisma";
 import { quote } from "@/lib/pricing";
-import { valueLines } from "@/lib/valuation";
+import { lineBasis, type LineBasis } from "@/lib/rate-basis";
+import { chargedQuantity, valueLines, type TypedRate } from "@/lib/valuation";
 
 export type DraftItem = {
   description: string;
@@ -31,6 +32,15 @@ export type PricedConsignment = {
   currency: string;
   explanation: string;
   blockedReason: string | null;
+  /**
+   * BLOCKED ONLY FOR WANT OF A RATE IN ONE UNIT.
+   *
+   * Every line the book could not price is charged in this unit and the book
+   * has these goods in another: typing one rate on the price list prices the
+   * lot. `quantity` is what that rate multiplies across those lines, and
+   * `freight` is what the other lines already come to.
+   */
+  needsRate: { basis: LineBasis; quantity: Prisma.Decimal; freight: Prisma.Decimal } | null;
   items: DraftItem[];
 };
 
@@ -83,7 +93,10 @@ export async function priceConsignment(
   },
   /* A transaction when the caller has just corrected the lines and must price
      what it wrote rather than what was committed before it. */
-  client: TxClient | typeof prisma = prisma
+  client: TxClient | typeof prisma = prisma,
+  /* A rate typed on the price list for lines charged in a unit the book does
+     not price. See TypedRate. */
+  typed: TypedRate | null = null
 ): Promise<PricedConsignment> {
   const packages = await client.cargoPackage.findMany({
     where: { cargoId: cargo.id, deletedAt: null, cargoType: { not: null } },
@@ -111,6 +124,7 @@ export async function priceConsignment(
 
     return {
       ...priced,
+      needsRate: null,
       items: priced.blockedReason
         ? []
         : [
@@ -135,12 +149,26 @@ export async function priceConsignment(
   const valuation = await valueLines(
     packages,
     { service: cargo.service, customerId: cargo.receiverId },
-    client
+    client,
+    typed
   );
 
   const unpriceable = valuation.lines.find((l) => l.blocked);
   if (unpriceable) {
+    const held = valuation.lines.filter((l) => l.blocked);
+    const gap = held[0].rateUnitMissing;
+    const onlyGap = gap !== null && held.every((l) => l.rateUnitMissing === gap);
     return {
+      needsRate: onlyGap
+        ? {
+            basis: gap,
+            quantity: held.reduce(
+              (sum, l) => sum.add(chargedQuantity(l, gap) ?? 0),
+              ZERO
+            ),
+            freight: valuation.subtotal,
+          }
+        : null,
       billableCbm: null,
       billableKg: null,
       standardRate: null,
@@ -213,14 +241,31 @@ export async function priceConsignment(
 
   const types = [...new Set(valuation.lines.map((l) => l.cargoType))];
 
+  /*
+    A RATE THE BOOK DOES NOT HAVE IS NOT THE BOOK'S.
+
+    When a line took a rate typed on the price list, the bill carries that rate
+    as the one agreed and no standard beside it: there is no book figure for a
+    bale of goods the book prices by the cubic metre. That is also what keeps it
+    standing — confirming leaves an agreed rate alone, and a re-price reads the
+    typed rate back off the draft (typedRateOf) rather than blocking again.
+  */
+  const typedUsed = typed !== null && valuation.lines.some((l) => l.typedRate);
+
   return {
     billableCbm: cbm.greaterThan(0) ? cbm.toDecimalPlaces(4) : null,
     billableKg: kg.greaterThan(0) ? kg.toDecimalPlaces(3) : null,
-    standardRate: single,
-    appliedRate: single,
-    basis: bases.size === 1 ? (valuation.lines[0].basis as RateBasis) : null,
+    standardRate: typedUsed ? null : single,
+    appliedRate: typedUsed ? (single ?? typed.rate) : single,
+    basis:
+      bases.size === 1
+        ? (valuation.lines[0].basis as RateBasis)
+        : typedUsed
+          ? typed.basis
+          : null,
     discount: ZERO,
     amount: valuation.subtotal,
+    needsRate: null,
     currency: valuation.currency,
     explanation:
       types.length === 1
@@ -229,6 +274,28 @@ export async function priceConsignment(
     blockedReason: null,
     items,
   };
+}
+
+/**
+ * THE RATE A DRAFT WAS GIVEN FOR A UNIT THE BOOK DOES NOT PRICE.
+ *
+ * Read back off the draft whenever it is priced again, so a bale count
+ * corrected in Dar re-multiplies the rate the confirmer typed instead of
+ * blocking the bill a second time. Only an agreed rate counts (one differing
+ * from the book's, or with no book figure beside it), and it only ever reaches
+ * lines the book cannot price in that unit.
+ */
+export function typedRateOf(invoice: {
+  appliedRate: Prisma.Decimal | null;
+  standardRate: Prisma.Decimal | null;
+  rateBasis: RateBasis | null;
+}): TypedRate | null {
+  const basis = lineBasis(invoice.rateBasis);
+  if (!basis || invoice.appliedRate === null) return null;
+  if (invoice.standardRate !== null && invoice.appliedRate.equals(invoice.standardRate)) {
+    return null;
+  }
+  return { basis, rate: invoice.appliedRate };
 }
 
 /**

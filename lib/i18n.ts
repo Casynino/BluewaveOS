@@ -7917,6 +7917,14 @@ const ZH: Record<string, string> = {
   "These goods are charged by weight. Give the total in kilograms.": "此类货物按重量计费。请填写总公斤数。",
   "These goods are charged by the piece. How many pieces?": "此类货物按件计费。共有多少件？",
   "These goods are charged by the bale. How many bales?": "此类货物按包计费。共有多少包？",
+  "Item {n}: this line is charged by the piece — count the pieces.": "第 {n} 项：此行按件计费——请清点件数。",
+  "Item {n}: this line is charged by the tonne — weigh it.": "第 {n} 项：此行按吨计费——请称重。",
+  "Item {n}: choose how it is charged — CBM, tonne, piece or bale.": "第 {n} 项：请选择计费方式——立方、吨、件或包。",
+  "The rate book charges this type by": "价目表对此类别的计费方式为",
+  "As the rate book charges the type": "按价目表对此类别的计费方式",
+  "this line": "本行",
+  "Line charged": "本行计费",
+  "The rate book has no price in this unit for these goods. Type the rate agreed": "价目表没有此类货物按此单位的价格。请填写约定运价",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

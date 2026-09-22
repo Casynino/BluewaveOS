@@ -56,7 +56,14 @@ export function RowPriceEditor({
   invoiceId = null,
   category = null,
   categories = [],
+  rateNeeded = false,
 }: {
+  /**
+   * The book has no price in `basis` for lines charged by it. The rate typed
+   * prices those lines alone: `units` is what it multiplies across them and
+   * `freight` is what the other lines already come to.
+   */
+  rateNeeded?: boolean;
   /** The issued bill, when there is one: its category and volume are changed
       on it, the same way the Edit price dialog does everywhere else. */
   invoiceId?: string | null;
@@ -160,10 +167,11 @@ export function RowPriceEditor({
   /* Switched: a rate per cubic metre and a rate per kilo are not the same
      number and must not be compared as if they were. */
   const switched = countBasis ? bookBasis !== countBasis : byWeight !== bookByWeight;
-  /* Both quantities are real, so the choice is honest to offer. */
-  const canSwitch = !countBasis && (cbm ?? 0) > 0 && (weightKg ?? 0) > 0;
+  /* Both quantities are real, so the choice is honest to offer. Not where the
+     unit is the line's own choice: that is the unit the rate is missing in. */
+  const canSwitch = !rateNeeded && !countBasis && (cbm ?? 0) > 0 && (weightKg ?? 0) > 0;
   const pricedOn =
-    (countBasis
+    (countBasis || rateNeeded
       ? units
       : byWeight
         ? weightKg
@@ -194,7 +202,9 @@ export function RowPriceEditor({
 
   /* A typed rate wins over a typed total, exactly as it does on the server. */
   const fromRate =
-    rate.trim() === "" ? null : Math.round(((n(rate) * pricedOn) / perStored) * 100) / 100;
+    rate.trim() === ""
+      ? null
+      : Math.round(((n(rate) * pricedOn) / perStored) * 100) / 100 + (rateNeeded ? freight : 0);
   const effectiveFreight =
     fromRate ?? (typed.trim() === "" ? freight : n(typed));
   const subtotal = effectiveFreight + n(more) - n(off);
@@ -439,7 +449,12 @@ export function RowPriceEditor({
                 aria-label={`${t(locale, "Freight rate for")} ${reference}`}
               />
               <span className="block text-[11px] text-muted-foreground">
-                {rate.trim() === "" && switched ? (
+                {rate.trim() === "" && rateNeeded ? (
+                  <span className="text-warning">
+                    {t(locale, "The rate book has no price in this unit for these goods. Type the rate agreed")}{" "}
+                    {unit}.
+                  </span>
+                ) : rate.trim() === "" && switched ? (
                   <span className="text-warning">
                     {t(locale, "Type the rate agreed")} {unit}.{" "}
                     {t(locale, "To price this cargo from the rate book again, choose")}{" "}
@@ -449,6 +464,7 @@ export function RowPriceEditor({
                   t(locale, "Leave it empty to price this cargo from the rate book.")
                 ) : (
                   <span className="tnum">
+                    {rateNeeded && freight > 0 ? `${freight.toFixed(2)} + ` : ""}
                     {n(rate).toFixed(2)} ×{" "}
                     {countBasis
                       ? `${pricedOn} ${t(locale, countBasis === "PER_PIECE" ? "pieces" : "bales")}`
@@ -460,6 +476,7 @@ export function RowPriceEditor({
                       {currency} {(fromRate ?? 0).toFixed(2)}
                     </span>
                     {!switched &&
+                    !rateNeeded &&
                     bookShown !== null &&
                     Math.abs(bookShown - n(rate)) > 0.005 ? (
                       <>
@@ -520,6 +537,9 @@ export function RowPriceEditor({
                   inputMode="decimal"
                   value={box.value}
                   onChange={(event) => box.set(event.target.value)}
+                  /* A total typed over lines the book cannot price is not a
+                     rate for them; the rate box is the way in. */
+                  readOnly={rateNeeded && box.name === "freight"}
                   placeholder={box.placeholder}
                   aria-label={`$<Tx>{box.label}</Tx> — ${reference}`}
                 />
@@ -559,7 +579,10 @@ export function RowPriceEditor({
               size="sm"
               variant="accent"
               pendingLabel={t(locale, "Saving…")}
-              disabled={switched && rate.trim() === "" && typed.trim() === ""}
+              disabled={
+                (rateNeeded && rate.trim() === "") ||
+                (switched && rate.trim() === "" && typed.trim() === "")
+              }
             >
               {t(locale, "Save the price")}
             </SubmitButton>

@@ -9,6 +9,7 @@ import { recordAudit, recordFieldChange, withNote } from "@/lib/audit";
 import { setCargoStatus } from "@/lib/cargo";
 import { calculateCbm } from "@/lib/cbm";
 import { readIntakeLines, readReceivingDate } from "@/lib/intake-lines";
+import { lineBasis, type LineBasis } from "@/lib/rate-basis";
 import { cargoTypeOptions, cargoTypeUnits, loadRateBook, valueWith } from "@/lib/valuation";
 import {
   generateQrToken,
@@ -278,6 +279,16 @@ export async function upsertPackage(
   }
   const data = parsed.data;
 
+  /* The line's own measure, from an editor that shows it. Blank follows the
+     rate book; anything but the four measures is refused, never guessed. */
+  let chargeUnitPatch: { chargeUnit?: LineBasis | null } = {};
+  if (formData.has("chargeUnit")) {
+    const raw = String(formData.get("chargeUnit") ?? "").trim();
+    const chosen = raw === "" ? null : lineBasis(raw);
+    if (raw !== "" && !chosen) return { error: "Choose how it is charged." };
+    chargeUnitPatch = { chargeUnit: chosen };
+  }
+
   /* An editor without a Chinese box still gets one filled when the glossary
      knows the goods; one it does not know leaves the saved Chinese alone. */
   let description = data.description ?? null;
@@ -314,6 +325,7 @@ export async function upsertPackage(
           : {}),
         ...zhPatch,
         ...(formData.has("pieces") ? { pieces: data.pieces ?? null } : {}),
+        ...chargeUnitPatch,
         cbm: data.cbm ?? null,
         balerNumber: data.balerNumber ?? null,
         reason: data.reason ?? null,
@@ -1033,6 +1045,7 @@ export async function receiveNewCargo(
           description: m.line.description,
           descriptionZh: m.line.descriptionZh,
           cargoType: m.line.cargoType,
+          chargeUnit: m.line.chargeUnit,
           quantity: m.line.quantity,
           pieces: m.line.pieces,
           cbm: m.cbm,
@@ -1181,6 +1194,7 @@ export async function receiveNewCargo(
                     weightKg: v.weightKg?.toString() ?? null,
                     rate: v.rate?.toString() ?? null,
                     basis: v.basis,
+                    unit: v.unit,
                     amount: v.amount.toString(),
                     blocked: v.blocked,
                   })),
@@ -1229,6 +1243,7 @@ export async function receiveNewCargo(
           description: m.line.description,
           descriptionZh: m.line.descriptionZh,
           cargoType: m.line.cargoType,
+          chargeUnit: m.line.chargeUnit,
           quantity: m.line.quantity,
           pieces: m.line.pieces,
           unit,
@@ -1314,6 +1329,7 @@ export async function receiveNewCargo(
               description: m.line.description,
               descriptionZh: m.line.descriptionZh,
               cargoType: m.line.cargoType,
+              chargeUnit: m.line.chargeUnit,
               quantity: m.line.quantity,
               pieces: m.line.pieces,
               unit,

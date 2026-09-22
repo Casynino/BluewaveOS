@@ -269,6 +269,13 @@ function PriceRow({
         ) : (
           <span className="text-muted-foreground">{t(locale, "No type")}</span>
         )}
+        {/* A line that chose its own measure says so: the book's unit for the
+            type is not what these goods are charged by. */}
+        {row.lineUnits.length > 0 ? (
+          <span className="block text-xs text-muted-foreground">
+            {t(locale, "Line charged")} {row.lineUnits.map((u) => t(locale, PER_UNIT[u])).join(", ")}
+          </span>
+        ) : null}
         {row.mixed && canEdit ? (
           <Link
             href={`/app/cargo/${row.cargoId}`}
@@ -400,7 +407,10 @@ function RateCell({
     </div>
   );
 
-  if (!canEdit || row.blockedReason) return shown;
+  /* A row blocked only for want of a rate in one unit is the one blocked row
+     the editor opens on: typing that rate is the fix. */
+  if (!canEdit || (row.blockedReason && !row.needsRate)) return shown;
+  const gap = row.blockedReason ? row.needsRate : null;
 
   return (
     <div className="flex flex-wrap items-start gap-2">
@@ -412,11 +422,12 @@ function RateCell({
         standardRate={row.standardRate === null ? null : Number(row.standardRate)}
         agreedRate={row.agreed && row.rate !== null ? Number(row.rate) : null}
         bookBasis={row.bookBasis}
-        basis={row.basis}
+        basis={gap ? gap.basis : row.basis}
         cbm={row.billableCbm === null ? null : Number(row.billableCbm)}
         weightKg={row.weightKg === null ? null : Number(row.weightKg)}
-        units={row.units === null ? null : Number(row.units)}
-        freight={Number(row.freight)}
+        units={gap ? Number(gap.units) : row.units === null ? null : Number(row.units)}
+        rateNeeded={!!gap}
+        freight={gap ? Number(gap.freight) : Number(row.freight)}
         extra={Number(row.extra)}
         discount={Number(row.discountOff)}
         vatPercent={vatPercent}

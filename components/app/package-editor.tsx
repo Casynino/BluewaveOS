@@ -27,6 +27,13 @@ import {
 
 import { useT } from "@/components/app/locale-provider";
 import { Tx } from "@/components/app/tx";
+import {
+  LINE_UNITS,
+  LINE_UNIT_LABEL,
+  basisOfUnit,
+  unitOfBasis,
+  type RateUnit,
+} from "@/lib/rate-basis";
 type Line = {
   id: string;
   reference: string;
@@ -50,6 +57,8 @@ type Line = {
   netWeightKg?: string | null;
   modelNo?: string | null;
   declaredUnitValue?: string | null;
+  /** The line's own measure; null follows the rate book. */
+  chargeUnit?: string | null;
 };
 
 const TYPES = [
@@ -77,8 +86,11 @@ export function PackageEditor({
   canEdit,
   canOverride,
   cargoTypes,
+  typeUnits = {},
   checkedInAtDar = false,
 }: {
+  /** The measure the rate book charges each type by. Never a rate. */
+  typeUnits?: Record<string, RateUnit | null>;
   cargoId: string;
   lines: Line[];
   canEdit: boolean;
@@ -118,6 +130,7 @@ export function PackageEditor({
             <TableRow>
               <TableHead>{tx("Line")}</TableHead>
               <TableHead>{tx("Cargo type")}</TableHead>
+              <TableHead>{tx("Charged by")}</TableHead>
               <TableHead>{tx("Packed as")}</TableHead>
               <TableHead className="text-right">{tx("Qty")}</TableHead>
               <TableHead className="text-right">L × W × H</TableHead>
@@ -153,6 +166,26 @@ export function PackageEditor({
                   {line.cargoType ?? (
                     <Badge tone="warn">{tx("No category")}</Badge>
                   )}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {(() => {
+                    /* The line's own measure, or the book's for its type. A
+                       choice of its own is marked, because it is priced
+                       differently from the rest of its type. */
+                    const own = unitOfBasis(line.chargeUnit);
+                    const unit = own ?? (line.cargoType ? typeUnits[line.cargoType] ?? null : null);
+                    if (!unit) return <span className="text-muted-foreground">—</span>;
+                    return (
+                      <>
+                        {tx(LINE_UNIT_LABEL[unit])}
+                        {own ? (
+                          <Badge tone="warn" className="ml-2">
+                            {tx("this line")}
+                          </Badge>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="text-sm">{line.packageType}</TableCell>
                 <TableCell className="tnum text-right text-sm">
@@ -206,7 +239,7 @@ export function PackageEditor({
               </TableRow>
             ))}
             <TableRow className="bg-secondary/40 font-medium">
-              <TableCell colSpan={5} className="text-sm">
+              <TableCell colSpan={6} className="text-sm">
                 {tx("Total")}
               </TableCell>
               <TableCell className="tnum text-right text-sm">
@@ -256,6 +289,25 @@ export function PackageEditor({
               {cargoTypes.map((t) => (
                 <option key={t} value={t}>
                   {t}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          {/* HOW THIS LINE IS CHARGED. Left on the rate book's measure, the
+              line follows the book; another one is this line's own. A change
+              is recorded with the old measure first and re-prices a draft bill. */}
+          <div className="space-y-2">
+            <Label htmlFor="chargeUnit">{tx("Charged by")}</Label>
+            <NativeSelect
+              id="chargeUnit"
+              name="chargeUnit"
+              defaultValue={editing?.chargeUnit ?? ""}
+            >
+              <option value="">{tx("As the rate book charges the type")}</option>
+              {LINE_UNITS.map((u) => (
+                <option key={u} value={basisOfUnit(u)!}>
+                  {tx(LINE_UNIT_LABEL[u])}
                 </option>
               ))}
             </NativeSelect>

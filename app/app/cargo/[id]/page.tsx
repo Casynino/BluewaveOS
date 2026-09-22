@@ -55,7 +55,7 @@ import {
   stageEvent,
   billLetter,
 } from "@/lib/messages";
-import { cargoTypeOptions, valueLines } from "@/lib/valuation";
+import { cargoTypeOptions, cargoTypeUnits, valueLines } from "@/lib/valuation";
 import { distinctMark } from "@/lib/customer-name";
 import { storageStart } from "@/lib/storage-clock";
 import { noticeSubject, pickupAddress, whatsappNotice } from "@/lib/cargo-events";
@@ -129,7 +129,7 @@ export default async function CargoDetailPage({
   const chinaHolds = cargoCustody(cargo.status) === "CHINA";
   const canEditDetails = can(user.role, "cargo.edit") && amend;
 
-  const cargoTypes = await cargoTypeOptions();
+  const [cargoTypes, typeUnits] = await Promise.all([cargoTypeOptions(), cargoTypeUnits()]);
 
   /*
     THE COUNTER, ON THE CARGO RECORD.
@@ -672,6 +672,7 @@ export default async function CargoDetailPage({
                 canEdit={can(user.role, "cargo.edit") && amend}
                 canOverride={can(user.role, "cbm.override") && amend}
                 cargoTypes={cargoTypes}
+                typeUnits={Object.fromEntries(typeUnits.map((u) => [u.name, u.unit]))}
                 lines={cargo.packages.map((p) => ({
                   id: p.id,
                   reference: p.reference,
@@ -693,6 +694,7 @@ export default async function CargoDetailPage({
                   netWeightKg: p.netWeightKg?.toString() ?? null,
                   modelNo: p.modelNo,
                   declaredUnitValue: p.declaredUnitValue?.toString() ?? null,
+                  chargeUnit: p.chargeUnit,
                 }))}
               />
             </CardContent>
