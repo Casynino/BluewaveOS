@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { MarkAllRead } from "@/components/app/mark-all-read";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -76,10 +77,24 @@ export default async function PortalNotificationsPage({
 
       <Card>
         {notifications.length === 0 ? (
+          /* A filter with nothing under it is a different answer from an
+             empty account, and offering "show everything" is what the reader
+             wants next in the first case and not the second. */
           <EmptyState
             icon="Bell"
-            title={filter === "all" ? "Nothing yet" : "Nothing here"}
-            description="We tell you here when your cargo moves, a bill is issued or a payment is received."
+            title={filter === "all" ? "Nothing yet" : "Nothing under this filter"}
+            description={
+              filter === "all"
+                ? "We tell you here when your cargo moves, a bill is issued or a payment is received."
+                : "Nothing here yet. Your other updates are still on the list."
+            }
+            action={
+              filter === "all" ? null : (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/portal/notifications">Show everything</Link>
+                </Button>
+              )
+            }
           />
         ) : (
           <ul className="divide-y">

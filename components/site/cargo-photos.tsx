@@ -14,9 +14,12 @@ import { Download, X } from "lucide-react";
  * worth tapping, a full-screen view that fits the image to the phone, and a
  * real download.
  *
- * Every url already carries this consignment's reference — that is what opens
- * the file without a session (see lib/file-access.ts), so it is carried into
- * the download link too.
+ * The urls arrive ready to fetch and are used as given, download link
+ * included. What opens each one is the caller's business: the public tracking
+ * page hangs this consignment's reference on them, because that is what stands
+ * in for a session there (see lib/file-access.ts); the portal passes them
+ * bare, because the reader is already signed in and a reference there would
+ * only make a private counter photograph publicly cacheable.
  */
 export function CargoPhotos({
   photos,

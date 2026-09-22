@@ -115,7 +115,7 @@ export default async function PortalCargoPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
-        href="/portal"
+        href="/portal/cargo"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" />
@@ -321,13 +321,12 @@ export default async function PortalCargoPage({
             <p className="-mt-2 mb-3 text-xs text-muted-foreground">
               {t(locale, "Tap to view and download.")}
             </p>
-            <CargoPhotos
-              reference={cargo.reference}
-              photos={cargo.photos.map((photo) => ({
-                ...photo,
-                url: `${photo.url}?ref=${encodeURIComponent(cargo.reference)}`,
-              }))}
-            />
+            {/* No `?ref=` here. That parameter is what the anonymous tracking
+                page holds up instead of a session, and lib/file-access.ts
+                answers it with a publicly cacheable file. The reader of this
+                page is already the signed-in owner, so the session is the
+                better credential and the counter photographs stay private. */}
+            <CargoPhotos reference={cargo.reference} photos={cargo.photos} />
           </CardContent>
         </Card>
       ) : null}

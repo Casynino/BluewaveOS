@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ROUTE } from "@/lib/constants";
+import { darFields } from "@/lib/dar-time";
 import { formatCbm, formatDate, formatRelative } from "@/lib/format";
 import { DEFAULT_LOCALE, t } from "@/lib/i18n";
 import { formatTzPhone } from "@/lib/phone";
@@ -81,13 +82,9 @@ export default async function PortalPage() {
   const forSupplier = await supplierAddress(customer?.shippingMark ?? null);
   const whatsapp = whatsappLink(company?.whatsapp ?? company?.phone, WHATSAPP_OPENER);
 
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Africa/Dar_es_Salaam",
-      hour: "2-digit",
-      hour12: false,
-    }).format(new Date())
-  );
+  /* The hour where the customer is, from the one helper that knows it rather
+     than a second copy of the time zone. */
+  const { hour } = darFields();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   /* The box that matters most right now: one still moving, else one loading. */

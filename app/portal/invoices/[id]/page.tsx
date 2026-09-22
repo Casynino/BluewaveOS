@@ -18,9 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { INVOICE_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/constants";
-import { formatCbm, formatDate, formatMoney } from "@/lib/format";
+import { formatCbm, formatDate, formatWeight } from "@/lib/format";
 import { formatCurrency, formatRate } from "@/lib/currency";
-import { balanceOf, outstandingOf, paidOn } from "@/lib/invoice-balance";
+import { balanceOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { requireCustomer } from "@/lib/session";
 
@@ -109,14 +109,21 @@ export default async function PortalInvoicePage({
             {billLines(invoice).map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="text-sm">{item.description}</TableCell>
+                {/* Volume and weight print to the decimals the shared helpers
+                    use, so the bill agrees with every other screen showing
+                    the same figure. */}
                 <TableCell className="tnum text-right text-sm">
-                  {Number(item.quantity).toFixed(item.unit === "CBM" ? 3 : item.unit === "kg" ? 2 : 0)} {item.unit ?? ""}
+                  {item.unit === "CBM"
+                    ? formatCbm(item.quantity)
+                    : item.unit === "kg"
+                      ? formatWeight(item.quantity)
+                      : `${Number(item.quantity).toFixed(0)} ${item.unit ?? ""}`}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm">
-                  {formatMoney(item.unitPrice, invoice.currency)}
+                  {formatCurrency(item.unitPrice, invoice.currency)}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm">
-                  {formatMoney(item.amount, invoice.currency)}
+                  {formatCurrency(item.amount, invoice.currency)}
                 </TableCell>
               </TableRow>
             ))}
@@ -127,7 +134,7 @@ export default async function PortalInvoicePage({
                 {vat.baseLabel}
               </TableCell>
               <TableCell className="tnum text-right text-sm">
-                {formatMoney(vat.base, invoice.currency)}
+                {formatCurrency(vat.base, invoice.currency)}
               </TableCell>
             </TableRow>
             <TableRow>
@@ -135,7 +142,7 @@ export default async function PortalInvoicePage({
                 {vat.vatLabel}
               </TableCell>
               <TableCell className="tnum text-right text-sm">
-                {formatMoney(vat.vat, invoice.currency)}
+                {formatCurrency(vat.vat, invoice.currency)}
               </TableCell>
             </TableRow>
               </>
@@ -145,7 +152,7 @@ export default async function PortalInvoicePage({
                 Total
               </TableCell>
               <TableCell className="tnum text-right font-semibold">
-                {formatMoney(invoice.total, invoice.currency)}
+                {formatCurrency(invoice.total, invoice.currency)}
               </TableCell>
             </TableRow>
             {invoice.totalTzs ? (
@@ -169,7 +176,7 @@ export default async function PortalInvoicePage({
               ? "This invoice was cancelled"
               : settled
               ? "Settled in full"
-              : `Amount due: ${tzs ? formatCurrency(balance.outstandingTzs, "TZS") : formatMoney(owing, invoice.currency)}`}
+              : `Amount due: ${tzs ? formatCurrency(balance.outstandingTzs, "TZS") : formatCurrency(owing, invoice.currency)}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -192,8 +199,8 @@ export default async function PortalInvoicePage({
             </dl>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {formatMoney(balance.paid, invoice.currency)} received of{" "}
-              {formatMoney(invoice.total, invoice.currency)}.
+              {formatCurrency(balance.paid, invoice.currency)} received of{" "}
+              {formatCurrency(invoice.total, invoice.currency)}.
             </p>
           )}
 
@@ -246,7 +253,7 @@ export default async function PortalInvoicePage({
                     ) : null}
                   </TableCell>
                   <TableCell className="tnum text-right text-sm">
-                    {formatMoney(payment.amount, payment.currency)}
+                    {formatCurrency(payment.amount, payment.currency)}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(payment.paidAt)}
@@ -294,7 +301,7 @@ export default async function PortalInvoicePage({
                   </p>
                 </div>
                 <span className="tnum font-medium">
-                  {formatMoney(receipt.amount, receipt.currency)}
+                  {formatCurrency(receipt.amount, receipt.currency)}
                 </span>
               </div>
             ))}
