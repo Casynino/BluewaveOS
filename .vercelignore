@@ -1,0 +1,12 @@
+# Never uploaded to Vercel: secrets, local data and build output.
+.env
+.env.*
+!.env.example
+.claude
+node_modules
+.next
+.next-*
+storage
+public/uploads
+*.dump
+*.tsbuildinfo
