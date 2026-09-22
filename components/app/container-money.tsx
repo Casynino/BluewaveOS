@@ -110,7 +110,7 @@ export async function ContainerMoney({
     },
     }),
     prisma.expenseType.findMany({
-      where: { active: true, name: { not: "Salaries" } },
+      where: { active: true, forContainer: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

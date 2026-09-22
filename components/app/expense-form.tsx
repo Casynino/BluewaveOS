@@ -22,7 +22,7 @@ export function ExpenseForm({
   accounts = [],
 }: {
   containers: { id: string; label: string }[];
-  types: { id: string; name: string }[];
+  types: { id: string; name: string; forContainer?: boolean }[];
   accounts?: { id: string; label: string }[];
 }) {
   const tx = useT();
@@ -93,9 +93,10 @@ export function ExpenseForm({
           ) : null}
           <div className="space-y-2">
             <Label htmlFor="expenseTypeId">{tx("What kind of cost?")}</Label>
-            <NativeSelect id="expenseTypeId" name="expenseTypeId" defaultValue="">
+            <NativeSelect key={scope} id="expenseTypeId" name="expenseTypeId" defaultValue="">
               <option value="">{tx("Uncategorised")}</option>
-              {types.map((t) => (
+              {/* A sailing's costs for a container; the business's own for the rest. */}
+              {types.filter((t) => !!t.forContainer === (scope === "CONTAINER")).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
@@ -181,7 +182,7 @@ export function RecordCostPanel({
   defaultCurrency = "TZS",
 }: {
   usual: UsualCost[];
-  types: { id: string; name: string }[];
+  types: { id: string; name: string; forContainer?: boolean }[];
   accounts: { id: string; label: string }[];
   containers: { id: string; label: string }[];
   defaultAccountId?: string;
@@ -275,7 +276,7 @@ export function RecordCostPanel({
               onChange={(e) => setTypeId(e.target.value)}
             >
               <option value="">{tx("Uncategorised")}</option>
-              {types.map((t) => (
+              {types.filter((t) => !!t.forContainer === !!containerId).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

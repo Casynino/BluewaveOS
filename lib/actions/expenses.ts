@@ -59,9 +59,20 @@ export async function recordExpense(
   /* Salaries leave only through an approved payroll run. Picked by hand here,
      a salary would reach the ledger with nobody having agreed it. */
   if (data.expenseTypeId) {
-    const type = await prisma.expenseType.findUnique({ where: { id: data.expenseTypeId }, select: { name: true } });
+    const type = await prisma.expenseType.findUnique({
+      where: { id: data.expenseTypeId },
+      select: { name: true, forContainer: true },
+    });
     if (type?.name === SALARIES_CATEGORY) {
       return { error: "Salaries are paid through Payroll, where the manager approves the run." };
+    }
+    /* The two lists do not cross: wharfage is a sailing's, rent is the office's. */
+    if (type && type.forContainer !== (data.scope === "CONTAINER")) {
+      return {
+        error: type.forContainer
+          ? `${type.name} is a container cost. Record it inside the container.`
+          : `${type.name} is a running cost, not a container's.`,
+      };
     }
   }
 
