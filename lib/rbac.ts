@@ -180,11 +180,15 @@ export type Permission =
   // --- Customers and communication -----------------------------------------
   | "customer.view"
   /// Adding a new customer. Every desk meets new customers — the counter in
-  /// Foshan, the floor in Dar, the phone, Finance — so every desk may add
-  /// one; changing or merging an existing record stays `customer.manage`.
+  /// Foshan, the floor in Dar, the phone, Finance — so every desk may add one.
   | "customer.create"
+  /// Correcting a customer's details. By the owner's decision every desk may:
+  /// the desk the customer is standing at is the one that hears the new number.
   | "customer.manage"
   | "customer.merge"
+  /// Removing a customer from the working lists. The manager's and the owner's
+  /// only; soft, reasoned and refused while they have cargo on the move.
+  | "customer.delete"
   | "conversation.view"
   | "conversation.reply"
   | "conversation.assign"
@@ -253,6 +257,7 @@ const CHINA_WAREHOUSE: Permission[] = [
   "exception.resolve",
   "customer.view",
   "customer.create",
+  "customer.manage",
   /* A COLLECTION IN CHINA IS A CHINA JOB.
      The van goes out of Foshan, so the queue of people asking for one has to
      be openable by the floor that answers it. Support still sees the same rows;
@@ -318,6 +323,7 @@ const DAR_WAREHOUSE: Permission[] = [
   "exception.resolve",
   "customer.view",
   "customer.create",
+  "customer.manage",
   "search.global",
 ];
 
@@ -470,6 +476,7 @@ const ALL: Permission[] = Array.from(
     "container.confirmUnchecked",
     "container.delete",
     "customer.merge",
+    "customer.delete",
     "delivery.manage",
     "exception.assign",
     "exception.close",

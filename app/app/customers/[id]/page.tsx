@@ -1,3 +1,4 @@
+import { DeleteCustomer } from "@/components/app/delete-customer";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -144,6 +145,9 @@ export default async function CustomerPage({
               <Button asChild variant="outline">
                 <Link href={`/app/customers/${customer.id}/edit`}>{T("Edit")}</Link>
               </Button>
+            ) : null}
+            {can(user.role, "customer.delete") ? (
+              <DeleteCustomer customerId={customer.id} name={customer.fullName} />
             ) : null}
           </>
         }

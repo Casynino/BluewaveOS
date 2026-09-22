@@ -4,6 +4,7 @@ import { Camera, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { RestoreCargoButton } from "@/components/app/restore-cargo-button";
+import { RestoreCustomerButton } from "@/components/app/restore-customer-button";
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/currency";
 import { formatCbm, formatDateTime, formatWeight } from "@/lib/format";
@@ -88,6 +89,15 @@ export default async function DeletedRecordsPage() {
      Getting in is records.viewDeleted; restoring is cargo.delete, the same
      authority it took to remove it. A control nobody may press is not drawn. */
   const canRestore = can(user.role, "cargo.delete");
+  const canRestoreCustomer = can(user.role, "customer.delete");
+
+  const deletedCustomers = await prisma.customer.findMany({
+    where: { deletedAt: { not: null } },
+    orderBy: { deletedAt: "desc" },
+    take: 200,
+    select: { id: true, fullName: true, code: true, phone: true, deletedAt: true },
+  });
+  const customerWho = await whoDid(["Customer"], deletedCustomers.map((x) => x.id), ["customer.delete"]);
 
   const [payments, transfers, cargo, packages, containers, expenses] = await Promise.all([
     prisma.payment.findMany({
@@ -305,6 +315,35 @@ export default async function DeletedRecordsPage() {
                 );
               })}
             </ul>
+          </Card>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">{t(locale, "Deleted customers")}</h2>
+        {deletedCustomers.length === 0 ? (
+          <Empty text={t(locale, "Deleted customers appear here, with who removed them and why.")} />
+        ) : (
+          <Card className="divide-y">
+            {deletedCustomers.map((c) => {
+              const who = customerWho.get(c.id);
+              const reason = reasonIn(who);
+              return (
+                <div key={c.id} className="flex flex-wrap items-start justify-between gap-4 p-4">
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {c.fullName} <span className="font-mono text-xs text-muted-foreground">{c.code}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {c.phone}
+                      {byLine(who, c.deletedAt)}
+                      {reason ? ` — “${reason}”` : ""}
+                    </p>
+                  </div>
+                  {canRestoreCustomer ? <RestoreCustomerButton customerId={c.id} name={c.fullName} /> : null}
+                </div>
+              );
+            })}
           </Card>
         )}
       </section>

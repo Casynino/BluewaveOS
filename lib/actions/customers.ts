@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { nextCustomerCode, shippingMarkFor } from "@/lib/ids";
 import { normaliseAnyPhone, normaliseTzPhone, tzPhoneProblem } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -170,6 +170,81 @@ export async function updateCustomer(
   revalidatePath("/app/customers");
   revalidatePath(`/app/customers/${id}`);
   return { ok: "Saved.", customerId: id };
+}
+
+/* Cargo in any of these is finished with; anything else is still on the move. */
+const FINISHED_CARGO = ["COLLECTED", "DELIVERED", "CANCELLED"] as const;
+const UNPAID_BILL = ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] as const;
+
+/**
+ * Take a customer off the working lists.
+ *
+ * The manager's and the owner's only. Soft, like every removal: the row, its
+ * code, its mark and every bill and consignment that names it stay, so the
+ * history still reads and the deleted list can put it back. Refused while the
+ * customer has cargo on the move or a bill still owed — a deleted customer is
+ * one nobody at the counter can find, and those are exactly the people who
+ * will walk in. Their portal sign-in is switched off with them.
+ */
+export async function deleteCustomer(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await authorize("customer.delete");
+
+  const id = String(formData.get("customerId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (reason.length < 3) return { error: "Say why this customer is being deleted." };
+
+  const customer = await prisma.customer.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true, fullName: true, code: true },
+  });
+  if (!customer) return { error: "That customer no longer exists." };
+
+  const [moving, owed] = await Promise.all([
+    prisma.cargo.count({
+      where: {
+        deletedAt: null,
+        status: { notIn: [...FINISHED_CARGO] },
+        OR: [{ senderId: id }, { receiverId: id }],
+      },
+    }),
+    prisma.invoice.count({ where: { customerId: id, status: { in: [...UNPAID_BILL] } } }),
+  ]);
+  if (moving > 0) {
+    return {
+      error: `${customer.fullName} has ${moving} consignment${moving === 1 ? "" : "s"} still on the move. Finish or cancel ${moving === 1 ? "it" : "them"} first.`,
+    };
+  }
+  if (owed > 0) {
+    return { error: `${customer.fullName} still owes on ${owed} bill${owed === 1 ? "" : "s"}. Settle or cancel ${owed === 1 ? "it" : "them"} first.` };
+  }
+
+  const deleted = await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const { count } = await tx.customer.updateMany({ where: { id, deletedAt: null }, data: { deletedAt: now } });
+    if (count === 0) return false;
+    await recordFieldChange(
+      { actor, entity: "Customer", entityId: id, field: "deletedAt", oldValue: null, newValue: now.toISOString(), reason },
+      tx
+    );
+    await tx.user.updateMany({ where: { customerId: id, active: true }, data: { active: false } });
+    await recordAudit(
+      {
+        actor,
+        action: "customer.delete",
+        entity: "Customer",
+        entityId: id,
+        summary: `Deleted ${customer.fullName} (${customer.code})`,
+        metadata: { reason },
+      },
+      tx
+    );
+    return true;
+  });
+  if (!deleted) return { error: "Somebody deleted this customer first." };
+
+  revalidatePath("/app/customers");
+  revalidatePath("/app/admin/deleted");
+  return { ok: `${customer.fullName} deleted.` };
 }
 
 /**

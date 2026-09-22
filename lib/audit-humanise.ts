@@ -500,6 +500,8 @@ const ACTION_LABELS: Record<string, string> = {
   "customer.create": "Customer added",
   "customer.register": "Customer signed up",
   "customer.update": "Customer edited",
+  "customer.delete": "Customer deleted",
+  "customer.restore": "Customer restored",
   "customer.contact": "Customer contacted",
   "conversation.start": "Message sent",
   "ticket.create": "Support ticket opened",

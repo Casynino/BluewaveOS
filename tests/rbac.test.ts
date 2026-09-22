@@ -180,16 +180,18 @@ describe("the support desk explains; it does not do", () => {
     }
   });
 
-  test("every desk may add a customer; changing one stays with the desks that do", () => {
-    /* The counter in Foshan, the floor in Dar, the phone and Finance all
-       meet new customers. Editing or merging an existing record is not the
-       same act and is not handed out with it. */
+  test("every desk may add and edit a customer; only the manager and the owner delete one", () => {
+    /* The owner's decision: the desk the customer is standing at is the one
+       that hears the new number, so every desk corrects details. Removing a
+       customer is not the same act and is not handed out with it. */
     for (const role of ["CHINA_WAREHOUSE", "DAR_WAREHOUSE", "CUSTOMER_SUPPORT", "FINANCE", "MANAGER", "ADMIN"] as Role[]) {
       assert.ok(can(role, "customer.create"), role);
+      assert.ok(can(role, "customer.manage"), role);
     }
     assert.equal(can("CUSTOMER", "customer.create"), false);
-    assert.equal(can("CHINA_WAREHOUSE", "customer.manage"), false);
-    assert.equal(can("DAR_WAREHOUSE", "customer.manage"), false);
+    assert.equal(can("CUSTOMER", "customer.manage"), false);
+    const deleters = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) => can(r, "customer.delete"));
+    assert.deepEqual(deleters.sort(), ["ADMIN", "MANAGER"]);
   });
 
   test("payment.verify is Finance's and nobody else's", () => {
