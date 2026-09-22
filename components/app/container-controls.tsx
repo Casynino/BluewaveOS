@@ -14,6 +14,11 @@ import {
   type ActionState,
 } from "@/lib/actions/containers";
 import { FormMessage } from "@/components/app/form-message";
+import {
+  ClosePanel,
+  type MoveTarget,
+  type OpenConsignment,
+} from "@/components/app/close-container";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Button } from "@/components/ui/button";
@@ -335,7 +340,7 @@ const NEXT_STEP: Record<string, Step | null> = {
   ARRIVED: {
     to: "CLOSED",
     heading: "In Dar es Salaam",
-    body: "Close it once every consignment on it is checked in or reported missing. Nothing more can happen to a closed container.",
+    body: "Close it when the sailing is finished with. Anything nobody has accounted for is asked about first — moved to the box it was really on, or reported missing.",
     button: "Close the container",
     icon: <Lock />,
     waiting: "Finance closes the container once everything on it is booked in.",
@@ -383,6 +388,7 @@ export function AdvancePanel({
   canDepart,
   canArrive,
   canClose,
+  close,
   sailing,
 }: {
   containerId: string;
@@ -390,6 +396,14 @@ export function AdvancePanel({
   canDepart: boolean;
   canArrive: boolean;
   canClose: boolean;
+  /* What the close has to ask about before it can happen. Null for every
+     other milestone: departing and arriving are one press and ask nothing. */
+  close?: {
+    reference: string;
+    outstanding: OpenConsignment[];
+    targets: MoveTarget[];
+    mayReportMissing: boolean;
+  } | null;
   /** Left China, due in Dar, and whether that day has gone by. */
   sailing?: {
     departed: string | null;
@@ -478,7 +492,18 @@ export function AdvancePanel({
           </div>
         </div>
       ) : null}
-      {allowed ? (
+      {allowed && step.to === "CLOSED" && close ? (
+        /* CLOSING IS THE ONE MILESTONE WITH A QUESTION IN IT. A box with
+           nothing outstanding still closes in one press — the panel says so
+           itself rather than this deciding for it. */
+        <ClosePanel
+          containerId={containerId}
+          reference={close.reference}
+          outstanding={close.outstanding}
+          targets={close.targets}
+          mayReportMissing={close.mayReportMissing}
+        />
+      ) : allowed ? (
         /* ONE PRESS, NOT A FORM. The moment of the press is the date: the
            action takes now when no date is sent. */
         <form action={action} className="space-y-3">

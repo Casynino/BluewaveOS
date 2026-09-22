@@ -122,13 +122,18 @@ export type MessageContext = {
  * send today. A status with no stage of its own gets the blank letter.
  */
 export function stageEvent(status: CargoStatus): ContactKind {
+  /* The box landed and this consignment did not come off it. Its stage reads
+     "Arrived in Dar" like the rest of the container — that is the owner's rule
+     and what its customer was already told — but no template says so to them
+     twice. A person writes this one. */
+  if (status === "MISSING_AT_DAR") return "general";
   switch (bluewaveStageOf(status)) {
     case "RECEIVED_IN_CHINA":
       return "CARGO_RECEIVED_CHINA";
     case "STORED_IN_CHINA":
       return "CARGO_STORED_CHINA";
     case "IN_TRANSIT":
-      return status === "MISSING_AT_DAR" ? "general" : "CARGO_IN_TRANSIT";
+      return "CARGO_IN_TRANSIT";
     case "ARRIVED_IN_DAR":
       return "CARGO_ARRIVED_DAR";
     case "READY_FOR_PICKUP":
@@ -146,6 +151,9 @@ export function stageEvent(status: CargoStatus): ContactKind {
  */
 export function billLetter(status: CargoStatus, owing: boolean): ContactKind {
   if (status === "READY_FOR_RELEASE" && !owing) return "CARGO_READY_FOR_PICKUP";
+  /* Never the arrival letter for goods nobody can find: it says the cargo
+     reached Dar safely, and a bill is not the place to learn otherwise. */
+  if (status === "MISSING_AT_DAR") return "PRICE_CONFIRMED";
   /* The first word a customer gets about money on goods in Dar is the arrival
      letter with the bill in it — never a "reminder" about a bill nobody has
      told them of. The reminder is for chasing, chosen on purpose. */

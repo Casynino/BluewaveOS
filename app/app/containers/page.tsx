@@ -29,6 +29,7 @@ import { CONTAINER_STATUS_LABELS, ROUTE } from "@/lib/constants";
 import { formatCbm, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { countsInContainer } from "@/lib/verification";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
@@ -171,10 +172,9 @@ export default async function ContainersPage({
           cbm: true,
           weightKg: true,
           packagesCount: true,
-          cargo: { select: { senderId: true } },
+          cargo: { select: { senderId: true, status: true } },
         },
       },
-      _count: { select: { cargoLines: true } },
     },
   });
 
@@ -299,11 +299,25 @@ export default async function ContainersPage({
       <p className="tnum text-sm text-muted-foreground">
         {containers.length} {containers.length === 1 ? "container" : "containers"}
         {" · "}
-        {containers.reduce((sum, c) => sum + c._count.cargoLines, 0)} consignments
+        {containers.reduce(
+          (sum, c) =>
+            sum +
+            c.cargoLines.filter((l) =>
+              countsInContainer({ status: l.cargo.status })
+            ).length,
+          0
+        )}{" "}
+        consignments
         {" · "}
         {formatCbm(
           containers.reduce(
-            (sum, c) => sum + c.cargoLines.reduce((n, l) => n + Number(l.cbm), 0),
+            (sum, c) =>
+              sum +
+              c.cargoLines
+                .filter((l) =>
+                  countsInContainer({ status: l.cargo.status })
+                )
+                .reduce((n, l) => n + Number(l.cbm), 0),
             0
           )
         )}
@@ -341,18 +355,29 @@ export default async function ContainersPage({
             </TableHeader>
             <TableBody>
               {containers.map((c) => {
-                const cbm = c.cargoLines.reduce((sum, l) => sum + Number(l.cbm), 0);
+                /* WHAT IS IN THE BOX, NOT WHAT WAS PUT ON THE PAPER.
+
+                   A consignment Dar could not find keeps its row on the
+                   container and comes out of every figure here: the goods are
+                   not in there, and a sailing that reads its full volume over
+                   a box somebody has already emptied is a figure nobody can
+                   act on. The count beside it names how many were left out. */
+                const present = c.cargoLines.filter((l) =>
+                  countsInContainer({ status: l.cargo.status })
+                );
+                const missing = c.cargoLines.length - present.length;
+                const cbm = present.reduce((sum, l) => sum + Number(l.cbm), 0);
                 /* Customers, not lines: one customer routinely has several
                    consignments in the same box, and "18 customers" is the
                    figure that says how many people this sailing concerns. */
                 const customers = new Set(
-                  c.cargoLines.map((l) => l.cargo.senderId)
+                  present.map((l) => l.cargo.senderId)
                 ).size;
-                const packages = c.cargoLines.reduce(
+                const packages = present.reduce(
                   (sum, l) => sum + l.packagesCount,
                   0
                 );
-                const weight = c.cargoLines.reduce(
+                const weight = present.reduce(
                   (sum, l) => sum + Number(l.weightKg ?? 0),
                   0
                 );
@@ -396,7 +421,12 @@ export default async function ContainersPage({
                       {c.shipment?.voyage ? ` / ${c.shipment.voyage}` : ""}
                     </TableCell>
                     <TableCell className="tnum text-right text-sm">
-                      {c._count.cargoLines}
+                      {present.length}
+                      {missing > 0 ? (
+                        <span className="block text-xs text-destructive">
+                          {missing} {T("missing")}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="tnum text-right text-sm">
                       {customers}

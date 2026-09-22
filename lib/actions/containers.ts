@@ -1028,12 +1028,18 @@ const MILESTONES = {
     cargo: "IN_TRANSIT" as const,
   },
   /*
-    AT THE PORT IS STILL IN TRANSIT.
+    ARRIVED IS ARRIVED — ONE PRESS, AND IT DOES NOT WAIT FOR A SCANNER.
 
-    The box is at Dar es Salaam port; our warehouse has not confirmed the
-    goods on its floor. The customer's stage does not move and nobody is told
-    anything here — "Arrived in Dar" is the check-in's to say, and the storage
-    clock starts there, never from the ship.
+    The owner's rule. Whoever holds `container.arrive` presses it when the box
+    is in: the container lands, every consignment on it stands at ARRIVED in
+    Dar, each customer is told once and the free-storage clock starts that day.
+    Nothing here asks whether anybody has scanned anything, because the goods
+    arrived whether or not the floor has got to them yet.
+
+    What Dar does afterwards — scanning each cargo, counting it, signing it off
+    — is VERIFICATION, a separate state on a separate screen
+    (lib/verification.ts). It never moves the arrival day and the arrival never
+    waits for it.
   */
   ARRIVED: {
     from: ["DEPARTED", "IN_TRANSIT"] as ContainerStatus[],
@@ -1705,9 +1711,24 @@ export async function putOnArrivedContainer(
       tx
     );
 
-    await tx.containerCargo.deleteMany({
+    /* A draft raised when the box landed names the manifest line it was
+       priced against, and that line is about to go. The draft stops claiming
+       it rather than being deleted — the figures are still the figures — for
+       the same reason the take-off does it: the line is a real foreign key,
+       and the move fell over on it. */
+    const leaving = await tx.containerCargo.findMany({
       where: { cargoId: cargo.id, containerId: { not: container.id } },
+      select: { id: true },
     });
+    if (leaving.length > 0) {
+      await tx.invoice.updateMany({
+        where: { cargoId: cargo.id, containerCargoId: { in: leaving.map((l) => l.id) } },
+        data: { containerCargoId: null },
+      });
+      await tx.containerCargo.deleteMany({
+        where: { id: { in: leaving.map((l) => l.id) } },
+      });
+    }
     await tx.cargoPackage.updateMany({
       where: { cargoId: cargo.id, deletedAt: null },
       data: { containerId: container.id },

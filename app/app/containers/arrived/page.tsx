@@ -162,6 +162,9 @@ export default async function ArrivedContainersPage({
             select: {
               id: true,
               receiverId: true,
+              /* Reported missing at Dar: still on the manifest, not in the
+                 box, and not part of what this sailing is worth. */
+              status: true,
               /* Dar's own volume, not China's. Finance prices on what the
                  receiving counter measured — that is the whole point of the
                  second measurement. */
@@ -220,10 +223,16 @@ export default async function ArrivedContainersPage({
   const rows = containers.map((container) => {
     const cargo = container.cargoLines.map((l) => l.cargo);
     const counted = cargo.filter((c) => c.darReceiving).length;
-    /* Checked in means the floor has finished: every consignment ruled on.
-       Half a container counted is still Dar's work, not Finance's. */
+    const missing = cargo.filter((c) => c.status === "MISSING_AT_DAR").length;
+    /* Checked in means the floor has finished: every consignment RULED ON.
+       A consignment reported missing has been ruled on — that is the whole
+       point of it having its own state — so it does not hold a container in
+       "counting" for ever while its case is worked. Half a container counted
+       is still Dar's work, not Finance's. */
     const checkedIn =
-      cargo.length > 0 && counted === cargo.length && container.status !== "CLOSED";
+      cargo.length > 0 &&
+      counted + missing === cargo.length &&
+      container.status !== "CLOSED";
 
     const live = cargo.flatMap((c) =>
       c.invoices.filter((i) => i.status !== "DRAFT")
@@ -276,7 +285,10 @@ export default async function ArrivedContainersPage({
       state,
       route: container.originPort ?? container.shipment?.originPort ?? "",
       trip,
-      cargo: cargo.length,
+      /* The box's own contents: what is in it, with the missing named
+         separately rather than folded in or silently dropped. */
+      cargo: cargo.length - missing,
+      missing,
       counted,
       customers: new Set(cargo.map((c) => c.receiverId)).size,
       cbm: cargo.reduce(
@@ -826,6 +838,11 @@ export default async function ArrivedContainersPage({
                   </TableCell>
                   <TableCell className="tnum text-right text-sm">
                     {row.cargo}
+                    {row.missing > 0 ? (
+                      <span className="block text-xs text-destructive">
+                        {row.missing} {t(locale, "missing")}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="tnum text-right text-sm">
                     {row.cbm > 0 ? formatCbm(row.cbm) : "—"}

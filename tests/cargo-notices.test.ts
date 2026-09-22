@@ -182,7 +182,10 @@ describe("stage messages", () => {
     assert.equal(bluewaveStageOf("READY_FOR_RELEASE"), "READY_FOR_PICKUP");
     assert.equal(bluewaveStageOf("COLLECTED"), "COLLECTED");
     assert.equal(bluewaveStageOf("DELIVERED"), "COLLECTED");
-    assert.equal(bluewaveStageOf("MISSING_AT_DAR"), "IN_TRANSIT");
+    /* The owner's rule: the box landed, so the line says Dar. The consignment
+       not being on it is the issue the journey carries, not a trip back to
+       sea for a customer who was told a fortnight ago that it had arrived. */
+    assert.equal(bluewaveStageOf("MISSING_AT_DAR"), "ARRIVED_IN_DAR");
     assert.equal(bluewaveStageOf("CANCELLED"), null);
   });
 });

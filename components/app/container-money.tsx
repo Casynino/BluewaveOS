@@ -29,6 +29,7 @@ import { bookCategories } from "@/lib/rate-categories";
 import { billLetter, composeMessage, whatsappNumber } from "@/lib/messages";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
+import { expectedRevenueOf } from "@/lib/container-value";
 import type { Role } from "@prisma/client";
 
 import { correctionOptions, toCorrectable, correctableInclude } from "@/lib/expense-correction";
@@ -139,10 +140,15 @@ export async function ContainerMoney({
       live,
       billed,
       owing,
+      /* On the manifest, not on the floor. It stays in this table — a row that
+         disappears is a customer nobody rings back — and it comes out of the
+         arithmetic below. */
+      missing: cargo.status === "MISSING_AT_DAR",
       settled: live.length > 0 && owing <= 0,
       currency: live[0]?.currency ?? draft?.currency ?? "USD",
     };
   });
+  const missingRows = rows.filter((r) => r.missing);
 
   const toConfirm = rows.filter((r) => r.live.length === 0).length;
   const owedTotal = rows.reduce((sum, r) => sum + r.owing, 0);
@@ -160,11 +166,19 @@ export async function ContainerMoney({
    *
    * Collected and Expenses are the two figures here that are money which has
    * actually moved. Everything else is arithmetic about the future.
+   *
+   * The arithmetic itself is lib/container-value.ts, including the one rule
+   * that is not obvious: a missing consignment's draft is not this sailing's
+   * money, and a bill already in a customer's hands still is. The line under
+   * the table names how many are in that position.
    */
-  const expectedRevenue = rows.reduce(
-    (sum, r) =>
-      sum + (r.live.length > 0 ? r.billed : Number(r.draft?.total ?? 0)),
-    0
+  const expectedRevenue = expectedRevenueOf(
+    rows.map((r) => ({
+      missing: r.missing,
+      billed: r.billed,
+      issued: r.live.length > 0,
+      draftTotal: Number(r.draft?.total ?? 0),
+    }))
   );
   const collected = rows.reduce((sum, r) => sum + (r.billed - r.owing), 0);
   const expectedOutstanding = expectedRevenue - collected;
@@ -329,6 +343,7 @@ export async function ContainerMoney({
             ? tzs(Number(r.draft.total))
             : (waitingRow?.totalTzsLabel ?? null),
       owing: r.owing,
+      missing: r.missing,
       state,
       stateLabel:
         state === "collected"
@@ -639,6 +654,15 @@ export async function ContainerMoney({
             {invoiced} of {rows.length} invoiced
             {toConfirm > 0 ? (
               <span className="text-warning"> · {toConfirm} still to confirm</span>
+            ) : null}
+            {missingRows.length > 0 ? (
+              <span className="text-destructive">
+                {" "}
+                · {missingRows.length} missing
+                {missingRows.some((r) => r.live.length > 0)
+                  ? " (a bill is already out on one — cancel or credit it)"
+                  : ", not counted as expected"}
+              </span>
             ) : null}
           </p>
           <p className="tnum text-muted-foreground">

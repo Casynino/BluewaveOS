@@ -562,10 +562,16 @@ describe("public journey", () => {
     assert.equal(j.issue, "MISSING");
     assert.equal(j.stage, "AT_DAR_PORT");
     assert.equal(j.headline, "Being located");
-    /* The box landed; these goods were not on it. The step saying they arrived
-       is not claimed — the marker stays on the last thing that is true. */
-    assert.equal(state(j, "IN_TRANSIT"), "current");
-    assert.equal(state(j, "ARRIVED_IN_DAR"), "upcoming");
+    /* THE BOX ARRIVED, SO THE LINE SAYS DAR — the owner's rule. Every customer
+       on that container was told it had landed; walking this one back to "in
+       transit" would contradict the letter we sent them. The trouble is said
+       instead, in the headline and the notice, and no arrival day is claimed
+       for goods nobody has found. */
+    assert.equal(state(j, "IN_TRANSIT"), "done");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
+    assert.equal(j.steps.find((s) => s.key === "ARRIVED_IN_DAR")?.at, null);
+    assert.match(j.notice ?? "", /checking this consignment/i);
+    assert.equal(j.ready, false);
   });
 
   test("collected and delivered close every step", () => {

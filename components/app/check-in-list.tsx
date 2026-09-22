@@ -31,6 +31,12 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
 import { distinctMark } from "@/lib/customer-name";
+import { useT } from "@/components/app/locale-provider";
+import {
+  VERIFICATION_LABEL,
+  VERIFICATION_TONE,
+  type Verification,
+} from "@/lib/verification";
 
 import { Tx } from "@/components/app/tx";
 export type CheckInRow = {
@@ -55,6 +61,8 @@ export type CheckInRow = {
   discrepancy: boolean;
   verified: boolean;
   missing: boolean;
+  /** The one word for where verification stands. See lib/verification.ts. */
+  verification: Verification;
   /** Not GOOD on the Dar receiving row: the tag stays visible from here on. */
   condition: string | null;
   damaged: boolean;
@@ -91,14 +99,17 @@ type Lens =
   | "discrepancies"
   | "added";
 
+/* The floor's questions in the verification's own words — the five the owner
+   named, plus the two the clerk works from: what is still to touch, and what
+   was put on this manifest here. */
 const LENSES: { key: Lens; label: string }[] = [
   { key: "all", label: "Expected" },
-  { key: "unchecked", label: "Unchecked" },
-  { key: "checked", label: "Received" },
-  { key: "verified", label: "Signed off" },
+  { key: "unchecked", label: "Not checked in" },
+  { key: "checked", label: "Checked in" },
+  { key: "verified", label: "Verified" },
   { key: "damaged", label: "Damaged" },
   { key: "missing", label: "Missing" },
-  { key: "discrepancies", label: "Discrepancies" },
+  { key: "discrepancies", label: "Issue" },
   { key: "added", label: "Added here" },
 ];
 
@@ -109,13 +120,13 @@ function matchesLens(row: CheckInRow, lens: Lens) {
     case "checked":
       return row.arrivedPackages !== null;
     case "verified":
-      return row.verified;
+      return row.verification === "VERIFIED";
     case "damaged":
-      return row.damaged;
+      return row.verification === "DAMAGED";
     case "missing":
-      return row.missing;
+      return row.verification === "MISSING";
     case "discrepancies":
-      return !row.missing && (row.discrepancy || row.hasCase);
+      return row.verification === "ISSUE";
     case "added":
       return row.added;
     default:
@@ -182,13 +193,13 @@ export function CheckInList({
     all: rows.length,
     unchecked: open.length,
     checked: rows.filter((r) => r.arrivedPackages !== null).length,
-    verified: rows.filter((r) => r.verified).length,
-    damaged: rows.filter((r) => r.damaged).length,
-    missing: rows.filter((r) => r.missing).length,
-    /* The same rule the container's own counter above uses, so the chip and
-       the strip can never disagree about the box in front of the clerk. */
-    discrepancies: rows.filter((r) => !r.missing && (r.discrepancy || r.hasCase))
-      .length,
+    /* The same rule the container's own strip above uses — one helper, so the
+       chip and the strip can never disagree about the box in front of the
+       clerk. */
+    verified: rows.filter((r) => r.verification === "VERIFIED").length,
+    damaged: rows.filter((r) => r.verification === "DAMAGED").length,
+    missing: rows.filter((r) => r.verification === "MISSING").length,
+    discrepancies: rows.filter((r) => r.verification === "ISSUE").length,
     added: rows.filter((r) => r.added).length,
   };
   const shown = rows.filter((r) => matchesLens(r, lens));
@@ -550,6 +561,7 @@ function CheckInRowView({
   picked: boolean;
   onPick?: () => void;
 }) {
+  const tx = useT();
   const [expanded, setExpanded] = useState(false);
   const [counting, setCounting] = useState(false);
   const [flagging, setFlagging] = useState(false);
@@ -698,21 +710,26 @@ function CheckInRowView({
               Added here
             </Badge>
           ) : null}
-          {row.missing ? (
-            <Badge tone="bad">Missing</Badge>
-          ) : row.damaged ? (
-            /* Read before "short" and before "verified": a bale that came off
-               wet is the fact about it, whatever else is true. */
-            <Badge tone="bad">{CONDITION_LABEL[row.condition ?? "DAMAGED"]}</Badge>
-          ) : row.verified ? (
-            <Badge tone="good">Verified</Badge>
-          ) : row.discrepancy ? (
-            <Badge tone="warn">Short</Badge>
-          ) : done ? (
-            <Badge tone="progress">Counted</Badge>
-          ) : (
-            <Badge tone="neutral">On the water list</Badge>
-          )}
+          {/* THE VERIFICATION WORD, DECIDED IN ONE PLACE.
+
+              lib/verification.ts says which of the five it is — the same word
+              the strip above counts and the container page prints. Damage
+              keeps its own kind beside it, because wet and crushed are not the
+              same conversation with a supplier, and a row that has been
+              counted but not signed off says so rather than reading as one
+              nobody has touched. */}
+          <Badge tone={VERIFICATION_TONE[row.verification]}>
+            {tx(VERIFICATION_LABEL[row.verification])}
+          </Badge>
+          {row.verification === "DAMAGED" && row.condition ? (
+            <span className="ml-1 text-xs text-muted-foreground">
+              {tx(CONDITION_LABEL[row.condition] ?? CONDITION_LABEL.DAMAGED)}
+            </span>
+          ) : row.verification === "PENDING" ? (
+            <span className="ml-1 text-xs text-muted-foreground">
+              {done ? tx("counted, not signed off") : tx("not checked in")}
+            </span>
+          ) : null}
         </td>
 
         {/* The three answers, in the order they happen: it is here and right,

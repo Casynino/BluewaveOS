@@ -24,9 +24,9 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { BoxScanner } from "@/components/app/box-scanner";
 import { cargoTypeOptions } from "@/lib/valuation";
+import { verificationOf, verificationSummary } from "@/lib/verification";
 
 import { primeLocale, T } from "@/lib/server-t";
-import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Check in cargo" };
 
 /**
@@ -138,6 +138,10 @@ export default async function CheckInContainerPage({
             id: true,
             reference: true,
             shippingMark: true,
+            /* The serial off the Foshan paper book: an unexpected bale is
+               matched to the record it already has by whichever of these the
+               clerk can read off it — never by making a second record. */
+            paperReceiptNo: true,
             description: true,
             sender: { select: { fullName: true } },
           },
@@ -145,11 +149,25 @@ export default async function CheckInContainerPage({
       : Promise.resolve([]),
   ]);
 
-  const done = container.cargoLines.filter((l) => l.cargo.darReceiving).length;
-  const missing = container.cargoLines.filter(
-    (l) => l.cargo.status === "MISSING_AT_DAR"
-  ).length;
-  const waiting = container.cargoLines.length - done - missing;
+  /*
+    ONE WORD PER CONSIGNMENT, COUNTED IN ONE PLACE.
+
+    The arrival was pressed when the box landed; this is the other half of the
+    owner's rule — what the floor has found since. lib/verification.ts decides
+    what each consignment reads, so this strip, the rows under it, the
+    container page and the staff lists cannot drift apart.
+  */
+  const verifiable = container.cargoLines.map((l) => ({
+    status: l.cargo.status,
+    darReceiving: l.cargo.darReceiving,
+    openCases: l.cargo.exceptions.length,
+  }));
+  const summary = verificationSummary(verifiable);
+  const done = summary.checkedIn;
+  const missing = summary.missing;
+  /* Nobody has said anything about these at all: not counted, not reported
+     missing. It is the queue, and it is what the confirmation refuses over. */
+  const waiting = summary.expected - done - missing;
 
   /*
     EXPECTED AGAINST CONFIRMED, FOR THE WHOLE BOX.
@@ -181,17 +199,11 @@ export default async function CheckInContainerPage({
     { packages: 0, pieces: 0, cbm: 0 }
   );
 
-  const damaged = container.cargoLines.filter(
-    (l) => l.cargo.darReceiving && l.cargo.darReceiving.condition !== "GOOD"
-  ).length;
+  const damaged = summary.damaged;
   /* The count or the condition did not match, or somebody raised a case on the
      consignment by hand. A consignment that never came off has its own figure
      beside this one and is deliberately not counted twice. */
-  const discrepancies = container.cargoLines.filter(
-    (l) =>
-      l.cargo.status !== "MISSING_AT_DAR" &&
-      (l.cargo.darReceiving?.discrepancy || l.cargo.exceptions.length > 0)
-  ).length;
+  const discrepancies = summary.issue;
   /* Cargo the frozen packing list does not carry, or carries against another
      box: put on this manifest at Dar, and each one holding the case that says
      so. The case IS the flag — nothing else on the row would tell them apart. */
@@ -199,16 +211,6 @@ export default async function CheckInContainerPage({
     l.cargo.exceptions.some(
       (e) => e.type === "UNIDENTIFIED_CARGO" || e.type === "WRONG_CONTAINER"
     )
-  ).length;
-  /* Counted, but nobody has signed it off yet. Verifying was a screen of its
-     own once; it is the last move of checking a container in, so it happens
-     here, on the row that was just counted. A line with an open case cannot be
-     signed off — that is what the case is for. */
-  const toVerify = container.cargoLines.filter(
-    (l) =>
-      l.cargo.darReceiving &&
-      !l.cargo.darReceiving.verified &&
-      l.cargo.exceptions.length === 0
   ).length;
   const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
 
@@ -305,12 +307,23 @@ export default async function CheckInContainerPage({
             value: `${formatCbm(confirmed.cbm)} / ${formatCbm(expected.cbm)}`,
             icon: ScanSearch,
           },
-          { label: "Received", value: String(done), icon: ClipboardCheck, tone: "success" },
           {
-            label: "Unchecked",
-            value: String(waiting),
+            label: "Checked in",
+            value: `${done} / ${summary.expected}`,
             icon: ClipboardCheck,
-            tone: waiting > 0 ? "warning" : "success",
+            tone: "success",
+          },
+          {
+            label: "Verified",
+            value: String(summary.verified),
+            icon: ClipboardCheck,
+            tone: summary.verified === summary.expected ? "success" : "neutral",
+          },
+          {
+            label: "Pending",
+            value: String(summary.pending),
+            icon: ClipboardCheck,
+            tone: summary.pending > 0 ? "warning" : "success",
           },
           {
             label: "Missing",
@@ -325,7 +338,7 @@ export default async function CheckInContainerPage({
             tone: damaged > 0 ? "danger" : "neutral",
           },
           {
-            label: "Discrepancies",
+            label: "Issue",
             value: String(discrepancies),
             icon: TriangleAlert,
             tone: discrepancies > 0 ? "warning" : "neutral",
@@ -349,7 +362,17 @@ export default async function CheckInContainerPage({
         canConfirmUnchecked={can(user.role, "container.confirmUnchecked")}
         addable={addable.map((c) => ({
           id: c.id,
-          label: `${c.reference} · ${c.shippingMark ?? c.sender.fullName} · $<Tx>{c.description}</Tx>`,
+          /* Everything the bale itself might be marked with, in one line the
+             picker's own type-ahead searches: our reference, the shipping
+             mark, the receipt number from the paper book, and the goods. */
+          label: [
+            c.reference,
+            c.shippingMark ?? c.sender.fullName,
+            c.paperReceiptNo,
+            c.description,
+          ]
+            .filter(Boolean)
+            .join(" · "),
         }))}
         rows={container.cargoLines.map((line) => {
           const c = line.cargo;
@@ -393,6 +416,13 @@ export default async function CheckInContainerPage({
             discrepancy: c.darReceiving?.discrepancy ?? false,
             verified: c.darReceiving?.verified ?? false,
             missing: c.status === "MISSING_AT_DAR",
+            /* The same word the strip above counted, and the same one the
+               container page and the consignment print. */
+            verification: verificationOf({
+              status: c.status,
+              darReceiving: c.darReceiving,
+              openCases: c.exceptions.length,
+            }),
             condition: c.darReceiving?.condition ?? null,
             damaged:
               !!c.darReceiving && c.darReceiving.condition !== "GOOD",

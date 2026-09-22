@@ -633,6 +633,7 @@ const ZH: Record<string, string> = {
   "Checked by": "核对人",
   "Checked by (name & signature)": "核对人（姓名及签字）",
   "Checked in": "已核收",
+  "Dar check": "达累斯萨拉姆查验",
   "checked in": "已核收",
   "Checked in against handed over, a fortnight": "近两周入库量与放货量对比",
   "Checked in against the manifest": "已按舱单核收",
@@ -1395,6 +1396,9 @@ const ZH: Record<string, string> = {
   "is with Finance. You will see it move once they check it.":
     "已提交财务。财务核对后状态会更新。",
   "Issue pickup note": "开具提货单",
+  /* The verification word for a consignment whose count or condition has to
+     be answered for. See lib/verification.ts. */
+  "Issue": "异常",
   "Issued": "开具日期",
   "issued": "开具于",
   "Issued by": "开具人",
@@ -1538,6 +1542,8 @@ const ZH: Record<string, string> = {
   "Minimum charge adjustment": "最低收费调整",
   "Minor": "轻微",
   "Missing": "缺失",
+  "missing, not counted": "缺失，未计入",
+  "missing, not counted in the totals.": "缺失，未计入合计。",
   "missing": "缺失",
   "Missing cargo": "缺失货物",
   "Missing exception.": "找不到该异常案件。",
@@ -1799,6 +1805,7 @@ const ZH: Record<string, string> = {
   "Not checked": "未核对",
   "Not checked in": "未入库",
   "not checked in": "未入库核对",
+  "counted, not signed off": "已点数，未签核",
   "Not classified": "未分类",
   "not collected": "未提货",
   "not departed": "未发运",
@@ -6624,6 +6631,30 @@ const ZH: Record<string, string> = {
   "Mark in transit": "标记为运输中",
   "Record arrival in Tanzania": "记录到达坦桑尼亚",
   "Close the container": "关闭货柜",
+  "Close it when the sailing is finished with. Anything nobody has accounted for is asked about first — moved to the box it was really on, or reported missing.":
+    "当这班船的事情全部了结后再关闭。任何还没有交代的货件都会先逐一询问——转到它真正所在的货柜，或报缺失。",
+  /* Closing a sailing, and the question it puts about whatever is still
+     open on the box. See lib/actions/close-container.ts. */
+  "Nothing more can happen to a closed container: nothing goes on it, nothing comes off it, and it leaves the receiving dock.":
+    "货柜关闭后不能再有任何变动：不能再装货、不能再卸货，并会从收货区移除。",
+  "Everything accounted for": "全部已有交代",
+  "These consignments have not been checked in and have not been reported missing. Say what happened to each one — a consignment left on a closed box is one nobody can find again.":
+    "这些货件既未入库核对，也未报缺失。请逐一说明去向——留在已关闭货柜上的货件日后无人能再找到。",
+  "What happened to it?": "这票货怎么了？",
+  "What happened to": "如何处理",
+  "It never came off — report it missing": "从未卸下——报缺失",
+  "It is on another container": "它在另一个货柜上",
+  "Leave it — do not close the container": "暂不处理——不关闭货柜",
+  "A case opens on it. It keeps its row here, its code and its history, and it can never be released.":
+    "将为其开立案件。它仍留在此列表中，保留条码与全部记录，并且永远不能放货。",
+  "It moves exactly as it is — same reference, code, measurements, photographs and history. Its storage clock follows the box it goes on.":
+    "原样转移——单号、条码、尺寸重量、照片与记录都不变。仓储计时随它所在的货柜走。",
+  "Reporting a consignment missing is the Dar floor's to do; ask them, or a manager.":
+    "报缺失由达累斯萨拉姆仓库操作；请联系他们或经理。",
+  "There is no other live container to move one onto.": "目前没有其他在用货柜可供转移。",
+  "Why the sailing is being closed now": "为何现在关闭这班船",
+  "It goes on the container's history, on every consignment that moves, and on the case for anything reported missing.":
+    "该理由会记入货柜记录、每一票转移的货件，以及任何报缺失所开立的案件。",
   "Short or nothing came off the container": "货柜卸货短少或完全没有",
   "Past the day they were due and still unpaid.": "已过到期日仍未付款。",
   "A bill the customer has not been shown is not a debt yet.": "尚未给客户看的账单还不算欠款。",

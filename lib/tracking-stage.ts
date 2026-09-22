@@ -23,10 +23,12 @@ import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
  *
  * The statuses the data already uses map onto those six here and nowhere else
  * (`bluewaveStageOf`). There is no customs-clearance stage: the step the
- * inherited system had between the port and our warehouse is gone, and a box
- * at the port is still in transit until Dar confirms it on the floor.
- * "Arrived in Dar" is that confirmation — the Dar check-in — and nothing else:
- * not the ship's arrival, not the ETA.
+ * inherited system had between the port and our warehouse is gone.
+ * "Arrived in Dar" is the owner's own rule — the day somebody pressed Arrived
+ * on the container, which is the day the customer was told and the day free
+ * storage started. Never the ETA, and never waiting on a scan: Dar's check-in
+ * afterwards is VERIFICATION (lib/verification.ts), a separate answer about
+ * the same goods, and it does not move this line.
  *
  * TWO GRAINS, AND WHY.
  *
@@ -66,9 +68,22 @@ export const BLUEWAVE_STAGE_LABEL = Object.fromEntries(
  * THE ONE PLACE A STORED STATUS BECOMES A BLUEWAVE STAGE.
  *
  * Null for a consignment that has not reached the Foshan counter, and for the
- * exits (cancelled). Missing at Dar keeps the stage it last truly reached —
- * the box arrived at the port, the consignment did not come off it — so it
- * reads as in transit with a notice, never as arrived.
+ * exits (cancelled).
+ *
+ * MISSING AT DAR READS AS ARRIVED IN DAR, WITH THE TROUBLE SAID PLAINLY.
+ *
+ * The owner's rule: pressing Arrived lands the box and everything on it, the
+ * customer is told that day and the storage clock starts. A consignment that
+ * then does not come off the container has NOT gone back to sea, and telling
+ * its customer "in transit" a fortnight after we told them their goods had
+ * arrived is the system contradicting its own letter. So the stage stands at
+ * Arrived in Dar es Salaam and the journey carries the issue — "Being located"
+ * — with a notice saying we are looking for them and will be in touch. The
+ * status itself is untouched: MISSING_AT_DAR is still the operational fact,
+ * release still refuses it, and lib/verification.ts still reads it as MISSING.
+ *
+ * `stageEvent` below keeps a missing consignment off the arrival letter; the
+ * customer hears about it from a person, not from a template.
  *
  * READY_FOR_RELEASE is the status the release check's first yes writes; see
  * lib/cargo-events.ts. A screen that needs the live answer runs the check.
@@ -85,13 +100,13 @@ export function bluewaveStageOf(status: CargoStatus): BlueWaveStage | null {
       return "STORED_IN_CHINA";
     case "DEPARTED_CHINA":
     case "IN_TRANSIT":
-    case "MISSING_AT_DAR":
       return "IN_TRANSIT";
     /* The owner's rule: when the container is marked arrived in Dar, its goods
        have arrived — the customer is told and free storage starts that day.
        Dar's check-in counts them onto the floor; it does not move the date. */
     case "ARRIVED_TANZANIA":
     case "RECEIVED_DAR":
+    case "MISSING_AT_DAR":
       return "ARRIVED_IN_DAR";
     case "READY_FOR_RELEASE":
       return "READY_FOR_PICKUP";
@@ -510,7 +525,8 @@ export function publicJourney(input: JourneyInput): Journey {
   );
   /* The container arriving is not the consignment being received: only the
      cargo's own record can say it came off the box. A consignment now marked
-     missing keeps no older stamp that claims otherwise. */
+     missing keeps no older stamp that claims otherwise — it stands where the
+     box stands, at Dar, and goes no further until somebody finds it. */
   if (status === "MISSING_AT_DAR") rank = Math.min(rank, 5);
 
   const payment = paymentState(billing);
@@ -533,7 +549,13 @@ export function publicJourney(input: JourneyInput): Journey {
     RECEIVED_IN_CHINA: rank >= 1 || ready,
     STORED_IN_CHINA: rank >= 2 || ready,
     IN_TRANSIT: rank >= 3 || ready,
-    ARRIVED_IN_DAR: (rank >= 5 && !missing) || ready,
+    /* THE BOX ARRIVED, SO THE LINE READS ARRIVED.
+       The owner's rule again: a consignment that did not come off a container
+       that landed has not gone back to sea, and its customer was told a
+       fortnight ago that their goods had reached Dar. The step stands as
+       reached with no date under it — we never print a day these particular
+       boxes arrived — and the headline above says "Being located". */
+    ARRIVED_IN_DAR: rank >= 5 || ready,
     READY_FOR_PICKUP: ready,
     COLLECTED: handedOver,
   };
@@ -597,7 +619,12 @@ export function publicJourney(input: JourneyInput): Journey {
     {
       key: "ARRIVED_IN_DAR",
       label: "Arrived in Dar es Salaam",
-      detail: !ready && reached.ARRIVED_IN_DAR ? (arrivedDetail[stage] ?? null) : null,
+      /* Nothing about being checked in for goods nobody has found: the
+         headline and the notice carry that, in the words a customer reads. */
+      detail:
+        !ready && reached.ARRIVED_IN_DAR && !missing
+          ? (arrivedDetail[stage] ?? null)
+          : null,
       at: arrivedAtDar,
       atLabel: "Arrived",
     },

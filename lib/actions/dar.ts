@@ -391,8 +391,12 @@ export async function receiveInDar(
   });
 
   revalidatePath("/app/receive/dar");
-  revalidatePath("/app/receive/dar");
+  if (containerId) revalidatePath(`/app/receive/dar/${containerId}`);
   revalidatePath(`/app/cargo/${cargo.id}`);
+  /* The container's own verification summary is counted off these rows, so it
+     is redrawn by the count that changed it. */
+  if (containerId) revalidatePath(`/app/containers/${containerId}`);
+  revalidatePath("/app/containers/arrived");
 
   return {
     ok: result.caseRef
@@ -447,6 +451,10 @@ export async function verifyCargo(
 
   revalidatePath("/app/receive/dar");
   revalidatePath(`/app/cargo/${cargoId}`);
+  if (receiving.containerId) {
+    revalidatePath(`/app/receive/dar/${receiving.containerId}`);
+    revalidatePath(`/app/containers/${receiving.containerId}`);
+  }
   return { ok: "Verified." };
 }
 
@@ -688,6 +696,14 @@ export async function reportMissingAtDar(
   revalidatePath("/app/receive/dar");
   revalidatePath("/app/exceptions");
   revalidatePath(`/app/cargo/${cargo.id}`);
+  /* The box's counts come down with it — those goods are not in there — so
+     every screen that adds them up is redrawn. */
+  if (line?.containerId) {
+    revalidatePath(`/app/receive/dar/${line.containerId}`);
+    revalidatePath(`/app/containers/${line.containerId}`);
+  }
+  revalidatePath("/app/containers");
+  revalidatePath("/app/containers/arrived");
   return { ok: `Reported. Case ${result.reference} is open.` };
 }
 
@@ -991,7 +1007,10 @@ export async function reportDamageAtDar(
   });
 
   revalidatePath("/app/receive/dar");
-  if (containerId) revalidatePath(`/app/receive/dar/${containerId}`);
+  if (containerId) {
+    revalidatePath(`/app/receive/dar/${containerId}`);
+    revalidatePath(`/app/containers/${containerId}`);
+  }
   revalidatePath("/app/exceptions");
   revalidatePath(`/app/cargo/${cargo.id}`);
   return { ok: `Tagged. Case ${result.caseRef} is open on the damage.` };

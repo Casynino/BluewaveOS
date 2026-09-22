@@ -144,6 +144,14 @@ export async function acceptAsExpectedBy(
 
   revalidatePath("/app/receive/dar");
   revalidatePath("/app/inventory");
+  /* Each container the ticked cargo came off: its verification summary is
+     counted from exactly these rows. */
+  for (const containerId of new Set(
+    cargo.map((c) => c.containerLines.at(-1)?.containerId).filter(Boolean)
+  )) {
+    revalidatePath(`/app/receive/dar/${containerId}`);
+    revalidatePath(`/app/containers/${containerId}`);
+  }
 
   if (accepted === 0) {
     return {

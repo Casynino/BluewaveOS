@@ -78,6 +78,9 @@ export type CargoRow = {
   cargoType: string | null;
   /** Lines at more than one type — changed on the consignment, not here. */
   typeMixed: boolean;
+  /** On the packing list, never found on the floor. Still listed, never
+      counted into the box or into what the sailing is expected to be worth. */
+  missing: boolean;
   /** The tag the Dar floor put on when the boxes came off the container. */
   damaged: boolean;
   conditionLabel: string | null;
@@ -561,6 +564,11 @@ function CargoTableRow({
           ) : (
             <Badge tone="neutral">{row.stateLabel}</Badge>
           )}
+          {row.missing ? (
+            <Badge tone="bad" className="ml-1">
+              {t(locale, "Missing")}
+            </Badge>
+          ) : null}
         </TableCell>
         <TableCell>
           {/* What the floor photographed. It is the whole damage argument

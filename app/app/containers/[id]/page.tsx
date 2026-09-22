@@ -240,6 +240,83 @@ export default async function ContainerPage({
     was one of the two desks that record the arrival. The card is built here
     and placed on whichever half of the page the reader is looking at.
   */
+  /*
+    CLOSING ASKS ABOUT WHAT IS LEFT ON THE BOX.
+
+    Everything the panel needs to put the question properly: the consignments
+    nobody has counted and nobody has reported, with the customer and the
+    figures beside each one, and the live containers a bale could really be on
+    — reference, where that box is, its route and how full it is. Fetched only
+    when a landed box is in front of somebody who may close it; every other
+    reader is looking at a different step.
+  */
+  const closing =
+    container.status === "ARRIVED" && can(user.role, "container.close");
+  const [openOnBox, moveTargets] = closing
+    ? await Promise.all([
+        prisma.cargo.findMany({
+          where: {
+            containerLines: { some: { containerId: container.id } },
+            deletedAt: null,
+            darReceiving: null,
+            status: { not: "MISSING_AT_DAR" },
+          },
+          orderBy: { reference: "asc" },
+          select: {
+            id: true,
+            reference: true,
+            shippingMark: true,
+            description: true,
+            declaredPackages: true,
+            sender: { select: { fullName: true } },
+            chinaReceiving: { select: { packagesCount: true, cbm: true } },
+            containerLines: {
+              where: { containerId: container.id },
+              select: { packagesCount: true, cbm: true },
+            },
+          },
+        }),
+        prisma.container.findMany({
+          where: {
+            deletedAt: null,
+            id: { not: container.id },
+            /* Boxes something can actually go on. A sealed-but-not-sailed
+               LOADED box takes nothing by either route, and a closed one takes
+               nothing at all. */
+            status: {
+              in: ["OPEN", "LOADING", "SEALED", "DEPARTED", "IN_TRANSIT", "ARRIVED"],
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 40,
+          select: {
+            id: true,
+            reference: true,
+            status: true,
+            capacityCbm: true,
+            originPort: true,
+            destinationPort: true,
+            cargoLines: { select: { cbm: true } },
+          },
+        }),
+      ])
+    : [[], []];
+
+  /* Which of those this desk may actually move cargo onto. Taking a
+     consignment off a landed box is `container.amendArrived`; putting it on a
+     box still in China or at sea is Foshan's or the sailing desk's. An option
+     nobody can act on is an option that teaches the screen lies. */
+  const mayAmendArrived = can(user.role, "container.amendArrived");
+  const mayLoad = can(user.role, "container.load");
+  const maySail = canAny(user.role, ["container.load", "shipment.edit"]);
+  const reachableTargets = moveTargets.filter((t) =>
+    t.status === "ARRIVED"
+      ? mayAmendArrived
+      : t.status === "OPEN" || t.status === "LOADING"
+        ? mayAmendArrived && mayLoad
+        : mayAmendArrived && maySail
+  );
+
   const advance = nextStep ? (
     <Card className="border-brand/30">
       <CardContent className="pt-6">
@@ -254,6 +331,47 @@ export default async function ContainerPage({
           canDepart={can(user.role, "container.depart")}
           canArrive={can(user.role, "container.arrive")}
           canClose={can(user.role, "container.close")}
+          close={
+            closing
+              ? {
+                  reference: container.reference,
+                  outstanding: openOnBox.map((c) => ({
+                    id: c.id,
+                    reference: c.reference,
+                    customer: c.sender.fullName,
+                    shippingMark: c.shippingMark,
+                    goods: c.description,
+                    packages:
+                      c.containerLines[0]?.packagesCount ??
+                      c.chinaReceiving?.packagesCount ??
+                      c.declaredPackages ??
+                      0,
+                    cbmLabel: formatCbm(
+                      c.containerLines[0]?.cbm ?? c.chinaReceiving?.cbm ?? 0
+                    ),
+                  })),
+                  targets: reachableTargets.map((t) => {
+                    const loaded = t.cargoLines.reduce(
+                      (sum, l) => sum.add(l.cbm),
+                      new Prisma.Decimal(0)
+                    );
+                    return {
+                      id: t.id,
+                      reference: t.reference,
+                      where: CONTAINER_STATUS_LABELS[t.status] ?? t.status,
+                      route:
+                        t.originPort && t.destinationPort
+                          ? `${t.originPort} → ${t.destinationPort}`
+                          : (t.originPort ?? t.destinationPort ?? null),
+                      fill: t.capacityCbm
+                        ? `${formatCbm(loaded)} of ${formatCbm(t.capacityCbm)}`
+                        : formatCbm(loaded),
+                    };
+                  }),
+                  mayReportMissing: can(user.role, "receiving.dar"),
+                }
+              : null
+          }
           sailing={(() => {
             const due = expectedArrival(
               container.shipment?.departureDate ?? null,
@@ -332,7 +450,7 @@ export default async function ContainerPage({
     "· N missing" beside them so a smaller total is never a mystery.
   */
   const present = container.cargoLines.filter((l) =>
-    countsInContainer({ status: l.cargo.status, darReceiving: null }),
+    countsInContainer({ status: l.cargo.status }),
   );
   const missingLines = container.cargoLines.length - present.length;
 

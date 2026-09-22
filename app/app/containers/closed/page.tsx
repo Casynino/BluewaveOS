@@ -54,6 +54,9 @@ export default async function ClosedContainersPage() {
           cargo: {
             select: {
               receiverId: true,
+              /* Reported missing at Dar: listed on the sailing, not counted
+                 into it — those goods were never in the box. */
+              status: true,
               darReceiving: { select: { cbm: true } },
               invoices: {
                 where: { status: { not: "CANCELLED" } },
@@ -87,7 +90,8 @@ export default async function ClosedContainersPage() {
     );
     return {
       container,
-      cargo: cargo.length,
+      cargo: cargo.filter((c) => c.status !== "MISSING_AT_DAR").length,
+      missing: cargo.filter((c) => c.status === "MISSING_AT_DAR").length,
       customers: new Set(cargo.map((c) => c.receiverId)).size,
       cbm: cargo.reduce((sum, c) => sum + Number(c.darReceiving?.cbm ?? 0), 0),
       billed,

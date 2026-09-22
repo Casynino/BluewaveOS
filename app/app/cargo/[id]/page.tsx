@@ -61,6 +61,11 @@ import { storageStart } from "@/lib/storage-clock";
 import { noticeSubject, pickupAddress, whatsappNotice } from "@/lib/cargo-events";
 import { CARGO_EVENT_ACTION, isCargoEvent } from "@/lib/cargo-notices";
 import { BLUEWAVE_STAGES, BLUEWAVE_STAGE_LABEL, bluewaveStageOf } from "@/lib/tracking-stage";
+import {
+  VERIFICATION_LABEL,
+  VERIFICATION_TONE,
+  verificationOf,
+} from "@/lib/verification";
 
 import { P, primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
@@ -327,6 +332,23 @@ export default async function CargoDetailPage({
   );
   const settled = billed && owing <= 0;
 
+  /*
+    WHERE VERIFICATION STANDS, IN THE SAME WORD EVERY OTHER SCREEN USES.
+
+    Arriving in Dar and being verified by Dar are two different events — the
+    owner's rule — so the header says where the goods are and this says what
+    the floor has found: pending, verified, missing, damaged or an issue. One
+    helper decides it (lib/verification.ts), so the dock, the container and
+    this record cannot describe the same consignment differently.
+  */
+  const verification = verificationOf({
+    status: cargo.status,
+    darReceiving: dar,
+    openCases: cargo.exceptions.filter(
+      (e) => e.status !== "RESOLVED" && e.status !== "CLOSED"
+    ).length,
+  });
+
   /* What the Dar bench wrote on the condition. GOOD says nothing worth a tag;
      anything else is the fact about these boxes, whatever else is true. */
   const damageTag =
@@ -394,21 +416,23 @@ export default async function CargoDetailPage({
         </p>
       ) : null}
 
-      {cargo.operationalHold ||
-      damageTag ||
-      cargo.exceptions.some((e) => e.status !== "RESOLVED" && e.status !== "CLOSED") ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {cargo.operationalHold ? <Badge tone="bad">On hold</Badge> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* The verification word, always — "pending" is an answer too, and a
+            clerk asked whether these boxes have been checked should not have
+            to infer it from three other fields. */}
+        <Badge tone={VERIFICATION_TONE[verification]}>
+          {t(locale, "Dar check")}: {t(locale, VERIFICATION_LABEL[verification])}
+        </Badge>
+        {cargo.operationalHold ? <Badge tone="bad">{t(locale, "On hold")}</Badge> : null}
           {/* THE TAG TRAVELS WITH THE CARGO. The bale that came off wet is
               tagged on the check-in row, on the container's list and on the
               price list Finance reads; this page was the one place it was not,
               so a clerk opening the record saw a clean consignment. */}
-          {damageTag ? <Badge tone="bad">{damageTag}</Badge> : null}
-          {cargo.exceptions.some((e) => e.status !== "RESOLVED" && e.status !== "CLOSED") ? (
-            <Badge tone="warn">Open case</Badge>
-          ) : null}
-        </div>
-      ) : null}
+        {damageTag ? <Badge tone="bad">{t(locale, damageTag)}</Badge> : null}
+        {cargo.exceptions.some((e) => e.status !== "RESOLVED" && e.status !== "CLOSED") ? (
+          <Badge tone="warn">{t(locale, "Open case")}</Badge>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
