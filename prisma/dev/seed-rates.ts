@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-import { RATE_BOOK } from "../data/rate-book";
+import { RATE_BOOK, rateRow } from "../data/rate-book";
 import { refuseProductionDatabase } from "./guard";
 
 refuseProductionDatabase("prisma/dev/seed-rates.ts");
@@ -15,7 +15,8 @@ async function main() {
   let added = 0;
   let updated = 0;
 
-  for (const [cargoType, basis, rate] of RATE_BOOK) {
+  for (const entry of RATE_BOOK) {
+    const { cargoType, basis, rate, notes } = rateRow(entry);
     const existing = await prisma.shippingRate.findFirst({
       where: { service: "LCL", cargoType, active: true },
     });
@@ -24,7 +25,7 @@ async function main() {
       if (Number(existing.rate) !== rate || existing.basis !== basis) {
         await prisma.shippingRate.update({
           where: { id: existing.id },
-          data: { rate, basis },
+          data: { rate, basis, notes },
         });
         updated++;
       }
@@ -44,10 +45,18 @@ async function main() {
         /* No minimum on the real book. A floor nobody agreed to is a floor that
            produces an invoice nobody can explain. */
         minimumCbm: null,
+        notes,
       },
     });
     added++;
   }
+
+  /* Types the company no longer lists stop being offered. */
+  const retired = await prisma.shippingRate.updateMany({
+    where: { service: "LCL", active: true, cargoType: { notIn: RATE_BOOK.map((r) => r[0]) } },
+    data: { active: false, effectiveTo: new Date() },
+  });
+  console.log(`retired ${retired.count}`);
 
   const live = await prisma.shippingRate.count({ where: { active: true } });
   console.log(`added ${added}, updated ${updated}; ${live} live rates`);

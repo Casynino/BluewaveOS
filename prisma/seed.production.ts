@@ -31,7 +31,7 @@ import bcrypt from "bcryptjs";
 import { CHINA_WAREHOUSE, COLLECTION_ACCOUNTS, COMPANY, DAR_WAREHOUSE, OPENING_USD_TZS } from "./data/company";
 import { seedChina } from "./data/china";
 import { seedMarkets } from "./data/markets";
-import { RATE_BOOK } from "./data/rate-book";
+import { RATE_BOOK, rateRow } from "./data/rate-book";
 
 const prisma = new PrismaClient();
 
@@ -235,7 +235,8 @@ async function main() {
   // --- Rate book (opt-in) --------------------------------------------------
   if (flag("SEED_RATE_BOOK", false)) {
     let published = 0;
-    for (const [cargoType, basis, rate] of RATE_BOOK) {
+    for (const entry of RATE_BOOK) {
+      const { cargoType, basis, rate, notes } = rateRow(entry);
       const existing = await prisma.shippingRate.findFirst({
         where: { service: "LCL", cargoType, active: true },
         select: { id: true },
@@ -252,6 +253,7 @@ async function main() {
           currency: "USD",
           published: true,
           minimumCbm: null,
+          notes,
         },
       });
       await audit("rate.publish", "ShippingRate", row.id, `LCL ${cargoType}: USD ${rate} ${basis}`);
