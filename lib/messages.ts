@@ -96,6 +96,9 @@ export type MessageContext = {
    * quoted at 2,650 who reads 2,720 next month believes the bill changed.
    */
   fxRate?: string | null;
+  /** The bill's pinned rate and how it is charged, for the rate line. */
+  rate?: string | number | null;
+  rateBasis?: string | null;
   /** Nothing is owed on the live bills. */
   paid?: boolean;
   /** Free days on the Dar floor, and what a day costs after that. */
@@ -143,7 +146,89 @@ export function stageEvent(status: CargoStatus): ContactKind {
  */
 export function billLetter(status: CargoStatus, owing: boolean): ContactKind {
   if (status === "READY_FOR_RELEASE" && !owing) return "CARGO_READY_FOR_PICKUP";
-  return owing ? "payment.reminder" : "PRICE_CONFIRMED";
+  /* The first word a customer gets about money on goods in Dar is the arrival
+     letter with the bill in it — never a "reminder" about a bill nobody has
+     told them of. The reminder is for chasing, chosen on purpose. */
+  if (owing && bluewaveStageOf(status) === "ARRIVED_IN_DAR") return "CARGO_ARRIVED_DAR";
+  return "PRICE_CONFIRMED";
+}
+
+/* The rate as the customer's old letters wrote it: per CBM, per tonne, per
+   piece, per bale. A per-kg rate is printed per tonne, as it is quoted. */
+function rateLine(context: MessageContext): string | null {
+  if (context.rate === null || context.rate === undefined || !context.rateBasis) return null;
+  const rate = Number(context.rate);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+  const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cur = context.currency === "TZS" ? "TZS" : "USD";
+  switch (context.rateBasis) {
+    case "PER_CBM":
+      return `${cur} ${money(rate)}/CBM`;
+    case "PER_KG":
+      return `${cur} ${money(rate * 1000)}/tonne`;
+    case "PER_PIECE":
+      return `${cur} ${money(rate)}/piece`;
+    case "PER_BALE":
+      return `${cur} ${money(rate)}/bale`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * THE LETTER THAT GOES WITH THE GOODS IN DAR.
+ *
+ * In the shape BlueWave's customers already know from WhatsApp: one heading,
+ * the goods, the money in shillings with its dollar figure and the rate it was
+ * pinned at, the free storage, and one link — the tracking page, which carries
+ * the invoice and the ways to pay. No customs wording: BlueWave has no
+ * clearance stage, and the storage clock starts the day Dar books the goods in.
+ */
+function darBillLetter(context: MessageContext, lead: string): string {
+  const name = context.customerName.split(" ")[0] || context.customerName;
+  const ref = context.reference ?? "";
+  const owing = !context.paid;
+  const stage = context.status ? bluewaveStageOf(context.status) : null;
+  const rows: [string, string | null | undefined][] = [
+    ["Tracking", ref],
+    ["Bidhaa", context.description],
+    ["Ujazo", context.cbm ? `${context.cbm} CBM` : null],
+    ["Mizigo", context.packages ? String(context.packages) : null],
+    ["Rate", rateLine(context)],
+  ];
+  const money: string[] = [];
+  if (context.amountTzs) {
+    money.push(`• *${owing ? "Kiasi cha kulipa" : "Kiasi"}: TZS ${context.amountTzs}*`);
+    if (context.amount && context.currency !== "TZS") money.push(`• Sawa na: USD ${context.amount}`);
+  } else if (context.amount) {
+    money.push(`• *${owing ? "Kiasi cha kulipa" : "Kiasi"}: ${context.currency ?? "USD"} ${context.amount}*`);
+  }
+  if (context.fxRate) money.push(`• Exchange Rate: 1 USD = ${context.fxRate} TZS`);
+
+  const days = context.freeStorageDays ?? 7;
+  const last = lastFreeDayOf(context);
+  const where = context.pickupAddress ? ` (${context.pickupAddress})` : "";
+  const storage = context.storageFrom
+    ? `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}` +
+      (last ? `, hadi ${day(last)}.` : ".") +
+      " Baada ya hapo storage charges zinaweza kutozwa."
+    : stage === "ARRIVED_IN_DAR" || stage === "READY_FOR_PICKUP"
+      ? `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako ulipofika.`
+      : `*STORAGE:* Utapata siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako utakapopokelewa.`;
+
+  return [
+    `*${COMPANY.name.toUpperCase()}*`,
+    `Habari ${name}!`,
+    lead,
+    [
+      "*MAELEZO YA MZIGO*",
+      ...rows.filter(([, v]) => v).map(([l, v]) => `• ${l}: ${v}`),
+      ...money,
+      ...(stage ? [`• Status: ${BLUEWAVE_STAGE_LABEL[stage]}`] : []),
+    ].join("\n"),
+    storage,
+    ...(ref ? [`*${context.invoiceId ? "Angalia invoice na njia za malipo" : "Fuatilia mzigo wako"}:*\n${trackLink(ref)}`] : []),
+  ].join("\n\n");
 }
 
 function factsOf(context: MessageContext, lastFreeDay: Date | null): NoticeFacts {
@@ -214,6 +299,22 @@ const day = (date: Date | null | undefined) =>
     : null;
 
 export function composeMessage(kind: ContactKind, context: MessageContext): string {
+  if (kind === "CARGO_ARRIVED_DAR") {
+    return darBillLetter(
+      context,
+      context.invoiceId && !context.paid
+        ? "Mzigo wako umefika salama Dar es Salaam. Unaweza kulipa sasa ili mzigo wako uwe tayari kuchukuliwa."
+        : context.paid
+          ? "Mzigo wako umefika salama Dar es Salaam na malipo yako yamepokelewa. Tutakujulisha mara utakapokuwa tayari kuchukuliwa."
+          : "Mzigo wako umefika salama Dar es Salaam. Tutakutumia invoice yako mara bei itakapothibitishwa."
+    );
+  }
+  if (kind === "payment.reminder") {
+    return darBillLetter(
+      context,
+      "Tunakukumbusha kukamilisha malipo ya mzigo wako ili uwe tayari kuchukuliwa. Mzigo hukabidhiwa baada ya malipo kuthibitishwa."
+    );
+  }
   if (isCargoEvent(kind)) return noticeWhatsApp(composeNotice(kind, context));
 
   const name = context.customerName.split(" ")[0] || context.customerName;
@@ -224,26 +325,6 @@ export function composeMessage(kind: ContactKind, context: MessageContext): stri
   const links = messageLinks({ reference: ref || "-", invoiceId: context.invoiceId, pickupNoteId: context.pickupNoteId });
 
   switch (kind) {
-    case "payment.reminder":
-      return [
-        title("Payment Reminder"),
-        `Habari ${name},`,
-        "Tunakukumbusha kuhusu malipo ya invoice ya mzigo wako. Mzigo hukabidhiwa baada ya malipo kuthibitishwa.",
-        details([
-          ["Cargo ref", ref],
-          ["Invoice", context.invoiceNumber],
-          ["Amount due", context.amountTzs ? `TZS ${context.amountTzs}` : context.amount ? `${context.currency ?? "USD"} ${context.amount}` : null],
-          ["USD equivalent", context.amountTzs && context.amount && context.currency !== "TZS" ? `USD ${context.amount}` : null],
-          ["Exchange rate", context.fxRate ? `1 USD = ${context.fxRate} TZS` : null],
-          ["Status", context.status ? BLUEWAVE_STAGE_LABEL[bluewaveStageOf(context.status) ?? "IN_TRANSIT"] : null],
-        ]),
-        ...(context.invoiceId
-          ? [`*Download invoice:*\n${links.invoice}`, `*Pay now:*\n${links.payNow}`]
-          : ref
-            ? [`*Track cargo:*\n${trackLink(ref)}`]
-            : []),
-      ].join("\n\n");
-
     case "storage.expired": {
       const last = lastFreeDayOf(context);
       return [

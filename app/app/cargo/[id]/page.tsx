@@ -903,6 +903,8 @@ export default async function CargoDetailPage({
                       paid: owing <= 0,
                       cbm: billHere.billableCbm ? Number(billHere.billableCbm).toFixed(3) : null,
                       fxRate: billHere.fxRate ? Number(billHere.fxRate).toLocaleString("en-US") : null,
+                      rate: billHere.appliedRate ? Number(billHere.appliedRate) : null,
+                      rateBasis: billHere.rateBasis ?? null,
                       storageFrom: dar?.receivedAt ?? null,
                       freeStorageDays: money?.freeStorageDays ?? null,
                       storagePerDay:

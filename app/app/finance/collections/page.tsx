@@ -646,13 +646,13 @@ export default async function CollectionsPage({
                         cargoId={row.invoice.cargo.id}
                         invoiceId={row.invoice.id}
                         phone={whatsappNumber(row.invoice.customer.phone)}
-                        kind={billLetter(row.invoice.cargo.status, true)}
+                        kind={row.lastContact ? "payment.reminder" : billLetter(row.invoice.cargo.status, true)}
                         label={
                           row.lastContact
                             ? `Chase ${row.invoice.customer.fullName}`
                             : `Tell ${row.invoice.customer.fullName}`
                         }
-                        message={composeMessage(billLetter(row.invoice.cargo.status, true), {
+                        message={composeMessage(row.lastContact ? "payment.reminder" : billLetter(row.invoice.cargo.status, true), {
                           status: row.invoice.cargo.status,
                           customerName: row.invoice.customer.fullName,
                           reference: row.invoice.cargo.reference,
@@ -676,6 +676,8 @@ export default async function CollectionsPage({
                           fxRate: row.invoice.fxRate
                             ? Number(row.invoice.fxRate).toLocaleString("en-US")
                             : null,
+                          rate: row.invoice.appliedRate ? Number(row.invoice.appliedRate) : null,
+                          rateBasis: row.invoice.rateBasis ?? null,
                         })}
                       />
                       {mayReprice ? (

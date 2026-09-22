@@ -147,6 +147,8 @@ export default async function InvoicePage({
     fxRate: balance.rate ? balance.rate.toNumber().toLocaleString("en-US") : null,
     paid: Number(owing) <= 0,
     cbm: invoice.billableCbm ? Number(invoice.billableCbm).toFixed(3) : null,
+    rate: invoice.appliedRate ? Number(invoice.appliedRate) : null,
+    rateBasis: invoice.rateBasis ?? null,
     freeStorageDays: settings?.freeStorageDays ?? null,
     storagePerDay: settings && Number(settings.storagePerDay) > 0 ? Number(settings.storagePerDay).toString() : null,
     storageCurrency: settings?.storageCurrency ?? "USD",

@@ -358,7 +358,7 @@ export async function ContainerMoney({
         if (!mayTellCustomers || !bill) return null;
         const phone = whatsappNumber(c.receiver.phone);
         if (!phone) return null;
-        const kind = billLetter(c.status, false);
+        const kind = billLetter(c.status, r.owing > 0);
         return {
           phone,
           kind,
@@ -387,6 +387,9 @@ export async function ContainerMoney({
               ? Number(bill.totalTzs).toLocaleString("en-US")
               : null,
             fxRate: bill.fxRate ? Number(bill.fxRate).toLocaleString("en-US") : null,
+            rate: bill.appliedRate ? Number(bill.appliedRate) : null,
+            rateBasis: bill.rateBasis ?? null,
+            paid: r.owing <= 0,
             currency: bill.currency,
             freeStorageDays: settings?.freeStorageDays ?? null,
             storagePerDay:
