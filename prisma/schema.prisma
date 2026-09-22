@@ -2389,7 +2389,7 @@ model ShipmentSchedule {
   departureDate    DateTime
   /// Days at sea. Stored rather than assumed, because thirty is this lane's
   /// habit and not a law.
-  transitDays      Int       @default(30)
+  transitDays      Int       @default(35)
   estimatedArrival DateTime
 
   vessel       String?
