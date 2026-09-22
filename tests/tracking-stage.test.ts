@@ -177,17 +177,17 @@ describe("public journey", () => {
     assert.equal(j.headline, "Delayed at sea — later than expected");
   });
 
-  test("no ETA from the line means thirty days from departure, and late after it", () => {
+  test("no ETA from the line means thirty-five days from departure, and late after them", () => {
     const onTime = publicJourney(
-      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-10), eta: null }) })
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-35), eta: null }) })
     );
-    assert.equal(onTime.etaPassed, false, "ten days out is not late");
-    assert.ok(onTime.eta, "the lane's thirty days stand in for a promise nobody made");
+    assert.equal(onTime.etaPassed, false, "day thirty-five is still the crossing");
+    assert.ok(onTime.eta, "the lane's thirty-five days stand in for a promise nobody made");
 
     const late = publicJourney(
-      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-31), eta: null }) })
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-36), eta: null }) })
     );
-    assert.equal(late.etaPassed, true, "day thirty-one is late");
+    assert.equal(late.etaPassed, true, "day thirty-six is late");
     assert.equal(late.headline, "Delayed at sea — later than expected");
   });
 

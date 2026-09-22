@@ -30,15 +30,16 @@ const FRIDAY = 5;
 const MONDAY = 1;
 
 /** Days at sea when nobody has said otherwise. This lane's habit, not a law. */
-export const DEFAULT_TRANSIT_DAYS = 30;
+export const DEFAULT_TRANSIT_DAYS = 35;
 
 /**
  * WHEN A SAILING IS EXPECTED IN DAR.
  *
- * The line's own ETA when it has given one; otherwise thirty days from the day
- * the box left China, which is what this lane takes and what the office tells
- * customers. Null before there is a departure to count from — a date nobody
- * can stand behind is worse than no date.
+ * The line's own ETA when it has given one; otherwise thirty-five days from
+ * the day the box left China, which is what this lane takes and what the
+ * office tells customers: day one to day thirty-five is the crossing, and day
+ * thirty-six is late. Null before there is a departure to count from — a date
+ * nobody can stand behind is worse than no date.
  */
 export function expectedArrival(
   departedAt: Date | null | undefined,

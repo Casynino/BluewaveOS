@@ -80,34 +80,34 @@ describe("the weekly sailing rule", () => {
     const sailing = generatedSailing(day("2025-11-03"), { now: day("2025-10-27") });
     assert.equal(iso(sailing.cargoDeadline), "2025-10-31");
     assert.equal(iso(sailing.departureDate), "2025-11-03");
-    assert.equal(iso(sailing.estimatedArrival), "2025-12-03");
+    assert.equal(iso(sailing.estimatedArrival), "2025-12-08");
   });
 
   test("a week whose Friday and Monday are in different years", () => {
     const sailing = generatedSailing(day("2024-01-01"), { now: day("2023-12-26") });
     assert.equal(iso(sailing.cargoDeadline), "2023-12-29");
     assert.equal(iso(sailing.departureDate), "2024-01-01");
-    assert.equal(iso(sailing.estimatedArrival), "2024-01-31");
+    assert.equal(iso(sailing.estimatedArrival), "2024-02-05");
   });
 
-  test("thirty days at sea counts February the twenty-ninth", () => {
-    /* Monday 12 February 2024, a leap year. Thirty days later is 13 March, and
-       it is only 13 March if the twenty-ninth is counted. */
+  test("the days at sea count February the twenty-ninth", () => {
+    /* Monday 12 February 2024, a leap year. Thirty-five days later is 18
+       March, and it is only 18 March if the twenty-ninth is counted. */
     const leap = generatedSailing(day("2024-02-12"), { now: day("2024-02-05") });
-    assert.equal(iso(leap.estimatedArrival), "2024-03-13");
+    assert.equal(iso(leap.estimatedArrival), "2024-03-18");
 
     /* The same Monday in a year that is not a leap year lands a day earlier in
        the month. */
     const ordinary = generatedSailing(day("2025-02-10"), { now: day("2025-02-03") });
-    assert.equal(iso(ordinary.estimatedArrival), "2025-03-12");
+    assert.equal(iso(ordinary.estimatedArrival), "2025-03-17");
   });
 
-  test("a longer lane is thirty-five days, not thirty", () => {
+  test("a shorter lane is what it is told, not the lane's habit", () => {
     const sailing = generatedSailing(day("2026-06-01"), {
-      transitDays: 35,
+      transitDays: 30,
       now: day("2026-05-25"),
     });
-    assert.equal(iso(sailing.estimatedArrival), "2026-07-06");
+    assert.equal(iso(sailing.estimatedArrival), "2026-07-01");
   });
 
   test("the week a customer is standing in is shown until its Monday has gone", () => {
@@ -154,7 +154,7 @@ describe("where a sailing is", () => {
     assert.equal(at("2026-09-27"), "CLOSED");
     assert.equal(at("2026-09-28"), "DEPARTED");
     assert.equal(at("2026-10-05"), "IN_TRANSIT");
-    assert.equal(at("2026-10-28"), "ARRIVED");
+    assert.equal(at("2026-11-02"), "ARRIVED");
   });
 
   test("a status a person set is not argued with by the clock", () => {

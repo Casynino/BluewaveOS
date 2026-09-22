@@ -13,6 +13,8 @@ import type {
   ShipmentStatus,
 } from "@prisma/client";
 
+import type { Permission } from "@/lib/rbac";
+
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrator",
   MANAGER: "Manager",
@@ -187,6 +189,39 @@ export const LOADABLE_CONTAINER_STATUSES: ContainerStatus[] = [
   "LOADING",
 ];
 
+/**
+ * Shut, and not yet landed.
+ *
+ * The stretch of a box's life nothing could reach: loading stops at the seal
+ * and the landed amendments start at the port. A consignment physically inside
+ * a container on the water is recorded here — see `putOnSailedContainer`.
+ */
+export const SAILED_CONTAINER_STATUSES: ContainerStatus[] = [
+  "SEALED",
+  "DEPARTED",
+  "IN_TRANSIT",
+];
+
+/** On the Dar floor rather than in Foshan or at sea. */
+export const LANDED_CONTAINER_STATUSES: ContainerStatus[] = ["ARRIVED", "CLOSED"];
+
+/**
+ * WHO MAY OPEN A CONTAINER'S EDIT PAGE.
+ *
+ * Three different jobs live on one screen, and each carries its own gate
+ * inside: the sailing is `shipment.edit`'s, cargo on an open box is
+ * `container.load`'s, and cargo on a landed one is `container.amendArrived`'s.
+ * The door asks for any of the three, because a desk holding one of them has
+ * work to do on the page and being sent to the no-access screen instead teaches
+ * it the system is broken. What it may actually change, the page decides
+ * section by section — and every server action asks again for itself.
+ */
+export const CONTAINER_EDIT_PERMISSIONS: Permission[] = [
+  "shipment.edit",
+  "container.load",
+  "container.amendArrived",
+];
+
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   PREPARING: "Preparing",
   READY: "Ready",
@@ -245,8 +280,8 @@ export const ROUTE = {
   destinationCity: "Dar es Salaam",
   destinationCountry: "Tanzania",
   /** What the company tells customers on the website and on Instagram. */
-  transitDaysMin: 28,
-  transitDaysMax: 30,
+  transitDaysMin: 30,
+  transitDaysMax: 35,
 } as const;
 
 export const COMPANY = {

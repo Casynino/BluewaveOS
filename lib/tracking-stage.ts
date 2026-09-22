@@ -535,8 +535,8 @@ export function publicJourney(input: JourneyInput): Journey {
     COLLECTED: handedOver,
   };
 
-  /* The line's date when it gave one, otherwise thirty days from departure —
-     the lane's habit, and what the office tells customers. */
+  /* The line's date when it gave one, otherwise thirty-five days from
+     departure — the lane's habit, and what the office tells customers. */
   const promised = expectedArrival(departedAt, container?.eta ?? null);
   const etaOpen = promised && !reached.ARRIVED_IN_DAR ? promised : null;
   /* Past its day and still not in Dar: the customer is told it is late rather
@@ -586,7 +586,7 @@ export function publicJourney(input: JourneyInput): Journey {
       label: "In transit",
       /* The expected day is printed by the page beside this step; only a date
          that has already gone by, or the last leg, needs words. */
-      detail: late ? "Delayed — later than the thirty days this lane takes" : null,
+      detail: late ? "Delayed — later than the thirty-five days this lane takes" : null,
       at: departedAt,
       atLabel: "Left China",
     },
