@@ -59,7 +59,7 @@ export type Valuation = {
   currency: string;
 };
 
-type PackageLike = {
+export type PackageLike = {
   reference: string;
   paperReceiptNo: string | null;
   description: string | null;
@@ -108,6 +108,14 @@ type RateRow = {
   rate: Prisma.Decimal;
   basis: string;
   currency: string;
+  /**
+   * The floor the book charges at. Read by nothing here — the arithmetic below
+   * is per line — but carried so that a caller holding this book can also price
+   * a consignment that has no measured lines, where the minimum is the whole
+   * difference between 0.46 m³ and what is billed. See `quoteFrom`.
+   */
+  minimumCbm?: Prisma.Decimal | null;
+  minimumKg?: Prisma.Decimal | null;
 };
 
 /**

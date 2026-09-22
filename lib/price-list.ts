@@ -7,6 +7,7 @@ import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
 import { carriesAgreedRate, darConfirmationGap } from "@/lib/price-confirmation";
 import { applyVat, companySettings, currentExchangeRate } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
+import type { RateBook } from "@/lib/valuation";
 import { UNSAILED_TO_PRICE } from "@/lib/unsailed-pricing";
 
 /**
@@ -127,9 +128,24 @@ export async function priceListFor(
         receiver: { select: { code: true, fullName: true } },
         darReceiving: true,
         chinaReceiving: true,
+        /* Everything the row shows AND everything pricing multiplies, read
+           once. The valuer's own order is by reference, so the lines arrive
+           in the order it would have fetched them in. */
         packages: {
           where: { deletedAt: null },
-          select: { cargoType: true, chargeUnit: true },
+          orderBy: { reference: "asc" },
+          select: {
+            reference: true,
+            paperReceiptNo: true,
+            description: true,
+            descriptionZh: true,
+            cargoType: true,
+            chargeUnit: true,
+            quantity: true,
+            pieces: true,
+            cbm: true,
+            weightKg: true,
+          },
         },
         invoices: {
           where: { status: "DRAFT" },
@@ -145,39 +161,59 @@ export async function priceListFor(
   const tzsOf = (usd: Prisma.Decimal) => (fx ? usdToTzs(usd, fx.rate) : null);
 
   /*
+    THE BOOK IS READ ONCE FOR THE WHOLE LIST.
+
+    Every row on this screen is priced against the same published rates, and
+    each consignment's own agreed rates. Asked per row — which is what pricing
+    a consignment does when it is handed nothing — a container of ninety is
+    three hundred round trips before a figure appears, and the screen was
+    taking seconds for no other reason. The published rates are one query per
+    service in play; the agreed ones are one query for every receiver on the
+    list at once.
+  */
+  const services = [...new Set(cargo.map((c) => c.service))];
+  const receivers = [...new Set(cargo.map((c) => c.receiverId))];
+  const now = new Date();
+  const live = {
+    active: true,
+    effectiveFrom: { lte: now },
+    OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+  };
+  const [published, agreedRates] = await Promise.all([
+    services.length === 0
+      ? Promise.resolve([])
+      : client.shippingRate.findMany({
+          where: { ...live, service: { in: services } },
+          orderBy: { effectiveFrom: "desc" },
+        }),
+    receivers.length === 0 || services.length === 0
+      ? Promise.resolve([])
+      : client.customerRate.findMany({
+          where: { ...live, service: { in: services }, customerId: { in: receivers } },
+          orderBy: { effectiveFrom: "desc" },
+        }),
+  ]);
+  /* Split back out per service and per customer, keeping the newest-first
+     order the valuer relies on to choose between two live rates. */
+  const bookFor = (service: ServiceType, customerId: string): RateBook => ({
+    rates: published.filter((r) => r.service === service),
+    agreed: agreedRates.filter((r) => r.service === service && r.customerId === customerId),
+  });
+
+  /*
     THE UNIT THE RATE BOOK PRICES IN, BESIDE THE UNIT THE BILL CHARGES IN.
 
     A desk changing a rate has to be told which of the two numbers it is
     quoting, and a rate per kilo typed against a rate per cubic metre is the
-    mistake that makes a bill ten times wrong. Asked once per cargo type rather
-    than once per row: a container of ninety consignments is four or five types.
+    mistake that makes a bill ten times wrong. Read off the book already in
+    hand: the newest live rate for the type, or the general one.
   */
-  const bookBasisCache = new Map<string, RateBasis | null>();
-  const bookBasisFor = async (service: ServiceType, cargoType: string | null) => {
-    const key = `${service}|${cargoType ?? ""}`;
-    if (!bookBasisCache.has(key)) {
-      const now = new Date();
-      const live = {
-        active: true,
-        effectiveFrom: { lte: now },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
-      };
-      const rate =
-        (cargoType
-          ? await client.shippingRate.findFirst({
-              where: { ...live, service, cargoType },
-              orderBy: { effectiveFrom: "desc" },
-              select: { basis: true },
-            })
-          : null) ??
-        (await client.shippingRate.findFirst({
-          where: { ...live, service, cargoType: null },
-          orderBy: { effectiveFrom: "desc" },
-          select: { basis: true },
-        }));
-      bookBasisCache.set(key, rate?.basis ?? null);
-    }
-    return bookBasisCache.get(key) ?? null;
+  const bookBasisFor = (service: ServiceType, cargoType: string | null) => {
+    const rows = published.filter((r) => r.service === service);
+    const found =
+      (cargoType ? rows.find((r) => r.cargoType === cargoType) : null) ??
+      rows.find((r) => r.cargoType === null);
+    return found?.basis ?? null;
   };
 
   const rows: PriceListRow[] = [];
@@ -253,7 +289,13 @@ export async function priceListFor(
           receiverId: item.receiverId,
           ...billingMeasurement(item),
         },
-        client
+        client,
+        null,
+        {
+          /* Typed lines only, which is the set the valuer would have read. */
+          packages: item.packages.filter((p) => p.cargoType !== null),
+          book: bookFor(item.service, item.receiverId),
+        }
       );
       if (priced.blockedReason) {
         blockedReason =
@@ -287,7 +329,7 @@ export async function priceListFor(
       standardRate: standardRate?.toString() ?? null,
       agreed,
       basis,
-      bookBasis: await bookBasisFor(item.service, base.types[0] ?? null),
+      bookBasis: bookBasisFor(item.service, base.types[0] ?? null),
       billableCbm: billableCbm?.toString() ?? null,
       units: units?.toString() ?? null,
       freight: freight.toString(),

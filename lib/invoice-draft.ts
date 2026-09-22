@@ -3,9 +3,19 @@ import "server-only";
 import { Prisma, type RateBasis, type ServiceType } from "@prisma/client";
 
 import { prisma, type TxClient } from "@/lib/prisma";
-import { quote } from "@/lib/pricing";
+import { quote, quoteFrom, resolveRateFrom } from "@/lib/pricing";
 import { lineBasis, type LineBasis } from "@/lib/rate-basis";
-import { chargedQuantity, valueLines, type TypedRate } from "@/lib/valuation";
+import {
+  chargedQuantity,
+  loadRateBook,
+  valueWith,
+  type PackageLike,
+  type RateBook,
+  type TypedRate,
+} from "@/lib/valuation";
+
+/** One measured line, as `priceConsignment` reads it. */
+export type PricingLine = PackageLike;
 
 export type DraftItem = {
   description: string;
@@ -96,15 +106,34 @@ export async function priceConsignment(
   client: TxClient | typeof prisma = prisma,
   /* A rate typed on the price list for lines charged in a unit the book does
      not price. See TypedRate. */
-  typed: TypedRate | null = null
+  typed: TypedRate | null = null,
+  /*
+    THE LINES AND THE BOOK, WHEN THE CALLER ALREADY HOLDS THEM.
+
+    A list screen has read both for every row it is about to price. Asking for
+    them again is three round trips per consignment, which on a container of
+    ninety is what makes the price list take seconds. The lines must be this
+    cargo's live ones ordered by reference, and the book the live one for its
+    service and receiver — the same two things this function would otherwise
+    fetch, so a caller that passes them gets the same answer.
+  */
+  loaded: { packages?: PricingLine[]; book?: RateBook } | null = null
 ): Promise<PricedConsignment> {
-  const packages = await client.cargoPackage.findMany({
-    where: { cargoId: cargo.id, deletedAt: null, cargoType: { not: null } },
-    orderBy: { reference: "asc" },
-  });
+  const packages =
+    loaded?.packages ??
+    (await client.cargoPackage.findMany({
+      where: { cargoId: cargo.id, deletedAt: null, cargoType: { not: null } },
+      orderBy: { reference: "asc" },
+    }));
+
+  const book =
+    loaded?.book ??
+    (packages.length === 0
+      ? null
+      : await loadRateBook({ service: cargo.service, customerId: cargo.receiverId }, client));
 
   if (packages.length === 0) {
-    const priced = await quote(client, {
+    const input = {
       customerId: cargo.receiverId,
       service: cargo.service,
       cargoType: cargo.commodity,
@@ -114,7 +143,10 @@ export async function priceConsignment(
         pieces: cargo.measuredPieces,
         packages: cargo.measuredPackages,
       },
-    });
+    };
+    const priced = loaded?.book
+      ? quoteFrom(resolveRateFrom(loaded.book, input), input)
+      : await quote(client, input);
     const counted =
       priced.basis === "PER_PIECE"
         ? cargo.measuredPieces
@@ -146,12 +178,7 @@ export async function priceConsignment(
     };
   }
 
-  const valuation = await valueLines(
-    packages,
-    { service: cargo.service, customerId: cargo.receiverId },
-    client,
-    typed
-  );
+  const valuation = valueWith(book!, packages, typed);
 
   const unpriceable = valuation.lines.find((l) => l.blocked);
   if (unpriceable) {

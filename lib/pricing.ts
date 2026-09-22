@@ -134,6 +134,43 @@ export async function resolveRate(
 }
 
 /**
+ * A rate as the arithmetic reads it — the figure, what it is charged by, and
+ * the floor beneath it. Structural rather than the Prisma row, so a caller
+ * holding a book loaded elsewhere can price from the same code.
+ */
+export type PricedRate = {
+  rate: Prisma.Decimal;
+  basis: string;
+  currency: string;
+  minimumCbm?: Prisma.Decimal | null;
+  minimumKg?: Prisma.Decimal | null;
+};
+
+export type ResolvedRate = { standard: PricedRate | null; agreed: PricedRate | null };
+
+/**
+ * THE SAME CHOICE, OUT OF A BOOK ALREADY READ.
+ *
+ * Identical order to `resolveRate` — agreed before published, the named band
+ * before the general one — but over rows a caller has already loaded. A screen
+ * pricing three hundred consignments reads the book once instead of asking it
+ * the same four questions per row. The rows must be the live ones for this
+ * service, newest first: `loadRateBook` in lib/valuation.ts produces exactly
+ * that.
+ */
+export function resolveRateFrom<
+  S extends { cargoType: string | null },
+  A extends { cargoType: string | null },
+>(book: { rates: S[]; agreed: A[] }, input: { cargoType?: string | null }) {
+  const named = input.cargoType?.trim() || null;
+  const pick = <T extends { cargoType: string | null }>(list: T[]) =>
+    (named ? list.find((r) => r.cargoType === named) : null) ??
+    list.find((r) => r.cargoType === null) ??
+    null;
+  return { standard: pick(book.rates), agreed: pick(book.agreed) };
+}
+
+/**
  * Price a consignment.
  *
  * The billable quantity is not the measured one: sea freight has a floor, so
@@ -151,7 +188,19 @@ export async function quote(
     measured: Measured;
   }
 ): Promise<Quote> {
-  const { standard, agreed } = await resolveRate(client, input);
+  return quoteFrom(await resolveRate(client, input), input);
+}
+
+/** The arithmetic of `quote`, against rates already found. */
+export function quoteFrom(
+  found: ResolvedRate,
+  input: {
+    service: ServiceType;
+    cargoType?: string | null;
+    measured: Measured;
+  }
+): Quote {
+  const { standard, agreed } = found;
 
   if (!standard && !agreed) {
     return {
