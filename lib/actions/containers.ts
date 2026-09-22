@@ -10,7 +10,12 @@ import { issueFor as issuePackingListFor } from "@/lib/packing-list";
 import { setCargoStatus, setCargoStatusBulk } from "@/lib/cargo";
 import { announceCargoEvent } from "@/lib/cargo-events";
 import { priceOnCheckIn } from "@/lib/price-confirmation";
-import { LOADABLE_CONTAINER_STATUSES } from "@/lib/constants";
+import {
+  CARGO_STATUS_META,
+  LANDED_CONTAINER_STATUSES,
+  LOADABLE_CONTAINER_STATUSES,
+  SAILED_CONTAINER_STATUSES,
+} from "@/lib/constants";
 import {
   nextContainerReference,
   nextExceptionReference,
@@ -21,7 +26,7 @@ import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { expectedArrival, nextOpenSailing, publicSailings } from "@/lib/sailing-schedule";
 import { formMessage } from "@/lib/safe-error";
-import { authorize } from "@/lib/session";
+import { authorize, authorizeAny } from "@/lib/session";
 
 export type ActionState = { error?: string; ok?: string; id?: string };
 
@@ -523,6 +528,7 @@ export async function loadCargo(
   });
 
   revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
   return { ok: `${loaded} consignment(s) loaded.` };
 }
 
@@ -544,6 +550,13 @@ export async function unloadCargo(
   if (cargoIds.length === 0) {
     return { error: "Tick what you want taken off." };
   }
+
+  /* Optional while the doors are open: changing your mind about what catches a
+     sailing that has not sailed is the loading bay's job, not a correction.
+     Given one, it is kept — the edit page asks for it on every box, and an
+     explanation a clerk typed should reach the container's timeline rather
+     than be dropped on the way to the server. */
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
 
   const container = await prisma.container.findFirst({
     where: { id: containerId, deletedAt: null },
@@ -603,7 +616,9 @@ export async function unloadCargo(
         containerId: container.id,
         from: container.status,
         to: container.status,
-        note: `Taken off: ${lines.map((l) => l.cargo.reference).join(", ")}`,
+        note: `Taken off: ${lines.map((l) => l.cargo.reference).join(", ")}${
+          reason ? ` — ${reason}` : ""
+        }`,
         actorId: actor.id,
       },
     });
@@ -622,11 +637,14 @@ export async function unloadCargo(
     action: "container.unload",
     entity: "Container",
     entityId: container.id,
-    summary: `Took ${removed.length} consignment(s) off ${container.reference}`,
-    metadata: { cargoIds: removed },
+    summary: `Took ${removed.length} consignment(s) off ${container.reference}${
+      reason ? ` — ${reason}` : ""
+    }`,
+    metadata: { cargoIds: removed, reason: reason || null },
   });
 
   revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
   revalidatePath("/app/inventory");
   return {
     ok:
@@ -974,6 +992,7 @@ export async function updateVoyage(
   });
 
   revalidatePath(`/app/containers/${data.containerId}`);
+  revalidatePath(`/app/containers/${data.containerId}/edit`);
   return { ok: "Voyage saved." };
 }
 
@@ -1306,9 +1325,6 @@ export async function issuePackingList(
   return { ok: `Packing list ${list.number} issued.` };
 }
 
-/** Containers whose cargo is on the Dar floor rather than in Foshan or at sea. */
-const LANDED_CONTAINER_STATUSES: ContainerStatus[] = ["ARRIVED", "CLOSED"];
-
 /** Where a consignment goes back to when it turns out it was never in the box. */
 const STILL_AT_SEA: CargoStatus[] = [
   "ASSIGNED_TO_CONTAINER",
@@ -1555,6 +1571,7 @@ export async function takeOffArrivedContainer(
   });
 
   revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
   revalidatePath(`/app/receive/dar/${container.id}`);
   revalidatePath("/app/containers/arrived");
   revalidatePath("/app/exceptions");
@@ -1773,6 +1790,7 @@ export async function putOnArrivedContainer(
   });
 
   revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
   revalidatePath(`/app/receive/dar/${container.id}`);
   revalidatePath("/app/containers/arrived");
   revalidatePath("/app/exceptions");
@@ -1895,4 +1913,455 @@ export async function undoContainerArrival(
   revalidatePath("/app/receive/dar");
   revalidatePath(`/app/containers/${container.id}`);
   return { ok: `${container.reference} is back in transit.` };
+}
+
+/**
+ * WHERE A CONSIGNMENT MAY STAND WHILE ITS BOX IS BETWEEN FOSHAN AND THE PORT.
+ *
+ * In order, so "how far has this one got" is an index and not a switch. Cargo
+ * standing past the end of it — booked in at Dar, collected, cancelled — is not
+ * cargo that can be put inside a container still on the water, whatever a form
+ * says.
+ */
+const AT_SEA_LADDER: CargoStatus[] = [
+  "REGISTERED",
+  "RECEIVED_CHINA",
+  "ASSIGNED_TO_CONTAINER",
+  "CONTAINER_LOADED",
+  "DEPARTED_CHINA",
+  "IN_TRANSIT",
+];
+
+/**
+ * Re-draw a frozen packing list for a box whose contents have just changed.
+ *
+ * `issueFor` with `atSeal` keeps the number and bumps the version, which is the
+ * mechanism the document already has for "this is a later drawing of the same
+ * sheet" — see lib/packing-list.ts. A container with no list yet (nothing was
+ * ever frozen for it) gains nothing here; there is no paper to correct.
+ */
+async function redrawPackingList(tx: TxClient, containerId: string, actorId: string) {
+  const list = await tx.packingList.findUnique({
+    where: { containerId },
+    select: { id: true },
+  });
+  if (!list) return;
+  await issuePackingListFor(tx, containerId, actorId, { atSeal: true });
+}
+
+/**
+ * A CONSIGNMENT INSIDE A BOX THAT HAS ALREADY SAILED.
+ *
+ * Between the seal and the port there was nothing at all. `loadCargo` stops at
+ * the seal — correctly, it is the loading tool and a shut box is shut — and the
+ * landed pair below starts at the port, because it exists for what the Dar
+ * floor finds when it opens the doors. In between sat the case the loading bay
+ * actually reports: the bale is in the container, the container is on the
+ * water, and the manifest does not carry it. Until now the only answer was to
+ * wait twenty-eight days for the box to land and correct it then, with the
+ * customer told nothing in the meantime.
+ *
+ * It is not a second `loadCargo`. It reaches only a shut box that has not
+ * landed, it asks why and keeps the answer, and it moves the consignment to
+ * exactly where the box is and no further: sealed means loaded, at sea means in
+ * transit. A consignment standing ahead of its own container is a tracking page
+ * telling a customer their goods are somewhere the ship is not.
+ *
+ * `container.load` or `shipment.edit`, because the only people who can know
+ * what is inside a box nobody has opened are the people who packed it and the
+ * desk that owns the sailing. Both sit with Foshan and management today; asking
+ * for either means the action follows the roles if they ever part company.
+ */
+export async function putOnSailedContainer(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorizeAny(["container.load", "shipment.edit"]);
+
+  const containerId = String(formData.get("containerId") ?? "");
+  const cargoId = String(formData.get("cargoId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
+  if (!reason) {
+    return { error: "Say why this consignment belongs on a container that has sailed." };
+  }
+
+  const container = await prisma.container.findFirst({
+    where: { id: containerId, deletedAt: null },
+    select: { id: true, reference: true, status: true },
+  });
+  if (!container) return { error: "That container no longer exists." };
+  if (!SAILED_CONTAINER_STATUSES.includes(container.status)) {
+    return {
+      error: LOADABLE_CONTAINER_STATUSES.includes(container.status)
+        ? `${container.reference} is still open. Load cargo into it from the floor list.`
+        : `${container.reference} has landed. Add cargo to it from the manifest instead.`,
+    };
+  }
+
+  const cargo = await prisma.cargo.findFirst({
+    where: { id: cargoId, deletedAt: null },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      senderId: true,
+      chinaReceiving: { select: { packagesCount: true, cbm: true, weightKg: true } },
+      darReceiving: { select: { packagesCount: true, cbm: true, weightKg: true } },
+      invoices: {
+        where: { status: { notIn: ["DRAFT", "CANCELLED"] } },
+        select: { number: true },
+      },
+      packages: {
+        where: { deletedAt: null },
+        select: { quantity: true, cbm: true, weightKg: true },
+      },
+      containerLines: {
+        select: {
+          containerId: true,
+          container: { select: { reference: true, status: true, deletedAt: true } },
+        },
+      },
+    },
+  });
+  if (!cargo) return { error: "That cargo no longer exists." };
+
+  if (cargo.containerLines.some((l) => l.containerId === container.id)) {
+    return { ok: `${cargo.reference} is already on ${container.reference}.` };
+  }
+
+  /*
+    ONE BOX AT A TIME, AND THIS ONE IS SHUT.
+
+    Loading moves a consignment off whatever open container it was sitting on,
+    because both boxes are still in the warehouse and a clerk changing their
+    mind is routine. Nothing here is routine: the other container is sealed,
+    sailed or landed, somebody has already said this cargo is inside it, and
+    the two claims cannot both be true. It is taken off that one first, by
+    whoever is prepared to say why it was wrong.
+  */
+  const elsewhere = cargo.containerLines.find(
+    (l) => !l.container.deletedAt && l.container.status !== "CLOSED"
+  );
+  if (elsewhere) {
+    return {
+      error: `${cargo.reference} is on ${elsewhere.container.reference}. Take it off that container before putting it on this one.`,
+    };
+  }
+
+  /* A bill names the sailing it was raised against. Moving the cargo under a
+     bill somebody is holding changes what that paper says without reissuing it. */
+  if (cargo.invoices.length > 0) {
+    return {
+      error: `${cargo.reference} is billed on ${cargo.invoices[0].number}, and that bill names a sailing. Cancel it first.`,
+    };
+  }
+
+  const standing = AT_SEA_LADDER.indexOf(cargo.status);
+  if (standing === -1) {
+    return {
+      error: `${cargo.reference} is ${CARGO_STATUS_META[cargo.status].label.toLowerCase()} — it cannot be inside a container that is still at sea.`,
+    };
+  }
+
+  /* Sealed is loaded; departed and in transit are both at sea. The box's own
+     position, never a step past it. */
+  const lands: CargoStatus =
+    container.status === "SEALED" ? "CONTAINER_LOADED" : "IN_TRANSIT";
+  const landsAt = AT_SEA_LADDER.indexOf(lands);
+
+  /* The figures come off the goods themselves, the way loading does, so the
+     manifest can never claim a volume the boxes do not add up to. */
+  const measured = cargo.darReceiving ?? cargo.chinaReceiving;
+  const fromLines = cargo.packages.length > 0;
+  const cbm = fromLines
+    ? cargo.packages.reduce((sum, p) => sum.add(p.cbm), new Prisma.Decimal(0))
+    : new Prisma.Decimal(measured?.cbm ?? 0);
+  const weight = fromLines
+    ? cargo.packages.reduce((sum, p) => sum.add(p.weightKg ?? 0), new Prisma.Decimal(0))
+    : new Prisma.Decimal(measured?.weightKg ?? 0);
+  const packagesCount = fromLines
+    ? cargo.packages.reduce((sum, p) => sum + p.quantity, 0)
+    : (measured?.packagesCount ?? 0);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      /* The box is re-read under its own claim. A container departing or
+         landing between this page being read and the press landing would take
+         the cargo to the wrong place on its journey. */
+      const still = await tx.container.updateMany({
+        where: { id: container.id, status: container.status },
+        data: { status: container.status },
+      });
+      if (still.count === 0) {
+        throw new Error(
+          `${container.reference} moved on while you were adding to it. Open it again.`
+        );
+      }
+
+      await recordFieldChange(
+        {
+          actor,
+          entity: "Cargo",
+          entityId: cargo.id,
+          field: "container",
+          oldValue: null,
+          newValue: container.reference,
+          reason,
+        },
+        tx
+      );
+
+      await tx.cargoPackage.updateMany({
+        where: { cargoId: cargo.id, deletedAt: null },
+        data: { containerId: container.id },
+      });
+      await tx.containerCargo.create({
+        data: {
+          containerId: container.id,
+          cargoId: cargo.id,
+          packagesCount,
+          cbm,
+          /* Nothing weighed is not nothing weighing zero. */
+          weightKg: weight.greaterThan(0) ? weight : null,
+          loadedAt: new Date(),
+          notes: reason,
+        },
+      });
+
+      /*
+        THE JOURNEY IS WALKED, NOT JUMPED.
+
+        A consignment that goes straight from the Foshan floor to IN_TRANSIT
+        has a history saying it never left China, and the customer's own
+        timeline is that history. Each rung the box has already passed is
+        written in turn, so "loaded", "departed China" and "at sea" all carry
+        the day they were recorded on.
+      */
+      for (let step = standing + 1; step <= landsAt; step += 1) {
+        await setCargoStatus(
+          tx,
+          cargo.id,
+          AT_SEA_LADDER[step],
+          actor,
+          `Added to ${container.reference} after it was sealed: ${reason}`
+        );
+      }
+
+      await tx.containerEvent.create({
+        data: {
+          containerId: container.id,
+          from: container.status,
+          to: container.status,
+          note: `${cargo.reference} added to the manifest after sealing: ${reason}`,
+          actorId: actor.id,
+        },
+      });
+
+      /* The sheet the shipping line and Dar work from now lists cargo it did
+         not. It keeps its number and gains a version, because a number already
+         on paper at a port must not change under somebody's hand. */
+      await redrawPackingList(tx, container.id, actor.id);
+    });
+  } catch (error) {
+    return { error: formMessage(error, "That did not go on.") };
+  }
+
+  await recordAudit({
+    actor,
+    action: "container.amendSailed",
+    entity: "Container",
+    entityId: container.id,
+    summary: `Added ${cargo.reference} to ${container.reference} after sealing — ${reason}`,
+    metadata: {
+      cargoId: cargo.id,
+      reference: cargo.reference,
+      containerStatus: container.status,
+      cargoStatus: lands,
+      reason,
+    },
+  });
+
+  revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
+  revalidatePath("/app/containers");
+  revalidatePath("/app/inventory");
+  revalidatePath(`/app/cargo/${cargo.id}`);
+  return {
+    ok: `${cargo.reference} is on ${container.reference}, standing where the box stands.`,
+  };
+}
+
+/**
+ * THE MIRROR: A CONSIGNMENT ON A SAILED BOX THAT IS NOT IN IT.
+ *
+ * The manifest says it went and the pallet is on the Foshan floor. Left
+ * standing, the customer is told their goods are at sea, Dar spends the
+ * check-in looking for a bale that was never loaded, and the container's price
+ * list bills a sailing that did not carry it.
+ *
+ * It goes back to being Foshan's, which is where it is if it did not sail —
+ * that is the claim being made and the status has to say it out loud rather
+ * than leave the boxes counted in two places.
+ */
+export async function takeOffSailedContainer(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorizeAny(["container.load", "shipment.edit"]);
+
+  const containerId = String(formData.get("containerId") ?? "");
+  const cargoId = String(formData.get("cargoId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
+  if (!reason) return { error: "Say why it is not on this container." };
+
+  const container = await prisma.container.findFirst({
+    where: { id: containerId, deletedAt: null },
+    select: { id: true, reference: true, status: true },
+  });
+  if (!container) return { error: "That container no longer exists." };
+  if (!SAILED_CONTAINER_STATUSES.includes(container.status)) {
+    return {
+      error: LOADABLE_CONTAINER_STATUSES.includes(container.status)
+        ? `${container.reference} is still open. Take cargo off it with the loading list.`
+        : `${container.reference} has landed. Take cargo off the manifest instead.`,
+    };
+  }
+
+  const cargo = await prisma.cargo.findFirst({
+    where: { id: cargoId, deletedAt: null },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      invoices: {
+        where: { status: { notIn: ["CANCELLED"] } },
+        select: { number: true, status: true },
+      },
+    },
+  });
+  if (!cargo) return { error: "That cargo no longer exists." };
+
+  const line = await prisma.containerCargo.findUnique({
+    where: { containerId_cargoId: { containerId: container.id, cargoId: cargo.id } },
+    select: { id: true },
+  });
+  if (!line) return { error: `${cargo.reference} is not on ${container.reference}.` };
+
+  const billed = cargo.invoices.find((i) => i.status !== "DRAFT");
+  if (billed) {
+    return {
+      error: `${cargo.reference} is billed on ${billed.number}, and that bill names this sailing. Cancel it first.`,
+    };
+  }
+
+  /*
+    A SEALED BOX IS NEVER EMPTIED.
+
+    Sealing refuses a container with nothing in it, for the reason that a
+    sailing with no contents, no manifest and a seal number on the record is a
+    box nobody can account for and nothing Dar can check against. Taking the
+    last line off one afterwards arrives at the same place by another door.
+  */
+  const inside = await prisma.containerCargo.count({
+    where: { containerId: container.id },
+  });
+  if (inside <= 1) {
+    return {
+      error: `${cargo.reference} is the only thing on ${container.reference}. A sealed container cannot be left at sea with nothing in it — raise a case on the sailing instead.`,
+    };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const still = await tx.container.updateMany({
+        where: { id: container.id, status: container.status },
+        data: { status: container.status },
+      });
+      if (still.count === 0) {
+        throw new Error(
+          `${container.reference} moved on while you were correcting it. Open it again.`
+        );
+      }
+
+      await recordFieldChange(
+        {
+          actor,
+          entity: "Cargo",
+          entityId: cargo.id,
+          field: "container",
+          oldValue: container.reference,
+          newValue: null,
+          reason,
+        },
+        tx
+      );
+
+      /* A draft names the sailing it was priced for. The consignment is leaving
+         that sailing, so the draft stops claiming it rather than being deleted —
+         the figures are still the figures, and the line is a real foreign key. */
+      await tx.invoice.updateMany({
+        where: { cargoId: cargo.id, containerCargoId: line.id },
+        data: { containerCargoId: null },
+      });
+
+      await tx.cargoPackage.updateMany({
+        where: { cargoId: cargo.id, containerId: container.id },
+        data: { containerId: null },
+      });
+      await tx.containerCargo.delete({ where: { id: line.id } });
+
+      if (STILL_AT_SEA.includes(cargo.status)) {
+        await setCargoStatus(
+          tx,
+          cargo.id,
+          "RECEIVED_CHINA",
+          actor,
+          `Taken off ${container.reference} after it was sealed: ${reason}`
+        );
+        /* Never on that box, so never sailing with it and never arriving with
+           it: no storage clock. */
+        await tx.cargo.updateMany({
+          where: { id: cargo.id },
+          data: { darArrivedAt: null },
+        });
+      }
+
+      await tx.containerEvent.create({
+        data: {
+          containerId: container.id,
+          from: container.status,
+          to: container.status,
+          note: `${cargo.reference} taken off the manifest after sealing: ${reason}`,
+          actorId: actor.id,
+        },
+      });
+
+      await redrawPackingList(tx, container.id, actor.id);
+    });
+  } catch (error) {
+    return { error: formMessage(error, "That did not come off.") };
+  }
+
+  await recordAudit({
+    actor,
+    action: "container.amendSailed",
+    entity: "Container",
+    entityId: container.id,
+    summary: `Took ${cargo.reference} off ${container.reference} after sealing — ${reason}`,
+    metadata: {
+      cargoId: cargo.id,
+      reference: cargo.reference,
+      containerStatus: container.status,
+      reason,
+    },
+  });
+
+  revalidatePath(`/app/containers/${container.id}`);
+  revalidatePath(`/app/containers/${container.id}/edit`);
+  revalidatePath("/app/containers");
+  revalidatePath("/app/inventory");
+  revalidatePath(`/app/cargo/${cargo.id}`);
+  return {
+    ok: `${cargo.reference} is off ${container.reference} and back on the Foshan floor.`,
+  };
 }

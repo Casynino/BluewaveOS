@@ -198,6 +198,8 @@ const OWNERS_LIST: [string, string, string][] = [
   ["cargo held and let go again", "cargo.ts", "setOperationalHold"],
   ["taken off a landed manifest", "containers.ts", "takeOffArrivedContainer"],
   ["put onto a landed manifest", "containers.ts", "putOnArrivedContainer"],
+  ["taken off a box that has sailed", "containers.ts", "takeOffSailedContainer"],
+  ["put onto a box that has sailed", "containers.ts", "putOnSailedContainer"],
   ["a case opened", "exceptions.ts", "raiseException"],
   ["a case moved on", "exceptions.ts", "updateException"],
   ["a bill raised", "invoices.ts", "generateInvoice"],
@@ -246,6 +248,8 @@ describe("an override keeps both values", () => {
     ["cargo.ts", "updateCargoDetails"],
     ["containers.ts", "takeOffArrivedContainer"],
     ["containers.ts", "putOnArrivedContainer"],
+    ["containers.ts", "takeOffSailedContainer"],
+    ["containers.ts", "putOnSailedContainer"],
     ["invoices.ts", "changeInvoiceRate"],
     ["invoices.ts", "discountInvoice"],
   ] as [string, string][]) {
