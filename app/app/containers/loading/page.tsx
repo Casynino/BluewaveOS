@@ -300,7 +300,7 @@ export default async function LoadingContainersPage({
               ? `${formatCbm(floorCbm)} ${T("on no container")} · ${T("oldest")} ${floorDays}d`
               : T("Everything measured is on a box")
           }
-          href="/app/cargo?stage=china"
+          href={can(user.role, "inventory.view") ? "/app/inventory" : "/app/cargo?stage=china"}
         />
         <KpiCard
           index={3}

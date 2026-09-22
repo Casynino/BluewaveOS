@@ -342,7 +342,7 @@ export async function logCustomerContact(
   const cargo = cargoId
     ? await prisma.cargo.findFirst({
         where: { id: cargoId, deletedAt: null },
-        select: { id: true, reference: true, receiverId: true },
+        select: { id: true, reference: true, receiverId: true, senderId: true },
       })
     : null;
 
@@ -354,9 +354,28 @@ export async function logCustomerContact(
     : null;
 
   /* The bill's customer first, then the cargo's receiver — the person who is
-     invoiced and collects. The sender is in China and is not who is rung. */
-  const customerId = invoice?.customerId ?? cargo?.receiverId;
+     invoiced and collects. A China-side message goes to the sender, the
+     customer who delivered the goods to Foshan; which person is read off the
+     consignment, never taken from the form. */
+  const toSender = formData.get("to") === "sender" && !invoice;
+  const customerId = invoice?.customerId ?? (toSender ? cargo?.senderId : cargo?.receiverId);
   if (!customerId) return { error: "That record no longer exists." };
+
+  /* A stage message sent once is not sent twice by a second click or a second
+     clerk: the first send asks for "once", and "Notify again" is the
+     deliberate repeat. */
+  if (formData.get("once") === "1" && cargo) {
+    const already = await prisma.customerContact.findFirst({
+      where: { cargoId: cargo.id, kind },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, sentBy: { select: { name: true } } },
+    });
+    if (already) {
+      return {
+        error: `Already sent on ${already.createdAt.toISOString().slice(0, 10)} by ${already.sentBy?.name ?? "somebody"}. Use "Notify again" to send it a second time.`,
+      };
+    }
+  }
 
   await prisma.customerContact.create({
     data: {
@@ -381,5 +400,6 @@ export async function logCustomerContact(
 
   if (cargo) revalidatePath(`/app/cargo/${cargo.id}`);
   revalidatePath("/app/finance/collections");
+  revalidatePath("/app/inventory");
   return { ok: "Logged." };
 }

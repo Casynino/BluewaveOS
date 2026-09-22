@@ -333,6 +333,10 @@ const CUSTOMER_SUPPORT: Permission[] = [
   "cargo.view",
   "cargo.viewAll",
   "cargo.photo",
+  /* The Foshan floor list, read-only: which customers' goods have arrived in
+     China and whether they have been told. Receiving and loading stay
+     Foshan's. */
+  "inventory.view",
   /*
     `receiving.china` IS NOT HERE, AND THE ABSENCE IS THE POINT.
 
@@ -403,6 +407,8 @@ const FINANCE: Permission[] = [
   "cargo.viewAll",
   "cargo.viewInternal",
   "deliveryNote.view",
+  /* The Foshan floor list, read-only — see CUSTOMER_SUPPORT. */
+  "inventory.view",
   /* Finance carries the container through the port, by the owner's decision:
      it is the desk holding the bill of lading, so it is the desk that knows
      the box has landed. `container.arrive` marks the landing (and undoes it

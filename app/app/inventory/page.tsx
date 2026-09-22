@@ -28,7 +28,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCbm, formatDate } from "@/lib/format";
+import { formatCbm, formatDate, formatWeight } from "@/lib/format";
+import { NotifyRow } from "@/components/app/notify-row";
+import { CARGO_EVENT_ACTION } from "@/lib/cargo-notices";
+import { composeMessage, composeNotice, whatsappNumber } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { cargoTypeOptions } from "@/lib/valuation";
@@ -113,9 +116,23 @@ export default async function InventoryPage({
      building. */
   const loadedView = inChina && state === "loaded";
 
+  /*
+    THE OFFICE'S QUESTION IS EVERYTHING STILL IN CHINA.
+
+    Support, Finance and management tell customers their goods have arrived in
+    Foshan, so the list they open is every consignment still in China — on the
+    floor, or in a container that has not sailed — with whether its customer
+    has been told. Read-only: receiving and loading stay Foshan's.
+  */
+  const mayNotify =
+    inChina && (can(user.role, "conversation.reply") || can(user.role, "payment.submit"));
+  const allChina = inChina && (state === "china" || (!state && mayNotify));
+
   const filtered: CargoStatus[] = loadedView
     ? CHINA_LOADED_STATUSES
-    : state === "waiting"
+    : allChina
+      ? [...CHINA_STATUSES, ...CHINA_LOADED_STATUSES]
+      : state === "waiting"
       ? [inChina ? "RECEIVED_CHINA" : "RECEIVED_DAR"]
       : statuses;
 
@@ -247,6 +264,24 @@ export default async function InventoryPage({
      counter was offered rather than a free-text box nobody spells the same. */
   const categories = await cargoTypeOptions();
 
+  /* Who has been told, per consignment and per China stage: the last
+     WhatsApp logged for it, with the name of whoever sent it. */
+  const told = mayNotify
+    ? await prisma.customerContact.findMany({
+        where: {
+          cargoId: { in: cargo.map((c) => c.id) },
+          kind: { in: ["CARGO_RECEIVED_CHINA", "CARGO_STORED_CHINA", "cargo.received_china", "cargo.loaded"] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { cargoId: true, kind: true, createdAt: true, sentBy: { select: { name: true } } },
+      })
+    : [];
+  const lastTold = (cargoId: string, kind: string) => {
+    const earlier = kind === "CARGO_RECEIVED_CHINA" ? "cargo.received_china" : "cargo.loaded";
+    const row = told.find((c) => c.cargoId === cargoId && (c.kind === kind || c.kind === earlier));
+    return row ? { when: formatDate(row.createdAt), by: row.sentBy?.name ?? "somebody" } : null;
+  };
+
   const floorCbm = cargo.reduce((sum, item) => {
     const cbm = inChina
       ? item.chinaReceiving?.cbm
@@ -262,7 +297,9 @@ export default async function InventoryPage({
           inChina
             ? loadedView
               ? T("Received in Foshan and already in a container, with the box it went into.")
-              : T("Everything received and still waiting for a container.")
+              : allChina
+                ? T("Everything received in Foshan that has not sailed yet — on the floor or in a container — and whether its customer has been told.")
+                : T("Everything received and still waiting for a container.")
             : T("Everything landed in Dar, oldest first.")
         }
         actions={
@@ -297,7 +334,7 @@ export default async function InventoryPage({
         />
         <KpiCard
           index={2}
-          label={inChina ? T("Gone into containers") : T("Cleared to go")}
+          label={inChina ? T("Gone into containers") : T("Ready for pickup")}
           numeric={loaded}
           icon={ContainerIcon}
           tone="marine"
@@ -329,7 +366,7 @@ export default async function InventoryPage({
           className="w-56"
           aria-label={T("Filter")}
         >
-          <option value="">{T("Everything here")}</option>
+          <option value="">{mayNotify ? T("Everything in China") : T("Everything here")}</option>
           <option value="waiting">
             {inChina ? "Waiting for a container" : "Not yet released"}
           </option>
@@ -337,6 +374,7 @@ export default async function InventoryPage({
               view, where it would double the volume on the floor, but reachable
               — "where is BW0041" is asked of the floor either way. */}
           {inChina ? <option value="loaded">{T("In a container")}</option> : null}
+          {inChina && !mayNotify ? <option value="china">{T("Everything in China")}</option> : null}
           <option value="hold">{T("On hold")}</option>
           <option value="nophoto">{T("No photograph")}</option>
         </NativeSelect>
@@ -421,7 +459,7 @@ export default async function InventoryPage({
                       saying the name of the page. It is the customer's sentence,
                       not the warehouse's, and the date beside it already says
                       when. Dar keeps it: there a consignment can be landed,
-                      booked in or cleared to go, and those are different jobs. */}
+                      booked in or ready for pickup, and those are different jobs. */}
                   {inChina ? null : <TableHead>{T("Status")}</TableHead>}
                   {/* Nothing in the default Foshan view is in a container —
                       that is what "on the floor" means, and a column of "Not
@@ -430,11 +468,13 @@ export default async function InventoryPage({
                       is the whole reason somebody opened the list, and Dar keeps
                       it always: there, the box it came off is how a consignment
                       is found. */}
-                  {!inChina || loadedView ? <TableHead>{T("Container")}</TableHead> : null}
+                  {!inChina || loadedView || allChina ? <TableHead>{T("Container")}</TableHead> : null}
+                  {mayNotify ? <TableHead className="hidden md:table-cell">{T("Mark · type · weight")}</TableHead> : null}
                   {/* Which warehouse it is in is the title of the page, and a
                       shelf number nobody fills in was two lines of nothing. The
                       date it came in is the fact a clerk actually wants. */}
                   <TableHead className="hidden xl:table-cell">{T("Received")}</TableHead>
+                  {mayNotify ? <TableHead>{T("Customer told")}</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -527,7 +567,7 @@ export default async function InventoryPage({
                           <CargoStatusBadge status={item.status} />
                         </TableCell>
                       )}
-                      {!inChina || loadedView ? (
+                      {!inChina || loadedView || allChina ? (
                         <TableCell>
                           {container ? (
                             <Link
@@ -541,9 +581,52 @@ export default async function InventoryPage({
                           )}
                         </TableCell>
                       ) : null}
+                      {mayNotify ? (
+                        <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
+                          {item.shippingMark ? <span className="block font-medium text-foreground">{item.shippingMark}</span> : null}
+                          {[...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))].join(", ") || "—"}
+                          {receiving?.weightKg ? <span className="tnum block">{formatWeight(receiving.weightKg)}</span> : null}
+                        </TableCell>
+                      ) : null}
                       <TableCell className="tnum hidden text-sm text-muted-foreground xl:table-cell">
                         {formatDate(receiving?.receivedAt)}
                       </TableCell>
+                      {mayNotify
+                        ? (() => {
+                            const event =
+                              item.status === "RECEIVED_CHINA" ? "CARGO_RECEIVED_CHINA" : "CARGO_STORED_CHINA";
+                            const context = {
+                              status: item.status,
+                              customerName: item.sender.fullName,
+                              reference: item.reference,
+                              description: item.description,
+                              shippingMark: item.shippingMark,
+                              receiptNo: item.paperReceiptNo,
+                              packages: receiving?.packagesCount ?? null,
+                              pieces: pieces > 0 ? pieces : null,
+                              cbm: receiving?.cbm != null ? Number(receiving.cbm).toFixed(3) : null,
+                              containerNumber: container
+                                ? container.containerNumber
+                                  ? `${container.reference} (${container.containerNumber})`
+                                  : container.reference
+                                : null,
+                            } as const;
+                            const notice = composeNotice(event, context);
+                            return (
+                              <TableCell>
+                                <NotifyRow
+                                  cargoId={item.id}
+                                  phone={whatsappNumber(item.sender.phone)}
+                                  kind={event}
+                                  action={CARGO_EVENT_ACTION[event]}
+                                  body={composeMessage(event, context)}
+                                  links={notice.links.map((l) => ({ label: l.label, href: l.href }))}
+                                  notified={lastTold(item.id, event)}
+                                />
+                              </TableCell>
+                            );
+                          })()
+                        : null}
                     </TableRow>
                   );
                 })}
