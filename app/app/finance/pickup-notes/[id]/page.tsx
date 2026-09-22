@@ -171,7 +171,7 @@ export default async function PickupNotePage({
         <div className="px-8 py-6">
           {/* ------------------------------------------ Who, and the code */}
           <section className="grid grid-cols-[1fr_auto] items-stretch gap-6">
-            <div className="flex flex-col justify-between rounded-2xl border border-[#d6e2ee] bg-[#f5f9fc] p-5">
+            <div className="flex flex-col rounded-2xl border border-[#d6e2ee] bg-[#f5f9fc] p-5">
               <div>
                 <p className={label}>Collect by · Anayechukua</p>
                 <p className="mt-1 text-2xl font-extrabold uppercase leading-tight">{note.customer.fullName}</p>
@@ -182,7 +182,22 @@ export default async function PickupNotePage({
                   <p className="mt-1 text-xs text-neutral-500">Sent by {note.cargo.sender.fullName}</p>
                 ) : null}
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+
+              {/* The two figures the counter reads off the card while the
+                  customer is standing there: what to look for, and how much
+                  of it. The rest of the paperwork is the strip below. */}
+              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#d6e2ee] bg-[#d6e2ee]">
+                <div className="bg-white px-3 py-2">
+                  <p className={label}>Tracking no.</p>
+                  <p className="tnum mt-0.5 truncate text-sm font-bold">{note.cargo.reference}</p>
+                </div>
+                <div className="bg-white px-3 py-2">
+                  <p className={label}>Boxes to collect</p>
+                  <p className="tnum mt-0.5 text-sm font-bold">{packages ? String(packages) : "—"}</p>
+                </div>
+              </div>
+
+              <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
                 <span className={`rotate-[-4deg] rounded-md border-2 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.2em] ${stamp.tone}`}>
                   {stamp.text}
                 </span>
@@ -201,11 +216,9 @@ export default async function PickupNotePage({
           </section>
 
           {/* ------------------------------------------------ The cargo */}
-          <section className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-[#d6e2ee] bg-[#d6e2ee]">
+          <section className="mt-5 grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-[#d6e2ee] bg-[#d6e2ee]">
             {[
-              ["Tracking no.", note.cargo.reference],
               ["Container", container?.reference ?? "—"],
-              ["Boxes to collect", packages ? String(packages) : "—"],
               [note.onCredit ? "Paid so far" : "Settled", formatMoney(note.amountPaid, note.currency)],
               ["In shillings", note.amountTzs ? formatMoney(note.amountTzs, "TZS") : "—"],
               ["Goods", note.cargo.description],
