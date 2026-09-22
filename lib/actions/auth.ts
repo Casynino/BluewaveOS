@@ -4,7 +4,9 @@ import { AuthError } from "next-auth";
 
 import { signIn, signOut } from "@/auth";
 
-export type LoginState = { error?: string };
+/* The address typed comes back with the error: React clears a form after its
+   action runs, and a second attempt should not start from an empty box. */
+export type LoginState = { error?: string; identifier?: string };
 
 /**
  * Sign in.
@@ -30,7 +32,7 @@ export async function login(
     return {};
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "That phone number or email and password do not match an active account." };
+      return { error: "That phone number or email and password do not match an active account.", identifier: email };
     }
     /* next-auth signals a successful sign-in by throwing a redirect. Swallowing
        it here would leave the user staring at the form they just completed. */

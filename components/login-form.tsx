@@ -32,6 +32,8 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         <Input
           id="identifier"
           name="identifier"
+          key={state.identifier ?? ""}
+          defaultValue={state.identifier}
           type="text"
           inputMode="email"
           autoComplete="username"
