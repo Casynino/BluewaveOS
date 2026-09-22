@@ -8,11 +8,17 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { estimateFreight, type EstimateState } from "@/lib/actions/estimate";
 import { cbmNumber } from "@/lib/cbm";
 import { DEFAULT_LOCALE, t } from "@/lib/i18n";
+import type { RateUnit } from "@/lib/rate-basis";
 import { cn } from "@/lib/utils";
 
 export type FullContainerPrice = { cargoType: string; price: string };
 
 type BoxLine = { id: number; length: string; width: string; height: string; boxes: string };
+
+/* A type not charged by volume is asked for its own figure: kilos, pieces or
+   bales. The unit comes with the type names; the price only with the answer. */
+const FIELD = { CBM: "cbm", TONNE: "kg", PIECE: "pieces", BALE: "bales" } as const;
+const SUFFIX = { CBM: "CBM", TONNE: "kg", PIECE: "pieces", BALE: "bales" } as const;
 
 /* A 20ft box holds about 33 CBM. Only used to draw how full the picture is. */
 const TWENTY_FOOT_CBM = 33;
@@ -31,11 +37,14 @@ const TWENTY_FOOT_CBM = 33;
  */
 export function PriceCalculator({
   cargoTypes,
+  units = {},
   containers = [],
   start = "cbm",
   bookPath = "/book",
 }: {
   cargoTypes: string[];
+  /** The figure each type is charged by. The unit only, never the rate. */
+  units?: Record<string, RateUnit>;
   containers?: FullContainerPrice[];
   /** Where "Book" goes: the public form, or the portal's own for a signed-in customer. */
   bookPath?: string;
@@ -47,6 +56,7 @@ export function PriceCalculator({
   const [how, setHow] = useState<"cbm" | "boxes">(start);
   const [cargoType, setCargoType] = useState("");
   const [cbmTyped, setCbmTyped] = useState("1");
+  const [figureTyped, setFigureTyped] = useState("");
   const [lines, setLines] = useState<BoxLine[]>([{ id: 1, length: "", width: "", height: "", boxes: "1" }]);
   const [container, setContainer] = useState(containers[0]?.cargoType ?? "");
   const [result, setResult] = useState<{ key: string; state: EstimateState } | null>(null);
@@ -69,23 +79,31 @@ export function PriceCalculator({
   );
 
   const cbm = how === "cbm" ? Math.max(0, Number(cbmTyped) || 0) : boxCbm;
-  const key = `${cargoType}:${cbm.toFixed(3)}`;
+  const unit: RateUnit = units[cargoType] ?? "CBM";
+  const counted = unit === "PIECE" || unit === "BALE";
+  const figure = counted
+    ? Math.max(0, Math.floor(Number(figureTyped) || 0))
+    : Math.max(0, Number(figureTyped) || 0);
+  /* How much there is, in the unit these goods are charged by. */
+  const amount = unit === "CBM" ? cbm : figure;
+  const amountLabel = unit === "CBM" ? `${cbm.toFixed(2)} CBM` : `${figure} ${SUFFIX[unit]}`;
+  const key = `${cargoType}:${unit}:${unit === "CBM" ? cbm.toFixed(3) : String(figure)}`;
 
   /* Priced a moment after the typing stops, so a customer sees the answer
      move with the figures without every keystroke becoming a request. */
   useEffect(() => {
-    if (service !== "LCL" || !cargoType || cbm <= 0) return;
+    if (service !== "LCL" || !cargoType || amount <= 0) return;
     const timer = setTimeout(() => {
       const form = new FormData();
       form.set("cargoType", cargoType);
-      form.set("cbm", cbm.toFixed(3));
+      form.set(FIELD[unit], unit === "CBM" ? cbm.toFixed(3) : String(figure));
       startTransition(async () => {
         const state = await estimateFreight({}, form);
         setResult({ key, state });
       });
     }, 450);
     return () => clearTimeout(timer);
-  }, [key, cargoType, cbm, service]);
+  }, [key, cargoType, amount, service, unit, cbm, figure]);
 
   const answer = result?.key === key ? result.state : undefined;
   const priced = answer?.estimate?.kind === "priced" ? answer.estimate : null;
@@ -146,6 +164,31 @@ export function PriceCalculator({
             </Step>
 
             <Step n={2} title={t(locale, "How much is there?")}>
+              {unit !== "CBM" ? (
+                <>
+                  <div className="flex h-16 items-center gap-2 rounded-2xl border bg-background px-4 focus-within:border-brand">
+                    <input
+                      type="number"
+                      inputMode={counted ? "numeric" : "decimal"}
+                      min="0"
+                      step={counted ? "1" : "0.1"}
+                      value={figureTyped}
+                      onChange={(e) => setFigureTyped(e.target.value)}
+                      aria-label={t(locale, SUFFIX[unit])}
+                      className="tnum min-w-0 flex-1 bg-transparent text-center font-display text-3xl font-bold outline-none"
+                    />
+                    <span className="text-sm font-semibold text-muted-foreground">{t(locale, SUFFIX[unit])}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {unit === "TONNE"
+                      ? t(locale, "These goods are charged by weight. Give the total in kilograms.")
+                      : unit === "PIECE"
+                        ? t(locale, "These goods are charged by the piece. How many pieces?")
+                        : t(locale, "These goods are charged by the bale. How many bales?")}
+                  </p>
+                </>
+              ) : (
+              <>
               <div className="mb-3 flex flex-wrap gap-2">
                 {(
                   [
@@ -315,6 +358,8 @@ export function PriceCalculator({
                   </div>
                 </div>
               )}
+              </>
+              )}
             </Step>
           </div>
         ) : (
@@ -368,13 +413,13 @@ export function PriceCalculator({
             >
               <span className="min-w-0">
                 <span className="block text-[11px] text-white/60">
-                  {cbm > 0 ? `${cbm.toFixed(2)} CBM` : t(locale, "Estimated price")}
+                  {amount > 0 ? amountLabel : t(locale, "Estimated price")}
                   {cargoType ? ` · ${cargoType}` : ""}
                 </span>
                 <span className="tnum block truncate font-display text-xl font-extrabold">
                   {!cargoType
                     ? t(locale, "Choose your goods")
-                    : cbm <= 0
+                    : amount <= 0
                       ? t(locale, "Enter how much you have")
                       : priced
                         ? priced.totalTzs ?? priced.total
@@ -420,7 +465,9 @@ export function PriceCalculator({
           </div>
         ) : (
           <>
-            {/* How full a 20ft container this would be, drawn. */}
+            {/* How full a 20ft container this would be, drawn — for a volume
+                only; pieces and kilos say nothing about the space. */}
+            {unit === "CBM" ? (
             <div aria-hidden className="relative h-20 overflow-hidden rounded-xl border border-white/15 bg-white/[0.04]">
               <div
                 className="absolute inset-y-0 left-0 bg-[repeating-linear-gradient(90deg,#ea4a5c_0_14px,#dc4e12_14px_16px)] transition-[width] duration-700 ease-out"
@@ -434,6 +481,7 @@ export function PriceCalculator({
                 {fill >= 100 ? t(locale, "More than a 20ft container") : `${Math.round(fill)}% ${t(locale, "of a 20ft container")}`}
               </span>
             </div>
+            ) : null}
 
             <div className="mt-7 flex-1">
               {!cargoType ? (
@@ -441,7 +489,7 @@ export function PriceCalculator({
                   <p className="font-display text-3xl font-bold tracking-tight">{t(locale, "Your price")}</p>
                   <p className="mt-2 text-white/65">{t(locale, "Choose your goods and it appears here.")}</p>
                 </>
-              ) : cbm <= 0 ? (
+              ) : amount <= 0 ? (
                 <p className="text-white/65">{t(locale, "Enter how much you have.")}</p>
               ) : answer?.error ? (
                 <p className="text-rose-200">{answer.error}</p>
@@ -466,10 +514,10 @@ export function PriceCalculator({
 
                   {priced ? (
                     <dl className="tnum mt-6 space-y-2 rounded-2xl bg-white/[0.06] p-4 text-sm">
-                      <Row label={t(locale, "Rate for") + " " + cargoType} value={`${priced.currency} ${Number(priced.rate).toLocaleString("en-US")} / CBM`} strong />
+                      <Row label={t(locale, "Rate for") + " " + cargoType} value={priced.rateLabel} strong />
                       <Row
-                        label={t(locale, "Volume charged")}
-                        value={`${priced.billableCbm ?? priced.measuredCbm} CBM${priced.minimumApplied ? ` (${t(locale, "minimum")})` : ""}`}
+                        label={t(locale, priced.unit === "CBM" ? "Volume charged" : "Charged on")}
+                        value={`${priced.quantityLabel}${priced.minimumApplied ? ` (${t(locale, "minimum")})` : ""}`}
                       />
                       {priced.lines.map((line) => (
                         <Row key={line.label} label={t(locale, line.label)} value={line.amount} />
@@ -483,7 +531,9 @@ export function PriceCalculator({
             {priced ? (
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
-                  href={`${bookPath}?service=SHARED_CARGO&commodity=${encodeURIComponent(cargoType)}&cbm=${encodeURIComponent(priced.measuredCbm)}`}
+                  href={`${bookPath}?service=SHARED_CARGO&commodity=${encodeURIComponent(cargoType)}${
+                    priced.unit === "CBM" ? `&cbm=${encodeURIComponent(priced.measuredCbm)}` : ""
+                  }`}
                   className="track-go inline-flex h-12 items-center gap-2 rounded-full px-6 text-sm font-semibold"
                 >
                   {t(locale, "Book this shipment")}

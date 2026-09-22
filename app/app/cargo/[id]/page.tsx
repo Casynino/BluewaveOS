@@ -924,7 +924,8 @@ export default async function CargoDetailPage({
                       }),
                       amountTzs: balanceOf(billHere).outstandingTzs?.toNumber().toLocaleString("en-US") ?? null,
                       cbm: billHere.billableCbm ? Number(billHere.billableCbm).toFixed(3) : null,
-                      ratePerCbm: billHere.appliedRate ? Number(billHere.appliedRate).toFixed(2) : null,
+                      ratePerCbm: billHere.appliedRate ? billHere.appliedRate.toString() : null,
+                      rateBasis: billHere.rateBasis,
                       fxRate: billHere.fxRate ? Number(billHere.fxRate).toLocaleString("en-US") : null,
                       freeStorageDays: money?.freeStorageDays ?? null,
                       storagePerDay:

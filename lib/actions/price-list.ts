@@ -390,15 +390,31 @@ export async function savePriceListPrice(
   });
   if (billed) await authorize("invoice.discount");
 
+  /*
+    The dialog speaks tonnes, the book stores kilos. Anything not named here is
+    refused rather than read as per cubic metre: a per-piece price saved as a
+    volume price is a bill for a sliver of a cubic metre.
+  */
   const basisRaw = String(formData.get("basis") ?? "PER_CBM");
-  const basis: RateBasis = basisRaw === "PER_KG" ? "PER_KG" : "PER_CBM";
+  const perTonne = basisRaw === "PER_TONNE";
+  const basis: RateBasis | null = perTonne
+    ? "PER_KG"
+    : basisRaw === "PER_CBM" || basisRaw === "PER_KG" || basisRaw === "PER_PIECE" || basisRaw === "PER_BALE"
+      ? basisRaw
+      : null;
+  if (!basis) return { error: "Choose how it is charged." };
   const reason = String(formData.get("reason") ?? "");
 
   try {
+    const typedRate = money(formData, "rate");
+    const rate = typedRate && perTonne ? typedRate.div(1000) : typedRate;
+    if (rate && rate.decimalPlaces() > 4) {
+      throw new PriceListRefused("A rate per tonne can have at most one decimal place.");
+    }
     const input = {
       cargoId,
       basis,
-      rate: money(formData, "rate"),
+      rate,
       freight: money(formData, "freight"),
       extra: money(formData, "extra"),
       discount: money(formData, "discount"),

@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { useT } from "@/components/app/locale-provider";
 import { Tx } from "@/components/app/tx";
+import { RateBasisOptions } from "@/components/app/rate-basis-options";
 // --- Rates -----------------------------------------------------------------
 
 export function RateForm({
@@ -88,9 +89,7 @@ export function RateForm({
           <div className="space-y-2">
             <Label htmlFor="basis">{tx("Charged by")}</Label>
             <NativeSelect id="basis" name="basis" defaultValue="PER_CBM">
-              <option value="PER_CBM">{tx("Cubic metre")}</option>
-              <option value="PER_KG">{tx("Kilogram")}</option>
-              <option value="FLAT">{tx("Flat")}</option>
+              <RateBasisOptions />
             </NativeSelect>
           </div>
           <div className="space-y-2">
@@ -195,9 +194,7 @@ export function CustomerRateForm({
           <div className="space-y-2">
             <Label htmlFor="cr-basis">{tx("Charged by")}</Label>
             <NativeSelect id="cr-basis" name="basis" defaultValue="PER_CBM">
-              <option value="PER_CBM">{tx("Cubic metre")}</option>
-              <option value="PER_KG">{tx("Kilogram")}</option>
-              <option value="FLAT">{tx("Flat")}</option>
+              <RateBasisOptions />
             </NativeSelect>
           </div>
           <div className="space-y-2">

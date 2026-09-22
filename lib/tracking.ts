@@ -551,7 +551,7 @@ function chargeFrom(invoice: TrackingInvoice): PublicCharge {
     const note =
       item.unit && quantity.greaterThan(0) && unitPrice.greaterThan(0)
         ? `${invoice.currency} ${unitPrice.toFixed(2)}/${item.unit} × ` +
-          `${quantity.toFixed(3)} ${item.unit}`
+          `${quantity.toFixed(item.unit === "CBM" ? 3 : item.unit === "kg" ? 2 : 0)} ${item.unit}`
         : null;
     return { label: item.description, note, amount: dec(item.amount).toFixed(2) };
   });

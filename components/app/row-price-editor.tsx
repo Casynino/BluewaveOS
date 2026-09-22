@@ -17,6 +17,7 @@ import {
   type PriceListState,
 } from "@/lib/actions/price-list";
 import { t, type Locale } from "@/lib/i18n";
+import { PER_UNIT, type Basis } from "@/lib/rate-basis";
 
 import { Tx } from "@/components/app/tx";
 /**
@@ -46,6 +47,7 @@ export function RowPriceEditor({
   basis,
   cbm,
   weightKg,
+  units = null,
   freight,
   extra,
   discount,
@@ -70,14 +72,16 @@ export function RowPriceEditor({
   /** The rate somebody agreed for this consignment, where they have. */
   agreedRate: number | null;
   /** The unit the rate book prices this cargo in. */
-  bookBasis: "PER_CBM" | "PER_KG" | "FLAT" | null;
+  bookBasis: Basis | null;
   /** The unit the bill charges in now. Opens on it, so opening and saving
       changes nothing. */
-  basis: "PER_CBM" | "PER_KG" | "FLAT" | null;
+  basis: Basis | null;
   /** What a per-CBM rate would be multiplied by — the billable volume. */
   cbm: number | null;
   /** What a per-kilo rate would be multiplied by. */
   weightKg: number | null;
+  /** What a per-piece or per-bale rate is multiplied by. */
+  units?: number | null;
   /** The freight on the bill as it stands. */
   freight: number;
   extra: number;
@@ -105,7 +109,8 @@ export function RowPriceEditor({
         if (invoiceId) {
           const f = new FormData();
           f.set("invoiceId", invoiceId);
-          f.set("rate", String(n(rate) || agreedRate || standardRate || 0));
+          /* The bill's own unit: a rate typed per tonne goes back to per kg. */
+          f.set("rate", String((byWeight ? n(rate) / 1000 : n(rate)) || agreedRate || standardRate || 0));
           if (categoryMoved) f.set("category", picked);
           if (volumeMoved) f.set("cbm", volume);
           const done = await repriceInvoice({}, f);
@@ -123,9 +128,24 @@ export function RowPriceEditor({
     {}
   );
 
+  /*
+    A COUNT IS NOT SWITCHED. Phones are charged by the piece and bales by the
+    bale; there is no honest per-CBM figure to flip to, so a counted cargo is
+    priced in its own unit and the switch is not offered.
+  */
+  const countBasis: "PER_PIECE" | "PER_BALE" | null =
+    basis === "PER_PIECE" || basis === "PER_BALE"
+      ? basis
+      : bookBasis === "PER_PIECE" || bookBasis === "PER_BALE"
+        ? bookBasis
+        : null;
   const bookByWeight = bookBasis === "PER_KG";
+  /* Weight is typed and read per tonne, the way the company quotes it; the
+     bill and the book keep it per kilo. */
+  const shown = (value: number, unitBasis: Basis | null) =>
+    unitBasis === "PER_KG" ? Math.round(value * 1000 * 10000) / 10000 : value;
   const [byWeight, setByWeight] = useState(basis === "PER_KG");
-  const [rate, setRate] = useState(agreedRate === null ? "" : String(agreedRate));
+  const [rate, setRate] = useState(agreedRate === null ? "" : String(shown(agreedRate, basis)));
   const [typed, setTyped] = useState("");
   const [more, setMore] = useState(extra ? String(extra) : "");
   const [off, setOff] = useState(discount ? String(discount) : "");
@@ -135,15 +155,24 @@ export function RowPriceEditor({
   }, [state]);
 
   const n = (v: string) => (v.trim() === "" ? 0 : Number(v) || 0);
-  const unit = byWeight ? t(locale, "per kg") : t(locale, "per CBM");
-  const bookUnit = bookByWeight ? t(locale, "per kg") : t(locale, "per CBM");
+  const unit = t(locale, PER_UNIT[countBasis ?? (byWeight ? "PER_KG" : "PER_CBM")]);
+  const bookUnit = t(locale, PER_UNIT[bookBasis ?? "PER_CBM"]);
   /* Switched: a rate per cubic metre and a rate per kilo are not the same
      number and must not be compared as if they were. */
-  const switched = byWeight !== bookByWeight;
+  const switched = countBasis ? bookBasis !== countBasis : byWeight !== bookByWeight;
   /* Both quantities are real, so the choice is honest to offer. */
-  const canSwitch = (cbm ?? 0) > 0 && (weightKg ?? 0) > 0;
+  const canSwitch = !countBasis && (cbm ?? 0) > 0 && (weightKg ?? 0) > 0;
   const pricedOn =
-    (byWeight ? weightKg : invoiceId && volume.trim() !== "" ? Number(volume) || 0 : cbm) ?? 0;
+    (countBasis
+      ? units
+      : byWeight
+        ? weightKg
+        : invoiceId && volume.trim() !== ""
+          ? Number(volume) || 0
+          : cbm) ?? 0;
+  /* A tonne rate multiplies kilos a thousandth at a time. */
+  const perStored = byWeight && !countBasis ? 1000 : 1;
+  const bookShown = standardRate === null ? null : shown(standardRate, bookBasis);
 
   /*
     EVERY OPENING STARTS FROM THE BILL.
@@ -154,7 +183,7 @@ export function RowPriceEditor({
   */
   const openEditor = () => {
     setByWeight(basis === "PER_KG");
-    setRate(agreedRate === null ? "" : String(agreedRate));
+    setRate(agreedRate === null ? "" : String(shown(agreedRate, basis)));
     setTyped("");
     setMore(extra ? String(extra) : "");
     setOff(discount ? String(discount) : "");
@@ -165,7 +194,7 @@ export function RowPriceEditor({
 
   /* A typed rate wins over a typed total, exactly as it does on the server. */
   const fromRate =
-    rate.trim() === "" ? null : Math.round(n(rate) * pricedOn * 100) / 100;
+    rate.trim() === "" ? null : Math.round(((n(rate) * pricedOn) / perStored) * 100) / 100;
   const effectiveFreight =
     fromRate ?? (typed.trim() === "" ? freight : n(typed));
   const subtotal = effectiveFreight + n(more) - n(off);
@@ -195,7 +224,7 @@ export function RowPriceEditor({
         ) : null}
         {agreedRate !== null && basis === "PER_KG" && !bookByWeight ? (
           <span className="rounded bg-warning/15 px-1 py-px text-[10px] font-semibold text-warning">
-            {t(locale, "per kg")}
+            {t(locale, "per tonne")}
           </span>
         ) : null}
       </button>
@@ -230,7 +259,7 @@ export function RowPriceEditor({
 
         <form action={action} className="space-y-3">
           <input type="hidden" name="cargoId" value={cargoId} />
-          <input type="hidden" name="basis" value={byWeight ? "PER_KG" : "PER_CBM"} />
+          <input type="hidden" name="basis" value={countBasis ?? (byWeight ? "PER_TONNE" : "PER_CBM")} />
 
           {/* WHAT THIS CARGO IS PRICED AT, IN THREE LINES. Named the same way
               here as on the consignment, so a reader moving between the two
@@ -239,21 +268,19 @@ export function RowPriceEditor({
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-muted-foreground">{t(locale, "Standard rate")}</dt>
               <dd className="tnum font-medium">
-                {standardRate === null
+                {bookShown === null
                   ? t(locale, "not recorded")
-                  : `${currency} ${standardRate.toFixed(2)} ${bookUnit}`}
+                  : `${currency} ${bookShown.toFixed(2)} ${bookUnit}`}
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-muted-foreground">{t(locale, "Current rate")}</dt>
               <dd className="tnum font-medium">
                 {agreedRate === null
-                  ? standardRate === null
+                  ? bookShown === null
                     ? t(locale, "not recorded")
-                    : `${currency} ${standardRate.toFixed(2)} ${bookUnit}`
-                  : `${currency} ${agreedRate.toFixed(2)} ${
-                      basis === "PER_KG" ? t(locale, "per kg") : t(locale, "per CBM")
-                    }`}
+                    : `${currency} ${bookShown.toFixed(2)} ${bookUnit}`
+                  : `${currency} ${shown(agreedRate, basis).toFixed(2)} ${t(locale, PER_UNIT[basis ?? "PER_CBM"])}`}
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-3">
@@ -297,7 +324,7 @@ export function RowPriceEditor({
                     onChange={(e) => {
                       setPicked(e.target.value);
                       const next = categories.find((c) => c.name === e.target.value);
-                      if (next && !byWeight) {
+                      if (next && !byWeight && !countBasis) {
                         setRate(next.rate.toFixed(2));
                         setTyped("");
                       }
@@ -316,7 +343,7 @@ export function RowPriceEditor({
                   </NativeSelect>
                 </label>
               ) : null}
-              {invoiceId && !byWeight ? (
+              {invoiceId && !byWeight && !countBasis ? (
                 <label className="block space-y-0.5">
                   <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
                     {t(locale, "Total CBM")}
@@ -351,7 +378,7 @@ export function RowPriceEditor({
                   },
                   {
                     key: true,
-                    label: `${t(locale, "Per kg")} · ${(weightKg ?? 0).toFixed(2)} kg`,
+                    label: `${t(locale, "Per tonne")} · ${(weightKg ?? 0).toFixed(2)} kg`,
                   },
                 ].map((option) => (
                   <button
@@ -407,7 +434,7 @@ export function RowPriceEditor({
                   setTyped("");
                 }}
                 placeholder={
-                  standardRate === null || switched ? "" : standardRate.toFixed(2)
+                  bookShown === null || switched ? "" : bookShown.toFixed(2)
                 }
                 aria-label={`${t(locale, "Freight rate for")} ${reference}`}
               />
@@ -423,27 +450,29 @@ export function RowPriceEditor({
                 ) : (
                   <span className="tnum">
                     {n(rate).toFixed(2)} ×{" "}
-                    {byWeight
-                      ? `${pricedOn.toFixed(2)} kg`
-                      : `${pricedOn.toFixed(3)} CBM`}{" "}
+                    {countBasis
+                      ? `${pricedOn} ${t(locale, countBasis === "PER_PIECE" ? "pieces" : "bales")}`
+                      : byWeight
+                        ? `${(pricedOn / 1000).toFixed(3)} t`
+                        : `${pricedOn.toFixed(3)} CBM`}{" "}
                     ={" "}
                     <span className="font-semibold text-foreground">
                       {currency} {(fromRate ?? 0).toFixed(2)}
                     </span>
                     {!switched &&
-                    standardRate !== null &&
-                    Math.abs(standardRate - n(rate)) > 0.005 ? (
+                    bookShown !== null &&
+                    Math.abs(bookShown - n(rate)) > 0.005 ? (
                       <>
                         {" · "}
                         <span
                           className={
-                            standardRate - n(rate) > 0
+                            bookShown - n(rate) > 0
                               ? "text-success"
                               : "text-warning"
                           }
                         >
-                          {standardRate - n(rate) > 0 ? "−" : "+"}
-                          {currency} {Math.abs(standardRate - n(rate)).toFixed(2)}{" "}
+                          {bookShown - n(rate) > 0 ? "−" : "+"}
+                          {currency} {Math.abs(bookShown - n(rate)).toFixed(2)}{" "}
                           {unit} {t(locale, "against the book")}
                         </span>
                       </>

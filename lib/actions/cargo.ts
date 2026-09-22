@@ -9,7 +9,7 @@ import { recordAudit, recordFieldChange, withNote } from "@/lib/audit";
 import { setCargoStatus } from "@/lib/cargo";
 import { calculateCbm } from "@/lib/cbm";
 import { readIntakeLines, readReceivingDate } from "@/lib/intake-lines";
-import { cargoTypeOptions, loadRateBook, valueWith } from "@/lib/valuation";
+import { cargoTypeOptions, cargoTypeUnits, loadRateBook, valueWith } from "@/lib/valuation";
 import {
   generateQrToken,
   nextCargoReference,
@@ -884,7 +884,11 @@ export async function receiveNewCargo(
     }
   }
 
-  const { lines, error: lineError } = readIntakeLines(formData);
+  const typeUnits = await cargoTypeUnits();
+  const { lines, error: lineError } = readIntakeLines(
+    formData,
+    Object.fromEntries(typeUnits.map((t) => [t.name, t.unit]))
+  );
   if (lineError) return { error: lineError };
   if (lines.length === 0) {
     return { error: "Add at least one item — what did the driver bring?" };

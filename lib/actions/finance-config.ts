@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
 import { formatRate } from "@/lib/currency";
+import { PER_UNIT, RATE_ENTRIES, displayRate, readRateEntry, type Basis } from "@/lib/rate-basis";
 import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
@@ -14,8 +15,9 @@ export type ActionState = { error?: string; ok?: string };
 const rateSchema = z.object({
   service: z.enum(["LCL", "FCL"]),
   cargoType: z.string().trim().optional(),
-  basis: z.enum(["PER_CBM", "PER_KG", "FLAT"]),
-  rate: z.coerce.number().positive("A rate has to be above zero."),
+  /* PER_TONNE is how a person types a per-kg rate; readRateEntry stores it. */
+  basis: z.enum(RATE_ENTRIES).or(z.literal("PER_KG")),
+  rate: z.coerce.string().trim().min(1, "A rate has to be above zero."),
   currency: z.string().trim().default("USD"),
   minimumCbm: z.coerce.number().min(0).optional(),
   minimumKg: z.coerce.number().min(0).optional(),
@@ -48,7 +50,9 @@ export async function createRate(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the form." };
   }
-  const data = parsed.data;
+  const entry = readRateEntry(parsed.data.basis, parsed.data.rate);
+  if ("error" in entry) return { error: entry.error };
+  const data = { ...parsed.data, basis: entry.basis, rate: new Prisma.Decimal(entry.rate) };
 
   const published = await prisma.$transaction(async (tx) => {
     /* Close the rate this one replaces, rather than deleting it. */
@@ -83,12 +87,12 @@ export async function createRate(
        and cannot say which one — and the rate book is the only thing standing
        between a measurement and an invoice. */
     entityId: published.id,
-    summary: `Published ${data.service}${data.cargoType ? ` / ${data.cargoType}` : ""} at ${data.currency} ${data.rate} ${data.basis.replace("_", " ").toLowerCase()}`,
+    summary: `Published ${data.service}${data.cargoType ? ` / ${data.cargoType}` : ""} at ${data.currency} ${displayRate(data.rate.toString(), data.basis)} ${PER_UNIT[data.basis]}`,
     metadata: {
       service: data.service,
       cargoType: data.cargoType || null,
       basis: data.basis,
-      newValue: `${data.currency} ${data.rate}`,
+      newValue: `${data.currency} ${data.rate.toString()}`,
       minimumCbm: data.minimumCbm ?? null,
       minimumKg: data.minimumKg ?? null,
       published: data.published ?? true,
@@ -105,8 +109,8 @@ const customerRateSchema = z.object({
   customerId: z.string().min(1),
   service: z.enum(["LCL", "FCL"]),
   cargoType: z.string().trim().optional(),
-  basis: z.enum(["PER_CBM", "PER_KG", "FLAT"]),
-  rate: z.coerce.number().positive(),
+  basis: z.enum(RATE_ENTRIES).or(z.literal("PER_KG")),
+  rate: z.coerce.string().trim().min(1, "A rate has to be above zero."),
   reason: z.string().trim().optional(),
 });
 
@@ -134,7 +138,9 @@ export async function createCustomerRate(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the form." };
   }
-  const data = parsed.data;
+  const entry = readRateEntry(parsed.data.basis, parsed.data.rate);
+  if ("error" in entry) return { error: entry.error };
+  const data = { ...parsed.data, basis: entry.basis, rate: new Prisma.Decimal(entry.rate) };
 
   const customer = await prisma.customer.findUnique({
     where: { id: data.customerId },
@@ -170,7 +176,7 @@ export async function createCustomerRate(
     action: "customerRate.set",
     entity: "Customer",
     entityId: data.customerId,
-    summary: `${customer.fullName}: ${data.service} at ${data.rate}${data.reason ? ` — ${data.reason}` : ""}`,
+    summary: `${customer.fullName}: ${data.service} at ${displayRate(data.rate.toString(), data.basis)} ${PER_UNIT[data.basis]}${data.reason ? ` — ${data.reason}` : ""}`,
   });
 
   revalidatePath("/app/finance/rates");
@@ -479,8 +485,9 @@ export async function updateCompanySettings(
 const editRateSchema = z.object({
   id: z.string().min(1),
   cargoType: z.string().trim().optional(),
-  basis: z.enum(["PER_CBM", "PER_KG", "FLAT"]),
-  rate: z.coerce.number().positive("A rate has to be above zero."),
+  /* PER_TONNE is how a person types a per-kg rate; readRateEntry stores it. */
+  basis: z.enum(RATE_ENTRIES).or(z.literal("PER_KG")),
+  rate: z.coerce.string().trim().min(1, "A rate has to be above zero."),
   minimumCbm: z.coerce.number().min(0).optional(),
   minimumKg: z.coerce.number().min(0).optional(),
   published: z.boolean(),
@@ -515,7 +522,9 @@ export async function updateRate(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the form." };
   }
-  const data = parsed.data;
+  const entry = readRateEntry(parsed.data.basis, parsed.data.rate);
+  if ("error" in entry) return { error: entry.error };
+  const data = { ...parsed.data, basis: entry.basis, rate: new Prisma.Decimal(entry.rate) };
 
   const current = await prisma.shippingRate.findUnique({ where: { id: data.id } });
   if (!current || !current.active) {
@@ -539,8 +548,12 @@ export async function updateRate(
     changes.push(`name ${current.cargoType ?? "General"} → ${cargoType ?? "General"}`);
   }
   if (current.basis !== next.basis) changes.push(`charged by ${current.basis} → ${next.basis}`);
-  if (!current.rate.equals(next.rate)) {
-    changes.push(`${current.currency} ${current.rate.toFixed(2)} → ${next.rate.toFixed(2)}`);
+  if (!current.rate.equals(next.rate) || current.basis !== next.basis) {
+    /* Each figure in its own unit: "0.50 → 480" would read as a price rise
+       of nearly a thousand times when it is a kilo rate becoming a tonne. */
+    changes.push(
+      `${current.currency} ${displayRate(current.rate.toString(), current.basis)} ${PER_UNIT[current.basis]} → ${displayRate(next.rate.toString(), next.basis)} ${PER_UNIT[next.basis]}`
+    );
   }
   if (!same(current.minimumCbm, next.minimumCbm)) {
     changes.push(`minimum CBM ${current.minimumCbm ?? "none"} → ${next.minimumCbm ?? "none"}`);
@@ -686,11 +699,11 @@ export async function updateCustomerRate(
   const actor = await authorize("customerRate.manage");
 
   const id = String(formData.get("id") ?? "");
-  const rate = Number(formData.get("rate"));
-  const basis = String(formData.get("basis") ?? "");
+  const entry = readRateEntry(String(formData.get("basis") ?? ""), String(formData.get("rate") ?? ""));
+  if ("error" in entry) return { error: entry.error };
+  const basis: Basis = entry.basis;
+  const rate = new Prisma.Decimal(entry.rate);
   const reason = String(formData.get("reason") ?? "").trim() || "No reason given";
-  if (!(rate > 0)) return { error: "A rate has to be above zero." };
-  if (!["PER_CBM", "PER_KG", "FLAT"].includes(basis)) return { error: "Choose how it is charged." };
 
   const current = await prisma.customerRate.findUnique({
     where: { id },
@@ -712,7 +725,7 @@ export async function updateCustomerRate(
         shippingRateId: current.shippingRateId,
         service: current.service,
         cargoType: current.cargoType,
-        basis: basis as "PER_CBM" | "PER_KG" | "FLAT",
+        basis,
         rate,
         currency: current.currency,
         effectiveFrom: now,
@@ -726,8 +739,8 @@ export async function updateCustomerRate(
         action: "customerRate.edit",
         entity: "Customer",
         entityId: current.customerId,
-        summary: `${current.customer.fullName}: ${current.cargoType ?? "every cargo type"} ${current.rate.toFixed(2)} → ${rate.toFixed(2)} — ${reason}`,
-        metadata: { oldValue: current.rate.toString(), newValue: String(rate), reason },
+        summary: `${current.customer.fullName}: ${current.cargoType ?? "every cargo type"} ${displayRate(current.rate.toString(), current.basis)} ${PER_UNIT[current.basis]} → ${displayRate(rate.toString(), basis)} ${PER_UNIT[basis]} — ${reason}`,
+        metadata: { oldValue: current.rate.toString(), newValue: rate.toString(), reason },
       },
       tx
     );

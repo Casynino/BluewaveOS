@@ -236,7 +236,7 @@ export async function InvoiceDocument({ id }: { id: string }) {
                 /* Freight lines are written "GOODS — CATEGORY"; the category
                    is shown as what it is rather than as half a name. */
                 const [goods, category] = item.description.split(" — ");
-                const freight = item.unit === "CBM" || item.unit === "kg";
+                const freight = item.category === "Freight" || item.unit === "CBM" || item.unit === "kg";
                 return (
                   <tr key={item.id} className="border-t border-neutral-200 align-top even:bg-neutral-50/70">
                     <td className="tnum px-3 py-2">

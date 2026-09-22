@@ -2,20 +2,22 @@
  * BlueWave Cargo's rate book, as the company keeps it (USD).
  *
  * Priced per cargo type — a cubic metre of car batteries is not a cubic metre
- * of clothes. Dense goods are priced by the tonne, and are stored per kilogram
- * (a tonne rate divided by 1000) because that is the unit the pricing engine
- * weighs in; the money comes out the same.
+ * of clothes — and each type by one of the four figures the company has always
+ * charged on:
+ * - CBM: per cubic metre.
+ * - TONNE: dense goods, by weight. Stored per kilogram (a tonne rate divided
+ *   by 1000) because that is the unit the pricing engine weighs in; the money
+ *   comes out the same, and every staff screen shows it per tonne again.
+ * - PIECE: per piece counted at receiving — mobile phones, charged by the
+ *   handset whatever carton they came in.
+ * - BALE: per bale, each package on the line being one bale.
  *
  * Not here, on purpose:
- * - Cheap mobile phones (1 US$/piece) and smart phones (3 US$/piece). The
- *   engine prices by volume, weight or flat per consignment, not per piece;
- *   loaded as FLAT they would charge one dollar a consignment. They are
- *   priced on the price list until per-piece pricing exists.
  * - "Debt" and "Transport to cargo": charges, not kinds of cargo.
  * - A general rate. The company has none; a type with no rate is left
  *   unpriced for the confirmer rather than charged a guessed figure.
  */
-export type RateUnit = "CBM" | "TONNE";
+export type RateUnit = "CBM" | "TONNE" | "PIECE" | "BALE";
 
 export const RATE_BOOK: [english: string, swahili: string, unit: RateUnit, usd: number][] = [
   ["Motorcycle accessories spare parts", "Vipuli vya pikipiki", "CBM", 350],
@@ -88,15 +90,31 @@ export const RATE_BOOK: [english: string, swahili: string, unit: RateUnit, usd: 
   ["Transmission Fluid", "", "CBM", 480],
   ["Microscope", "", "CBM", 450],
   ["Saloon Stuff", "Vifaa vya saluni", "CBM", 400],
+  ["Cheap Mobile Phones", "Simu ndogo", "PIECE", 1],
+  ["Smart Mobile Phones", "Smart phone", "PIECE", 3],
 ];
+
+const BASIS = {
+  CBM: "PER_CBM",
+  TONNE: "PER_KG",
+  PIECE: "PER_PIECE",
+  BALE: "PER_BALE",
+} as const satisfies Record<RateUnit, string>;
 
 /** A rate book row as ShippingRate stores it. */
 export function rateRow([english, swahili, unit, usd]: (typeof RATE_BOOK)[number]) {
   return {
     cargoType: english,
-    basis: unit === "TONNE" ? ("PER_KG" as const) : ("PER_CBM" as const),
+    basis: BASIS[unit],
+    /* 500 a tonne is 0.5 a kilo. Every tonne rate in the book is a whole
+       number of dollars, so the division is exact in the rate column. */
     rate: unit === "TONNE" ? usd / 1000 : usd,
-    notes: [swahili ? `Swahili: ${swahili}` : null, unit === "TONNE" ? `USD ${usd} per tonne` : null]
+    notes: [
+      swahili ? `Swahili: ${swahili}` : null,
+      unit === "TONNE" ? `USD ${usd} per tonne` : null,
+      unit === "PIECE" ? `USD ${usd} per piece` : null,
+      unit === "BALE" ? `USD ${usd} per bale` : null,
+    ]
       .filter(Boolean)
       .join(" · ") || null,
   };

@@ -12,13 +12,11 @@ import {
 } from "@/components/ui/table";
 import { formatCbm, formatDate, formatMoney } from "@/lib/format";
 import type { Valuation } from "@/lib/valuation";
+import { PER_UNIT, displayRate } from "@/lib/rate-basis";
 
 import { primeLocale, T } from "@/lib/server-t";
-const BASIS_LABEL: Record<string, string> = {
-  PER_CBM: "per CBM",
-  PER_KG: "per kg",
-  FLAT: "flat",
-};
+/* A per-kg rate reads per tonne, the way the company quotes it. */
+const BASIS_LABEL: Record<string, string> = PER_UNIT;
 
 /**
  * WHAT THIS CONSIGNMENT IS WORTH — FINANCE'S VIEW.
@@ -68,7 +66,7 @@ export function ValuationPanel({
             <TableRow>
               <TableHead>{T("Goods")}</TableHead>
               <TableHead>{T("Cargo type")}</TableHead>
-              <TableHead className="text-right">CBM</TableHead>
+              <TableHead className="text-right">{T("Quantity")}</TableHead>
               <TableHead className="text-right">{T("Rate")}</TableHead>
               <TableHead className="text-right">{T("Amount")}</TableHead>
             </TableRow>
@@ -90,11 +88,15 @@ export function ValuationPanel({
                 <TableCell className="tnum text-right text-sm">
                   {line.basis === "PER_KG"
                     ? `${line.weightKg?.toString() ?? "—"} kg`
-                    : formatCbm(line.cbm)}
+                    : line.basis === "PER_PIECE"
+                      ? `${line.pieces ?? "—"} pcs`
+                      : line.basis === "PER_BALE"
+                        ? `${line.quantity} ${line.quantity === 1 ? "bale" : "bales"}`
+                        : formatCbm(line.cbm)}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm text-muted-foreground">
                   {line.rate
-                    ? `${formatMoney(line.rate, currency)} ${BASIS_LABEL[line.basis ?? ""] ?? ""}`
+                    ? `${formatMoney(displayRate(line.rate.toString(), line.basis), currency)} ${BASIS_LABEL[line.basis ?? ""] ?? ""}`
                     : "—"}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm font-medium">

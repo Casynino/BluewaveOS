@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
 import { useT } from "@/components/app/locale-provider";
+import { RateBasisOptions } from "@/components/app/rate-basis-options";
+import { SLASH_UNIT, displayRate, entryOfBasis, type Basis } from "@/lib/rate-basis";
 type Mode = "idle" | "edit" | "remove";
 
 function Toggles({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
@@ -134,7 +136,7 @@ export type EditableRate = {
   id: string;
   service: string;
   cargoType: string | null;
-  basis: "PER_CBM" | "PER_KG" | "FLAT";
+  basis: Basis;
   rate: string;
   minimumCbm: string | null;
   minimumKg: string | null;
@@ -168,7 +170,7 @@ export function RateCardActions({ rate, cargoTypes }: { rate: EditableRate; carg
       {mode === "edit" ? (
         <Modal
           title={`Edit ${rate.cargoType ?? "general rate"}`}
-          subtitle={`${rate.service} · currently USD ${Number(rate.rate).toFixed(2)}`}
+          subtitle={`${rate.service} · currently USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
           onClose={() => setMode("idle")}
         >
         <form action={editAction} className="space-y-3">
@@ -191,15 +193,13 @@ export function RateCardActions({ rate, cargoTypes }: { rate: EditableRate; carg
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">{tx("Charged by")}</Label>
-              <NativeSelect name="basis" defaultValue={rate.basis} className="h-9">
-                <option value="PER_CBM">{tx("Cubic metre")}</option>
-                <option value="PER_KG">{tx("Kilogram")}</option>
-                <option value="FLAT">{tx("Flat")}</option>
+              <NativeSelect name="basis" defaultValue={entryOfBasis(rate.basis)} className="h-9">
+                <RateBasisOptions />
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">{tx("Rate (USD)")}</Label>
-              <Input name="rate" type="number" step="0.01" min={0} required defaultValue={Number(rate.rate).toFixed(2)} className="tnum h-9" />
+              <Input name="rate" type="number" step="any" min={0} required defaultValue={displayRate(rate.rate, rate.basis)} className="tnum h-9" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
@@ -233,7 +233,7 @@ export function RateCardActions({ rate, cargoTypes }: { rate: EditableRate; carg
       {mode === "remove" ? (
         <Modal
           title={`Remove ${rate.cargoType ?? "general rate"}`}
-          subtitle={`${rate.service} · USD ${Number(rate.rate).toFixed(2)}`}
+          subtitle={`${rate.service} · USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
           onClose={() => setMode("idle")}
         >
         <RemoveForm
@@ -263,7 +263,7 @@ export function CustomerRateActions({
   id: string;
   customer: string;
   rate: string;
-  basis: "PER_CBM" | "PER_KG" | "FLAT";
+  basis: Basis;
 }) {
   const tx = useT();
   const [mode, setMode] = useState<Mode>("idle");
@@ -283,14 +283,12 @@ export function CustomerRateActions({
           <input type="hidden" name="id" value={id} />
           <div className="space-y-1.5">
             <Label className="text-xs">{tx("Rate (USD)")}</Label>
-            <Input name="rate" type="number" step="0.01" min={0} required defaultValue={Number(rate).toFixed(2)} className="tnum h-9 w-28" />
+            <Input name="rate" type="number" step="any" min={0} required defaultValue={displayRate(rate, basis)} className="tnum h-9 w-28" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">{tx("Charged by")}</Label>
-            <NativeSelect name="basis" defaultValue={basis} className="h-9 w-36">
-              <option value="PER_CBM">{tx("Cubic metre")}</option>
-              <option value="PER_KG">{tx("Kilogram")}</option>
-              <option value="FLAT">{tx("Flat")}</option>
+            <NativeSelect name="basis" defaultValue={entryOfBasis(basis)} className="h-9 w-36">
+              <RateBasisOptions />
             </NativeSelect>
           </div>
           <SubmitButton size="sm">{tx("Save")}</SubmitButton>

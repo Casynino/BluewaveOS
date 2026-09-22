@@ -1,6 +1,7 @@
 import "server-only";
 
 import { COMPANY, ROUTE } from "@/lib/constants";
+import { SLASH_UNIT, displayRate } from "@/lib/rate-basis";
 import { normalSiteUrl } from "@/lib/site-url";
 import { trackKey } from "@/lib/track-key";
 
@@ -83,8 +84,11 @@ export type MessageContext = {
    * quoted at 2,650 who reads 2,720 next month believes the bill changed.
    */
   fxRate?: string | null;
-  /** The rate per cubic metre this cargo was charged at. */
+  /** The rate this cargo was charged at, as the bill stores it. */
   ratePerCbm?: string | null;
+  /** What that rate is per. Absent reads as per CBM, as every bill once was;
+      a per-kg rate is written per tonne, the way the company quotes it. */
+  rateBasis?: string | null;
   /** Free days on the Dar floor, and what a day costs after that. */
   freeStorageDays?: number | null;
   storagePerDay?: string | null;
@@ -124,7 +128,10 @@ function cargoBlock(context: MessageContext): string {
   if (context.description) lines.push(`• Bidhaa: ${context.description}`);
   if (context.cbm) lines.push(`• Ujazo: ${context.cbm} CBM`);
   if (context.ratePerCbm) {
-    lines.push(`• Rate: ${context.currency ?? "USD"} ${context.ratePerCbm}/CBM`);
+    const basis = context.rateBasis ?? "PER_CBM";
+    const figure = Number(displayRate(context.ratePerCbm, basis)).toFixed(2);
+    const per = basis === "FLAT" ? "" : `/${SLASH_UNIT[basis as keyof typeof SLASH_UNIT] ?? "CBM"}`;
+    lines.push(`• Rate: ${context.currency ?? "USD"} ${figure}${per}`);
   }
   /* Shillings first: it is the figure they will hand over. The dollar figure
      and the rate the bill was issued at sit under it, so nobody reads a

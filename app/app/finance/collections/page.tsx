@@ -692,8 +692,9 @@ export default async function CollectionsPage({
                             ? Number(row.invoice.billableCbm).toFixed(3)
                             : null,
                           ratePerCbm: row.invoice.appliedRate
-                            ? Number(row.invoice.appliedRate).toFixed(2)
+                            ? row.invoice.appliedRate.toString()
                             : null,
+                          rateBasis: row.invoice.rateBasis,
                           fxRate: row.invoice.fxRate
                             ? Number(row.invoice.fxRate).toLocaleString("en-US")
                             : null,

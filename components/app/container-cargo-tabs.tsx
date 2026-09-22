@@ -18,6 +18,7 @@ import { MoveCargo } from "@/components/app/move-cargo";
 import { openRecordPayment } from "@/components/app/record-payment-dialog";
 import { WhatsAppButton } from "@/components/app/whatsapp-button";
 import { RowPriceEditor } from "@/components/app/row-price-editor";
+import type { Basis } from "@/lib/rate-basis";
 import { SubmitButton } from "@/components/app/submit-button";
 import { setPriceListCargoType, type PriceListState } from "@/lib/actions/price-list";
 import { t, type Locale } from "@/lib/i18n";
@@ -90,10 +91,12 @@ export type CargoRow = {
   edit: {
     standardRate: number | null;
     agreedRate: number | null;
-    bookBasis: "PER_CBM" | "PER_KG" | "FLAT" | null;
-    basis: "PER_CBM" | "PER_KG" | "FLAT" | null;
+    bookBasis: Basis | null;
+    basis: Basis | null;
     cbm: number | null;
     weightKg: number | null;
+    /** Pieces or bales, for a rate charged per piece or per bale. */
+    units: number | null;
     freight: number;
     extra: number;
     discount: number;
@@ -507,6 +510,7 @@ function CargoTableRow({
                 basis={row.edit.basis}
                 cbm={row.edit.cbm}
                 weightKg={row.edit.weightKg}
+                units={row.edit.units}
                 freight={row.edit.freight}
                 extra={row.edit.extra}
                 discount={row.edit.discount}

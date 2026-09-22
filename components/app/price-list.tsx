@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/price-list";
 import { t, type Locale } from "@/lib/i18n";
 import type { PriceList as PriceListData, PriceListRow } from "@/lib/price-list";
+import { PER_UNIT, displayRate } from "@/lib/rate-basis";
 import { cn } from "@/lib/utils";
 
 import { Tx } from "@/components/app/tx";
@@ -380,7 +381,11 @@ function RateCell({
   const shown = (
     <div>
       <span className="tnum">
-        {row.rate ? usd(row.rate) : row.blockedReason ? "—" : t(locale, "Mixed")}
+        {row.rate ? usd(displayRate(row.rate, row.basis)) : row.blockedReason ? "—" : t(locale, "Mixed")}
+        {/* The column is per CBM; a row charged by any other unit says so. */}
+        {row.rate && row.basis && row.basis !== "PER_CBM" ? (
+          <span className="text-xs text-muted-foreground"> {t(locale, PER_UNIT[row.basis])}</span>
+        ) : null}
       </span>
       {row.agreed ? (
         <span className="ml-2 inline-block rounded bg-brand/15 px-1 py-px text-[10px] font-semibold text-brand">
@@ -389,7 +394,7 @@ function RateCell({
       ) : null}
       {row.agreed && row.standardRate ? (
         <span className="block text-xs text-muted-foreground">
-          {t(locale, "Book")} {usd(row.standardRate)}
+          {t(locale, "Book")} {usd(displayRate(row.standardRate, row.bookBasis))}
         </span>
       ) : null}
     </div>
@@ -410,6 +415,7 @@ function RateCell({
         basis={row.basis}
         cbm={row.billableCbm === null ? null : Number(row.billableCbm)}
         weightKg={row.weightKg === null ? null : Number(row.weightKg)}
+        units={row.units === null ? null : Number(row.units)}
         freight={Number(row.freight)}
         extra={Number(row.extra)}
         discount={Number(row.discountOff)}

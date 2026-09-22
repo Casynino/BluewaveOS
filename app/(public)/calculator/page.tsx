@@ -54,7 +54,11 @@ export default async function CalculatorPage() {
       <section aria-label="Freight calculator" className="bg-bw-ground">
         <Frame className="py-12 lg:py-16">
           {hasRates ? (
-            <FreightQuote cargoTypes={lcl.map((r) => r.cargoType)} containers={containers} />
+            <FreightQuote
+              cargoTypes={lcl.map((r) => r.cargoType)}
+              units={Object.fromEntries(lcl.map((r) => [r.cargoType, r.unit]))}
+              containers={containers}
+            />
           ) : (
             <div className="rounded-[4px] border border-bw-line bg-bw-panel p-8 sm:p-12">
               <p className="bw-display text-4xl uppercase text-bw-fg">Our rate card is being updated</p>
@@ -78,7 +82,7 @@ export default async function CalculatorPage() {
           <ol className="grid gap-px overflow-hidden rounded-[3px] bg-bw-line sm:grid-cols-2 lg:col-span-8">
             {[
               ["Measured in Foshan", "We count and measure your cargo when it reaches our warehouse. That CBM is what you are charged for."],
-              ["Priced by type", "Each kind of goods has its own rate per cubic metre in our rate book."],
+              ["Priced by type", "Each kind of goods has its own rate in our rate book — per cubic metre, per tonne, per piece or per bale."],
               ["Checked again in Dar", "Your cargo is counted again when it comes off the container, before the invoice is issued."],
               [
                 "Shillings at the invoice rate",

@@ -1,6 +1,7 @@
 import type { PackageType } from "@prisma/client";
 
 import { DateOutOfRange, formDate } from "@/lib/dates";
+import type { RateUnit } from "@/lib/rate-basis";
 
 /**
  * THE ITEM ROWS OFF THE RECEIVING FORM, AND WHAT IS REFUSED.
@@ -101,7 +102,15 @@ export type IntakeLine = {
  * the clerk is told which of eight fields is wrong rather than being coerced to
  * a number nobody typed.
  */
-export function readIntakeLines(formData: FormData): {
+export function readIntakeLines(
+  formData: FormData,
+  /**
+   * The figure each cargo type is charged by, from the rate book (units only,
+   * never a rate). A type charged per piece is refused without a piece count:
+   * a line of phones with no count reaches Finance as a bill nobody can price.
+   */
+  units: Record<string, RateUnit | null> = {}
+): {
   lines: IntakeLine[];
   error?: string;
 } {
@@ -165,12 +174,16 @@ export function readIntakeLines(formData: FormData): {
     if (piecesValue !== null && !Number.isInteger(piecesValue)) {
       refusal ??= `Item ${row}: pieces is a whole number.`;
     }
+    const cargoType = cargoTypes[i]?.trim() || null;
+    if (cargoType && units[cargoType] === "PIECE" && !(piecesValue && piecesValue > 0)) {
+      refusal ??= `Item ${row}: this cargo type is charged by the piece — count the pieces.`;
+    }
 
     lines.push({
       paperReceiptNo: receiptNos[i]?.trim() || null,
       description,
       descriptionZh: zh[i]?.trim() || null,
-      cargoType: cargoTypes[i]?.trim() || null,
+      cargoType,
       packageType: ((PACKAGE_TYPES as readonly string[]).includes(types[i])
         ? types[i]
         : "CARTON") as PackageType,

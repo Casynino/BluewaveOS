@@ -1091,6 +1091,8 @@ enum RateBasis {
   PER_CBM
   PER_KG
   FLAT
+  PER_PIECE
+  PER_BALE
 }
 
 model ShippingRate {

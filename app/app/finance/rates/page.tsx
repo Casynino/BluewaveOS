@@ -29,12 +29,15 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { SLASH_UNIT, displayRate } from "@/lib/rate-basis";
 
 import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Rate book" };
 
-const PER = { PER_CBM: "CBM", PER_KG: "kg", FLAT: "flat" } as const;
+/* A per-kg rate is shown per tonne, the way the company quotes it. */
+const PER = SLASH_UNIT;
+const shown = (r: { rate: { toString(): string }; basis: string }) => Number(displayRate(r.rate.toString(), r.basis));
 
 const usd = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -119,7 +122,10 @@ export default async function RateBookPage() {
 
   const live = rates.filter((r) => r.active).sort((a, b) => Number(b.rate) - Number(a.rate));
   const superseded = rates.filter((r) => !r.active);
-  const highest = Math.max(1, ...live.map((r) => Number(r.rate)));
+  /* Bars compare like with like: a tonne rate beside a CBM rate is not a
+     longer bar, it is a different unit. */
+  const highest = (basis: string) =>
+    Math.max(1, ...live.filter((r) => r.basis === basis).map(shown));
   const general = live.find((r) => !r.cargoType);
   const priced = new Set(live.map((r) => (r.cargoType ?? "").toLowerCase()));
   const unpriced = general
@@ -170,7 +176,7 @@ export default async function RateBookPage() {
             icon: Layers,
             label: "Cargo types priced",
             value: String(live.filter((r) => r.cargoType).length),
-            sub: general ? `plus a general rate of ${usd(Number(general.rate))}` : "no general rate",
+            sub: general ? `plus a general rate of ${usd(shown(general))} / ${PER[general.basis]}` : "no general rate",
             tone: "text-foreground",
           },
           {
@@ -244,7 +250,7 @@ export default async function RateBookPage() {
             ) : (
               <ul className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2">
                 {live.map((r) => {
-                  const n = Number(r.rate);
+                  const n = shown(r);
                   const agreed = agreedFor(r.cargoType);
                   return (
                     <li key={r.id} className="bg-card px-5 py-4">
@@ -268,7 +274,7 @@ export default async function RateBookPage() {
                         </div>
                       </div>
                       <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
-                        <div className="h-full rounded-full bg-brand" style={{ width: `${(n / highest) * 100}%` }} />
+                        <div className="h-full rounded-full bg-brand" style={{ width: `${(n / highest(r.basis)) * 100}%` }} />
                       </div>
                       <p className="mt-2 flex justify-between text-[11px] text-muted-foreground">
                         <span>
@@ -311,7 +317,9 @@ export default async function RateBookPage() {
               <ul className="divide-y">
                 {customerRates.map((c) => {
                   const book = live.find((r) => (r.cargoType ?? null) === (c.cargoType ?? null) && r.service === c.service) ?? general;
-                  const off = book ? Number(book.rate) - Number(c.rate) : 0;
+                  /* Only a rate in the same unit is a discount on the book. */
+                  const comparable = book && book.basis === c.basis ? book : null;
+                  const off = comparable ? shown(comparable) - shown(c) : 0;
                   return (
                     <li key={c.id} className="flex flex-wrap items-center gap-4 px-5 py-3">
                       <div className="min-w-0 flex-1">
@@ -324,10 +332,10 @@ export default async function RateBookPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="tnum font-semibold">{usd(Number(c.rate))} <span className="text-xs font-normal text-muted-foreground">/ {PER[c.basis]}</span></p>
+                        <p className="tnum font-semibold">{usd(shown(c))} <span className="text-xs font-normal text-muted-foreground">/ {PER[c.basis]}</span></p>
                         {book ? (
                           <p className={cn("tnum text-xs", off > 0 ? "text-success" : off < 0 ? "text-destructive" : "text-muted-foreground")}>
-                            book {usd(Number(book.rate))}{off ? ` · ${off > 0 ? "−" : "+"}${usd(Math.abs(off))}` : ""}
+                            book {usd(shown(book))} / {PER[book.basis]}{off ? ` · ${off > 0 ? "−" : "+"}${usd(Math.abs(off))}` : ""}
                           </p>
                         ) : null}
                       </div>
@@ -358,7 +366,7 @@ export default async function RateBookPage() {
                       {r.cargoType ?? "General rate"} · {r.service}
                       {r.notes ? <span className="block text-[11px]">{r.notes}</span> : null}
                     </span>
-                    <span className="tnum">{usd(Number(r.rate))} / {PER[r.basis]} · from {formatDate(r.effectiveFrom)}{r.effectiveTo ? ` to ${formatDate(r.effectiveTo)}` : ""}</span>
+                    <span className="tnum">{usd(shown(r))} / {PER[r.basis]} · from {formatDate(r.effectiveFrom)}{r.effectiveTo ? ` to ${formatDate(r.effectiveTo)}` : ""}</span>
                   </li>
                 ))}
               </ul>

@@ -382,10 +382,11 @@ export async function ContainerMoney({
                 ? Number(measured.cbm).toFixed(3)
                 : null,
             ratePerCbm: bill.appliedRate
-              ? Number(bill.appliedRate).toFixed(2)
+              ? bill.appliedRate.toString()
               : bill.standardRate
-                ? Number(bill.standardRate).toFixed(2)
+                ? bill.standardRate.toString()
                 : null,
+            rateBasis: bill.rateBasis,
             /* Raw figures with separators, not formatCurrency: the template
                writes the currency word itself and would otherwise print two. */
             amount: Number(bill.total).toLocaleString("en-US", {
@@ -453,6 +454,13 @@ export async function ContainerMoney({
             basis: bill.rateBasis,
             cbm: bill.billableCbm === null ? null : Number(bill.billableCbm),
             weightKg: bill.billableKg === null ? null : Number(bill.billableKg),
+            /* A bill keeps no count column; its counted freight lines are it. */
+            units: (() => {
+              const counted = bill.items.filter(
+                (i) => i.category === "Freight" && (i.unit === "piece" || i.unit === "bale")
+              );
+              return counted.length === 0 ? null : counted.reduce((sum, i) => sum + Number(i.quantity), 0);
+            })(),
             freight,
             extra,
             discount: off,
@@ -467,6 +475,7 @@ export async function ContainerMoney({
           basis: w.basis,
           cbm: w.billableCbm === null ? null : Number(w.billableCbm),
           weightKg: w.weightKg === null ? null : Number(w.weightKg),
+          units: w.units === null ? null : Number(w.units),
           freight: Number(w.freight),
           extra: Number(w.extra),
           discount: Number(w.discountOff),

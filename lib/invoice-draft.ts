@@ -36,6 +36,15 @@ export type PricedConsignment = {
 
 const ZERO = new Prisma.Decimal(0);
 
+/** The unit an invoice line is charged in, by the rate's basis. */
+const UNIT_OF: Record<RateBasis, string> = {
+  PER_CBM: "CBM",
+  PER_KG: "kg",
+  PER_PIECE: "piece",
+  PER_BALE: "bale",
+  FLAT: "container",
+};
+
 /**
  * WHAT TO CHARGE FOR ONE CONSIGNMENT.
  *
@@ -68,6 +77,9 @@ export async function priceConsignment(
   receiverId: string;
   measuredCbm: Prisma.Decimal | null;
   measuredKg: Prisma.Decimal | null;
+  /** Counts, for a book that charges this cargo by the piece or the bale. */
+  measuredPieces: number | null;
+  measuredPackages: number | null;
   },
   /* A transaction when the caller has just corrected the lines and must price
      what it wrote rather than what was committed before it. */
@@ -83,8 +95,19 @@ export async function priceConsignment(
       customerId: cargo.receiverId,
       service: cargo.service,
       cargoType: cargo.commodity,
-      measured: { cbm: cargo.measuredCbm, weightKg: cargo.measuredKg },
+      measured: {
+        cbm: cargo.measuredCbm,
+        weightKg: cargo.measuredKg,
+        pieces: cargo.measuredPieces,
+        packages: cargo.measuredPackages,
+      },
     });
+    const counted =
+      priced.basis === "PER_PIECE"
+        ? cargo.measuredPieces
+        : priced.basis === "PER_BALE"
+          ? cargo.measuredPackages
+          : null;
 
     return {
       ...priced,
@@ -97,14 +120,9 @@ export async function priceConsignment(
               packages: null,
               pieces: null,
               quantity: new Prisma.Decimal(
-                priced.billableCbm ?? priced.billableKg ?? 1
+                priced.billableCbm ?? priced.billableKg ?? counted ?? 1
               ),
-              unit:
-                priced.basis === "PER_CBM"
-                  ? "CBM"
-                  : priced.basis === "PER_KG"
-                    ? "kg"
-                    : "container",
+              unit: UNIT_OF[priced.basis ?? "FLAT"] ?? "container",
               unitPrice: new Prisma.Decimal(priced.appliedRate ?? 0),
               amount: priced.amount,
               category: "Freight",
@@ -140,9 +158,35 @@ export async function priceConsignment(
   let cbm = ZERO;
   let kg = ZERO;
   const items: DraftItem[] = valuation.lines.map((line) => {
-    const byWeight = line.basis === "PER_KG";
-    if (byWeight) kg = kg.add(line.weightKg ?? ZERO);
-    else cbm = cbm.add(line.cbm);
+    /* Each line carries the figure its own rate multiplied: the volume, the
+       weight, the pieces or the bales. A per-piece line is never also counted
+       into the billable volume. */
+    let quantity: Prisma.Decimal;
+    let unit: string;
+    switch (line.basis) {
+      case "PER_KG":
+        quantity = line.weightKg ?? ZERO;
+        kg = kg.add(quantity);
+        unit = "kg";
+        break;
+      case "PER_PIECE":
+        quantity = new Prisma.Decimal(line.pieces ?? 0);
+        unit = "piece";
+        break;
+      case "PER_BALE":
+        quantity = new Prisma.Decimal(line.quantity);
+        unit = "bale";
+        break;
+      case "FLAT":
+        quantity = line.cbm;
+        cbm = cbm.add(line.cbm);
+        unit = "consignment";
+        break;
+      default:
+        quantity = line.cbm;
+        cbm = cbm.add(line.cbm);
+        unit = "CBM";
+    }
 
     return {
       description: [line.description, line.cargoType]
@@ -151,8 +195,8 @@ export async function priceConsignment(
       paperReceiptNo: line.paperReceiptNo,
       packages: line.quantity,
       pieces: line.pieces,
-      quantity: byWeight ? (line.weightKg ?? ZERO) : line.cbm,
-      unit: byWeight ? "kg" : line.basis === "FLAT" ? "consignment" : "CBM",
+      quantity,
+      unit,
       unitPrice: line.rate ?? ZERO,
       amount: line.amount,
       category: "Freight",
@@ -194,11 +238,21 @@ export async function priceConsignment(
  * on its own row as the other half of the comparison.
  */
 export function billingMeasurement(cargo: {
-  darReceiving: { cbm: Prisma.Decimal | null; weightKg: Prisma.Decimal | null } | null;
-  chinaReceiving: { cbm: Prisma.Decimal | null; weightKg: Prisma.Decimal | null } | null;
+  darReceiving: Measurement | null;
+  chinaReceiving: Measurement | null;
 }) {
   return {
     measuredCbm: cargo.darReceiving?.cbm ?? cargo.chinaReceiving?.cbm ?? null,
     measuredKg: cargo.darReceiving?.weightKg ?? cargo.chinaReceiving?.weightKg ?? null,
+    measuredPieces: cargo.darReceiving?.piecesCount ?? cargo.chinaReceiving?.piecesCount ?? null,
+    measuredPackages:
+      cargo.darReceiving?.packagesCount ?? cargo.chinaReceiving?.packagesCount ?? null,
   };
 }
+
+type Measurement = {
+  cbm: Prisma.Decimal | null;
+  weightKg: Prisma.Decimal | null;
+  piecesCount: number | null;
+  packagesCount: number;
+};

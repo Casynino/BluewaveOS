@@ -7,10 +7,15 @@ import { ArrowRight, Loader2, Minus, Plus, X } from "lucide-react";
 import { estimateFreight, type EstimateState } from "@/lib/actions/estimate";
 import { cbmNumber } from "@/lib/cbm";
 import { ESTIMATE_CAVEAT, FX_CAVEAT } from "@/lib/constants";
+import type { RateUnit } from "@/lib/rate-basis";
 import { cn } from "@/lib/utils";
 
 export type ContainerPrice = { cargoType: string; price: string };
 type BoxLine = { id: number; length: string; width: string; height: string; boxes: string };
+
+/* The form field each unit is sent as, and what the sheet calls it. */
+const FIELD = { CBM: "cbm", TONNE: "kg", PIECE: "pieces", BALE: "bales" } as const;
+const WORD = { CBM: "Volume", TONNE: "Weight", PIECE: "Pieces", BALE: "Bales" } as const;
 
 /**
  * THE FREIGHT QUOTATION.
@@ -23,14 +28,30 @@ type BoxLine = { id: number; length: string; width: string; height: string; boxe
  * lib/public-estimate.ts), priced in Decimal from the rate book, minimum, VAT
  * and exchange rate the invoice uses. The rate book itself is never listed; a
  * rate appears only as the answer for the goods chosen.
+ *
+ * NOT EVERYTHING IS VOLUME. Phones are charged by the piece, bales by the bale
+ * and heavy goods by the tonne, as the company always has. The chosen type
+ * decides what is asked for; its unit comes with the type names, its price
+ * only with the answer.
  */
-export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: string[]; containers?: ContainerPrice[] }) {
+export function FreightQuote({
+  cargoTypes,
+  units = {},
+  containers = [],
+}: {
+  cargoTypes: string[];
+  /** The figure each type is charged by. The unit only, never the rate. */
+  units?: Record<string, RateUnit>;
+  containers?: ContainerPrice[];
+}) {
   /* One calculator per page, so fixed ids; useId can differ between server and browser. */
-  const ids = { type: "bw-quote-type", cbm: "bw-quote-cbm" };
+  const ids = { type: "bw-quote-type", cbm: "bw-quote-cbm", other: "bw-quote-figure" };
   const [service, setService] = useState<"LCL" | "FCL">(cargoTypes.length === 0 && containers.length > 0 ? "FCL" : "LCL");
   const [how, setHow] = useState<"cbm" | "boxes">("cbm");
   const [cargoType, setCargoType] = useState("");
   const [cbmTyped, setCbmTyped] = useState("1");
+  /* Kilos, pieces or bales, for a type not charged by volume. */
+  const [figureTyped, setFigureTyped] = useState("");
   const [lines, setLines] = useState<BoxLine[]>([{ id: 1, length: "", width: "", height: "", boxes: "1" }]);
   const [result, setResult] = useState<{ key: string; state: EstimateState } | null>(null);
   const [pending, start] = useTransition();
@@ -51,23 +72,30 @@ export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: stri
     [lines]
   );
   const cbm = how === "cbm" ? Math.max(0, Number(cbmTyped) || 0) : boxCbm;
-  const key = `${cargoType}:${cbm.toFixed(3)}`;
+  const unit: RateUnit = units[cargoType] ?? "CBM";
+  const counted = unit === "PIECE" || unit === "BALE";
+  /* Pieces and bales are whole; a weight may carry grams. */
+  const figure = counted
+    ? Math.max(0, Math.floor(Number(figureTyped) || 0))
+    : Math.max(0, Number(figureTyped) || 0);
+  const amount = unit === "CBM" ? cbm : figure;
+  const key = `${cargoType}:${unit}:${unit === "CBM" ? cbm.toFixed(3) : String(figure)}`;
 
   /* Priced a moment after the typing stops: the answer moves with the figures
      without every keystroke becoming a request. */
   useEffect(() => {
-    if (service !== "LCL" || !cargoType || cbm <= 0) return;
+    if (service !== "LCL" || !cargoType || amount <= 0) return;
     const timer = setTimeout(() => {
       const form = new FormData();
       form.set("cargoType", cargoType);
-      form.set("cbm", cbm.toFixed(3));
+      form.set(FIELD[unit], unit === "CBM" ? cbm.toFixed(3) : String(figure));
       start(async () => {
         const state = await estimateFreight({}, form);
         setResult({ key, state });
       });
     }, 450);
     return () => clearTimeout(timer);
-  }, [key, cargoType, cbm, service]);
+  }, [key, cargoType, amount, service, unit, cbm, figure]);
 
   const answer = result?.key === key ? result.state : undefined;
   const priced = answer?.estimate?.kind === "priced" ? answer.estimate : null;
@@ -124,6 +152,30 @@ export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: stri
               </select>
             </Field>
 
+            {unit !== "CBM" ? (
+              <Field n="02" label={WORD[unit]} htmlFor={ids.other}>
+                <div className="flex items-stretch">
+                  <input
+                    id={ids.other}
+                    inputMode={counted ? "numeric" : "decimal"}
+                    value={figureTyped}
+                    placeholder={counted ? "0" : "0.0"}
+                    onChange={(e) => setFigureTyped(e.target.value.replace(counted ? /[^\d]/g : /[^\d.]/g, ""))}
+                    className="bw-mono h-14 min-w-0 flex-1 border border-bw-line px-4 text-center text-2xl text-bw-fg outline-none focus:border-bw-fg"
+                  />
+                  <span className="bw-mono grid place-items-center border border-l-0 border-bw-line px-3 text-xs uppercase tracking-[0.14em] text-bw-muted">
+                    {unit === "TONNE" ? "kg" : unit === "PIECE" ? "pieces" : "bales"}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-bw-muted">
+                  {unit === "TONNE"
+                    ? "These goods are charged by weight. Give the total in kilograms."
+                    : unit === "PIECE"
+                      ? "These goods are charged by the piece. How many pieces?"
+                      : "These goods are charged by the bale. How many bales?"}
+                </p>
+              </Field>
+            ) : (
             <Field n="02" label="Volume">
               <div className="grid grid-cols-2 border border-bw-line text-sm">
                 {(
@@ -230,6 +282,7 @@ export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: stri
                 </div>
               )}
             </Field>
+            )}
           </div>
         ) : (
           <div className="mt-8">
@@ -264,19 +317,21 @@ export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: stri
           <dl className="bw-mono mt-6 divide-y divide-white/10 border-y border-white/10 text-sm">
             <Row label="Cargo type" value={service === "FCL" ? "Full container" : cargoType || "—"} />
             <Row
-              label="Volume"
+              label={service === "FCL" ? "Volume" : WORD[unit]}
               value={
                 service === "FCL"
                   ? "Whole container"
                   : priced
-                    ? `${priced.billableCbm ?? priced.measuredCbm} CBM`
-                    : cbm > 0
+                    ? priced.quantityLabel
+                    : unit === "CBM" && cbm > 0
                       ? `${cbm.toFixed(3)} CBM`
-                      : "—"
+                      : unit !== "CBM" && figure > 0
+                        ? `${figure} ${unit === "TONNE" ? "kg" : unit === "PIECE" ? "pieces" : "bales"}`
+                        : "—"
               }
               note={priced?.minimumApplied ? `Measured ${priced.measuredCbm} CBM — minimum applies` : null}
             />
-            <Row label="Rate" value={priced ? `${priced.currency} ${priced.rate} / CBM` : "—"} />
+            <Row label="Rate" value={priced ? priced.rateLabel : "—"} />
             {priced && Number(priced.vatPercent) > 0 ? <Row label={`VAT ${priced.vatPercent}%`} value={priced.vat} /> : null}
             <Row label="Exchange rate" value={priced?.exchangeRate ? `1 USD = ${grouped(priced.exchangeRate)} TZS` : "—"} />
           </dl>
@@ -301,12 +356,14 @@ export function FreightQuote({ cargoTypes, containers = [] }: { cargoTypes: stri
             </p>
           ) : null}
           {service === "LCL" && !cargoType ? (
-            <p className="mt-5 text-sm text-white/60">Choose your goods and a volume to see the price.</p>
+            <p className="mt-5 text-sm text-white/60">Choose your goods and how much of them to see the price.</p>
           ) : null}
 
           {priced ? (
             <Link
-              href={`/book?service=SHARED_CARGO&commodity=${encodeURIComponent(cargoType)}&cbm=${encodeURIComponent(priced.measuredCbm)}`}
+              href={`/book?service=SHARED_CARGO&commodity=${encodeURIComponent(cargoType)}${
+                priced.unit === "CBM" ? `&cbm=${encodeURIComponent(priced.measuredCbm)}` : ""
+              }`}
               className="mt-7 flex h-12 items-center justify-between gap-3 rounded-[2px] bg-bw-coral px-5 font-bw-display text-base font-semibold uppercase tracking-[0.06em] hover:bg-bw-coral-dark"
             >
               Book this shipment <ArrowRight className="size-4" />

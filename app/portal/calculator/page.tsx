@@ -25,7 +25,11 @@ export default async function PortalCalculatorPage() {
           {t(locale, "Estimated shipping cost. Final price is confirmed by BlueWave Cargo after cargo verification.")}
         </p>
       </header>
-      <PriceCalculator cargoTypes={rates.map((r) => r.cargoType)} bookPath="/portal/book" />
+      <PriceCalculator
+        cargoTypes={rates.map((r) => r.cargoType)}
+        units={Object.fromEntries(rates.map((r) => [r.cargoType, r.unit]))}
+        bookPath="/portal/book"
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import { prisma, type TxClient } from "@/lib/prisma";
+import { unitOfBasis, type RateUnit } from "@/lib/rate-basis";
 
 /**
  * WHAT THE WAREHOUSE'S FIGURES ARE WORTH.
@@ -33,7 +34,7 @@ export type ValuedLine = {
   weightKg: Prisma.Decimal | null;
   /** The rate found, or null when the book has no line for this type. */
   rate: Prisma.Decimal | null;
-  basis: "PER_CBM" | "PER_KG" | "FLAT" | null;
+  basis: "PER_CBM" | "PER_KG" | "FLAT" | "PER_PIECE" | "PER_BALE" | null;
   amount: Prisma.Decimal;
   /** Why a line could not be valued. Null when it could. */
   blocked: string | null;
@@ -189,13 +190,37 @@ export function valueWith(book: RateBook, packages: PackageLike[]): Valuation {
       }
     } else if (found.basis === "FLAT") {
       amount = rate;
-    } else {
+    } else if (found.basis === "PER_PIECE") {
+      /* Counted, not measured: twenty handsets are twenty handsets whatever
+         carton they came in. A line with no count is held rather than priced
+         on its volume, which would bill phones as a sliver of a cubic metre. */
+      if (!p.pieces || p.pieces <= 0) {
+        blocked = `"${p.cargoType}" is billed per piece and no pieces were counted.`;
+        unpriced++;
+      } else {
+        amount = new Prisma.Decimal(p.pieces).mul(rate).toDecimalPlaces(2);
+      }
+    } else if (found.basis === "PER_BALE") {
+      /* Each package on a bale line is a bale. The count is never below one,
+         so there is nothing to block on. */
+      if (p.quantity <= 0) {
+        blocked = `"${p.cargoType}" is billed per bale and no bales were counted.`;
+        unpriced++;
+      } else {
+        amount = new Prisma.Decimal(p.quantity).mul(rate).toDecimalPlaces(2);
+      }
+    } else if (found.basis === "PER_CBM") {
       if (p.cbm.lessThanOrEqualTo(0)) {
         blocked = "No volume was recorded for this line.";
         unpriced++;
       } else {
         amount = p.cbm.mul(rate).toDecimalPlaces(2);
       }
+    } else {
+      /* A basis this file has never heard of is not charged per cubic metre
+         by default. It is held and named. */
+      blocked = `"${p.cargoType}" has a rate this system cannot apply.`;
+      unpriced++;
     }
 
     subtotal = subtotal.add(amount);
@@ -243,4 +268,36 @@ export async function cargoTypeOptions(): Promise<string[]> {
     orderBy: { cargoType: "asc" },
   });
   return rates.map((r) => r.cargoType!).filter(Boolean);
+}
+
+/**
+ * THE SAME TYPES, EACH WITH THE FIGURE IT IS CHARGED BY.
+ *
+ * The warehouse never sees a price, but it does need to know which number
+ * matters for the goods in front of it: phones are charged by the handset, so
+ * a line of phones with no piece count cannot be billed at all. Only the unit
+ * leaves this function — never the rate — so the receiving screen can say
+ * "count the pieces" without saying what a piece costs.
+ *
+ * The newest live rate for a type decides, as it does when the line is priced.
+ */
+export async function cargoTypeUnits(): Promise<{ name: string; unit: RateUnit | null }[]> {
+  const now = new Date();
+  const rates = await prisma.shippingRate.findMany({
+    where: {
+      active: true,
+      service: "LCL",
+      effectiveFrom: { lte: now },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      cargoType: { not: null },
+    },
+    select: { cargoType: true, basis: true },
+    orderBy: [{ cargoType: "asc" }, { effectiveFrom: "desc" }],
+  });
+  const out: { name: string; unit: RateUnit | null }[] = [];
+  for (const r of rates) {
+    if (!r.cargoType || out.some((o) => o.name === r.cargoType)) continue;
+    out.push({ name: r.cargoType, unit: unitOfBasis(r.basis) });
+  }
+  return out;
 }

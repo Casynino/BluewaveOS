@@ -24,6 +24,15 @@ import { cn } from "@/lib/utils";
 import { distinctMark } from "@/lib/customer-name";
 
 import { Tx } from "@/components/app/tx";
+import type { RateUnit } from "@/lib/rate-basis";
+
+/* What the counter is told once a type is chosen. English keys, through t(). */
+const UNIT_HINT: Record<RateUnit, string> = {
+  CBM: "Charged by volume — measure it.",
+  TONNE: "Charged by weight — weigh it.",
+  PIECE: "Charged by the piece — count the pieces.",
+  BALE: "Charged by the bale — each package is a bale.",
+};
 const PACKAGE_TYPES = [
   ["CARTON", "Carton 纸箱"],
   ["BALE", "Bale 包"],
@@ -100,6 +109,7 @@ const blank = (key: number, receiptNo = ""): Line => ({
  */
 export function IntakeForm({
   cargoTypes,
+  units = {},
   nextReceiptNo,
 }: {
   /** The number after the last one written in the book. A suggestion, not a rule. */
@@ -109,6 +119,12 @@ export function IntakeForm({
    * Finance's business and deliberately does not appear on this screen.
    */
   cargoTypes: string[];
+  /**
+   * The figure each type is charged by — CBM, tonne, piece or bale. The unit
+   * only: the floor is told which number matters for these goods, never what
+   * it costs.
+   */
+  units?: Record<string, RateUnit | null>;
 }) {
   /* One press, one consignment: the server answers a retry carrying the same
      key by naming the consignment it already created. Made after mount, so the
@@ -494,12 +510,16 @@ export function IntakeForm({
                   THE SEVEN THINGS THE COUNTER WRITES DOWN.
 
                   Receipt number (above), description, category, packages,
-                  pieces, total volume and total weight — nothing else. Every
-                  package is a carton for now; the type is sent as one so the
-                  record still says so, and the day bales or pallets arrive it
-                  comes back as a field.
+                  pieces, total volume and total weight — nothing else. The
+                  package type is not asked: a line is cartons, unless its
+                  cargo type is charged by the bale, when the packages are
+                  bales and their count is what the bill multiplies.
                 */}
-                <input type="hidden" name="itemPackageType" value="CARTON" />
+                <input
+                  type="hidden"
+                  name="itemPackageType"
+                  value={units[line.cargoType] === "BALE" ? "BALE" : "CARTON"}
+                />
 
                 {/* The receipt book number is how a box on the floor is matched to
                     its page in the book — never optional. */}
@@ -550,11 +570,18 @@ export function IntakeForm({
                       </option>
                     ))}
                   </NativeSelect>
+                  {units[line.cargoType] ? (
+                    <p className="text-xs font-medium text-brand">
+                      {t(UNIT_HINT[units[line.cargoType]!])}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor={`q-${line.key}`}>{t("Packages")}</Label>
+                    <Label htmlFor={`q-${line.key}`}>
+                      {units[line.cargoType] === "BALE" ? t("Bales") : t("Packages")}
+                    </Label>
                     <Input
                       id={`q-${line.key}`}
                       name="itemQuantity"
@@ -566,12 +593,18 @@ export function IntakeForm({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor={`p-${line.key}`}>{t("Pieces")}</Label>
+                    <Label htmlFor={`p-${line.key}`}>
+                      {t("Pieces")}
+                      {units[line.cargoType] === "PIECE" ? (
+                        <span className="text-destructive"> *</span>
+                      ) : null}
+                    </Label>
                     <Input
                       id={`p-${line.key}`}
                       name="itemPieces"
                       type="number"
-                      min={0}
+                      required={units[line.cargoType] === "PIECE"}
+                      min={units[line.cargoType] === "PIECE" ? 1 : 0}
                       inputMode="numeric"
                       value={line.pieces}
                       onChange={(e) => update(line.key, "pieces", e.target.value)}

@@ -110,7 +110,7 @@ export default async function PortalInvoicePage({
               <TableRow key={item.id}>
                 <TableCell className="text-sm">{item.description}</TableCell>
                 <TableCell className="tnum text-right text-sm">
-                  {Number(item.quantity).toFixed(3)} {item.unit ?? ""}
+                  {Number(item.quantity).toFixed(item.unit === "CBM" ? 3 : item.unit === "kg" ? 2 : 0)} {item.unit ?? ""}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm">
                   {formatMoney(item.unitPrice, invoice.currency)}

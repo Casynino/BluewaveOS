@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { SectionTabs } from "@/components/app/section-tabs";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
-import { cargoTypeOptions } from "@/lib/valuation";
+import { cargoTypeUnits } from "@/lib/valuation";
 
 import { primeLocale, T } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Receive cargo" };
@@ -24,7 +24,8 @@ export default async function ReceiveNewPage() {
   /* The warehouse is not asked for and so is not fetched — the action files the
      receiving record against the clerk's own posting. See receiveNewCargo. */
   const [cargoTypes, lastLineNote, lastCargoNote] = await Promise.all([
-    cargoTypeOptions(),
+    /* Each type with the figure it is charged by — the unit, never the rate. */
+    cargoTypeUnits(),
     /* The carbon book runs in order, so the next number is almost always the
        last one plus one. Offered filled in; the clerk overwrites it when the
        book has skipped or a pad was started out of sequence.
@@ -63,7 +64,8 @@ export default async function ReceiveNewPage() {
       />
       <SectionTabs />
       <IntakeForm
-        cargoTypes={cargoTypes}
+        cargoTypes={cargoTypes.map((c) => c.name)}
+        units={Object.fromEntries(cargoTypes.map((c) => [c.name, c.unit]))}
         nextReceiptNo={nextReceiptNo}
       />
     </div>

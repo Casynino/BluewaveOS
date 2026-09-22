@@ -44,6 +44,10 @@ export type Quote = {
 type Measured = {
   cbm: Prisma.Decimal | number | string | null | undefined;
   weightKg?: Prisma.Decimal | number | string | null | undefined;
+  /** Pieces counted, for a rate charged per piece. */
+  pieces?: number | null;
+  /** Packages counted, for a rate charged per bale: each package is a bale. */
+  packages?: number | null;
 };
 
 const ZERO = new Prisma.Decimal(0);
@@ -225,6 +229,48 @@ export async function quote(
       explanation: `${billableKg} kg at ${currency} ${appliedRate}/kg${
         floor && measuredKg.lessThan(floor) ? ` (minimum ${floor} kg)` : ""
       }`,
+    };
+  }
+
+  if (basis === "PER_PIECE" || basis === "PER_BALE") {
+    /*
+      A COUNT, NOT A MEASUREMENT. Phones are charged by the handset and bales
+      by the bale, whatever the volume they fill. No count is no bill: falling
+      through to the volume would price twenty handsets as a fraction of a
+      cubic metre, and nobody would notice until the customer did.
+    */
+    const perPiece = basis === "PER_PIECE";
+    const count = perPiece ? input.measured.pieces : input.measured.packages;
+    if (!count || count <= 0) {
+      return {
+        standardRate,
+        appliedRate,
+        basis,
+        currency,
+        billableCbm: null,
+        billableKg: null,
+        amount: ZERO,
+        discount: ZERO,
+        blockedReason: perPiece
+          ? "This rate is per piece and no pieces were counted."
+          : "This rate is per bale and no bales were counted.",
+        explanation: "",
+      };
+    }
+    const units = new Prisma.Decimal(count);
+    const amount = units.mul(appliedRate).toDecimalPlaces(2);
+    const unit = perPiece ? "piece" : "bale";
+    return {
+      standardRate,
+      appliedRate,
+      basis,
+      currency,
+      billableCbm: null,
+      billableKg: null,
+      amount,
+      discount: units.mul(standardRate).sub(amount).toDecimalPlaces(2),
+      blockedReason: null,
+      explanation: `${count} ${unit}${count === 1 ? "" : "s"} at ${currency} ${appliedRate}/${unit}`,
     };
   }
 

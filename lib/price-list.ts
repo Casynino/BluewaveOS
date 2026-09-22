@@ -60,6 +60,9 @@ export type PriceListRow = {
   basis: RateBasis | null;
   bookBasis: RateBasis | null;
   billableCbm: string | null;
+  /** What a per-piece or per-bale rate is multiplied by: the pieces or bales
+      on the freight lines. Null for any other basis. */
+  units: string | null;
   /** What a per-kilo rate would be multiplied by. */
   weightKg: string | null;
   /** The freight on the bill as it stands, before extras and discount. */
@@ -204,6 +207,13 @@ export async function priceListFor(
     let agreed = false;
     let basis: RateBasis | null = null;
     let freight = new Prisma.Decimal(0);
+    let units: Prisma.Decimal | null = null;
+    const countUnits = (lines: { unit: string | null; quantity: Prisma.Decimal }[]) => {
+      const counted = lines.filter((l) => l.unit === "piece" || l.unit === "bale");
+      return counted.length === 0
+        ? null
+        : counted.reduce((sum, l) => sum.add(l.quantity), new Prisma.Decimal(0));
+    };
     let extra = new Prisma.Decimal(0);
     let discountOff = new Prisma.Decimal(0);
 
@@ -216,6 +226,7 @@ export async function priceListFor(
       billableCbm = draft.billableCbm;
       basis = draft.rateBasis;
       agreed = carriesAgreedRate(draft);
+      units = countUnits(item.invoices.flatMap((i) => i.items.filter((l) => l.category === "Freight")));
       for (const invoice of item.invoices) {
         for (const line of invoice.items) {
           if (line.category === "Charge") extra = extra.add(line.amount);
@@ -247,6 +258,7 @@ export async function priceListFor(
         billableCbm = priced.billableCbm;
         basis = priced.basis;
         freight = priced.amount;
+        units = countUnits(priced.items);
       }
     }
 
@@ -261,6 +273,7 @@ export async function priceListFor(
       basis,
       bookBasis: await bookBasisFor(item.service, base.types[0] ?? null),
       billableCbm: billableCbm?.toString() ?? null,
+      units: units?.toString() ?? null,
       freight: freight.toString(),
       extra: extra.toString(),
       discountOff: discountOff.toString(),

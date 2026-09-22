@@ -6,6 +6,7 @@ import { ESTIMATE_CAVEAT, FX_CAVEAT } from "@/lib/constants";
 import { formatCurrency, usdToTzs } from "@/lib/currency";
 import { applyVat, companySettings, currentExchangeRate, quote } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { SLASH_UNIT, displayRate, unitOfBasis, type RateUnit } from "@/lib/rate-basis";
 
 export { ESTIMATE_CAVEAT, FX_CAVEAT };
 
@@ -35,6 +36,12 @@ export type Estimate =
   | {
       kind: "priced";
       cargoType: string | null;
+      /** The figure this type is charged by, and how much of it was given. */
+      unit: RateUnit;
+      /** "2.500 CBM", "40 pieces", "1,200 kg" — what the price was worked on. */
+      quantityLabel: string;
+      /** The rate in the unit a person reads: per tonne for weight. */
+      rateLabel: string;
       /** What was measured, and what would actually be charged after a minimum. */
       measuredCbm: string;
       billableCbm: string | null;
@@ -69,13 +76,15 @@ export async function publicRateBook(
       active: true,
       published: true,
       service,
-      basis: "PER_CBM",
+      /* Every unit a loose-cargo type is charged by. A flat price is a price
+         for a whole box and is published per box, not asked about here. */
+      basis: { in: ["PER_CBM", "PER_KG", "PER_PIECE", "PER_BALE"] },
       cargoType: { not: null },
       effectiveFrom: { lte: new Date() },
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
     },
     orderBy: [{ cargoType: "asc" }, { effectiveFrom: "desc" }],
-    select: { cargoType: true, rate: true, currency: true, minimumCbm: true },
+    select: { cargoType: true, rate: true, currency: true, minimumCbm: true, basis: true },
   });
 
   /* One row per type: the newest, when the book still holds the old one beside
@@ -93,6 +102,8 @@ export async function publicRateBook(
       rate: row.rate.toString(),
       currency: row.currency,
       minimumCbm: row.minimumCbm ? row.minimumCbm.toString() : null,
+      /* What the calculator asks for: a volume, a weight, pieces or bales. */
+      unit: unitOfBasis(row.basis) ?? "CBM",
     }));
 }
 
@@ -106,7 +117,11 @@ export async function publicRateBook(
  */
 export async function estimate(input: {
   cargoType: string | null;
-  cbm: string | number;
+  cbm?: string | number | null;
+  /** For a type charged by weight, by the piece or by the bale. */
+  kg?: string | number | null;
+  pieces?: number | null;
+  bales?: number | null;
   service?: ServiceType;
   client?: TxClient | typeof prisma;
 }): Promise<Estimate> {
@@ -117,7 +132,12 @@ export async function estimate(input: {
   const priced = await quote(client, {
     service,
     cargoType,
-    measured: { cbm: input.cbm },
+    measured: {
+      cbm: input.cbm ?? null,
+      weightKg: input.kg ?? null,
+      pieces: input.pieces ?? null,
+      packages: input.bales ?? null,
+    },
   });
 
   if (priced.blockedReason || !priced.appliedRate) {
@@ -138,10 +158,26 @@ export async function estimate(input: {
 
   const measured = new Prisma.Decimal(input.cbm || 0);
   const billable = priced.billableCbm;
+  const unit = unitOfBasis(priced.basis) ?? "CBM";
+  const count = (n: number | null | undefined, one: string, many: string) =>
+    `${(n ?? 0).toLocaleString("en-GB")} ${n === 1 ? one : many}`;
+  const quantityLabel =
+    unit === "PIECE"
+      ? count(input.pieces, "piece", "pieces")
+      : unit === "BALE"
+        ? count(input.bales, "bale", "bales")
+        : unit === "TONNE"
+          ? `${new Prisma.Decimal(priced.billableKg ?? input.kg ?? 0).toDecimalPlaces(2).toString()} kg`
+          : `${(billable ?? measured).toFixed(3)} CBM`;
 
   return {
     kind: "priced",
     cargoType,
+    unit,
+    quantityLabel,
+    rateLabel: `${priced.currency} ${displayRate(priced.appliedRate.toString(), priced.basis)} / ${
+      SLASH_UNIT[priced.basis ?? "PER_CBM"]
+    }`,
     measuredCbm: measured.toFixed(3),
     billableCbm: billable ? billable.toFixed(3) : null,
     minimumApplied: !!billable && billable.greaterThan(measured),

@@ -41,7 +41,10 @@ export function billLines(invoice: BillLike): LineLike[] {
   if (invoice.items.length > 0) return invoice.items;
 
   const perKg = invoice.rateBasis === "PER_KG";
-  const quantity = (perKg ? invoice.billableKg : invoice.billableCbm) ?? null;
+  /* A bill charged by the piece or the bale keeps no count of its own, so the
+     stand-in carries the amount alone rather than claim one of whatever. */
+  const counted = invoice.rateBasis === "PER_PIECE" || invoice.rateBasis === "PER_BALE";
+  const quantity = counted ? null : ((perKg ? invoice.billableKg : invoice.billableCbm) ?? null);
   const subtotal = new Prisma.Decimal(invoice.subtotal);
   const goods = invoice.cargo?.description?.trim();
 
@@ -58,7 +61,7 @@ export function billLines(invoice: BillLike): LineLike[] {
       category: "Freight",
       quantity: quantity ?? 1,
       unit: quantity ? (perKg ? "kg" : "CBM") : null,
-      unitPrice: invoice.appliedRate ?? subtotal,
+      unitPrice: counted ? subtotal : (invoice.appliedRate ?? subtotal),
       amount: subtotal,
       paperReceiptNo: null,
       packages: null,

@@ -570,7 +570,18 @@ export type WaitingPriceInput = {
 const FREIGHT_UNIT: Record<RateBasis, string> = {
   PER_CBM: "CBM",
   PER_KG: "kg",
+  PER_PIECE: "piece",
+  PER_BALE: "bale",
   FLAT: "consignment",
+};
+
+/* What each unit is multiplied by, named for a refusal: "no pieces to charge". */
+const NOTHING_TO_CHARGE: Record<RateBasis, string> = {
+  PER_CBM: "Nothing has been measured, so there is no volume to charge.",
+  PER_KG: "Nothing has been weighed, so there are no kilos to charge.",
+  PER_PIECE: "No pieces were counted, so there is nothing to charge per piece.",
+  PER_BALE: "No bales were counted, so there is nothing to charge per bale.",
+  FLAT: "There is nothing to charge.",
 };
 
 /**
@@ -668,8 +679,12 @@ export async function setWaitingPrice(
         select: {
           reference: true,
           description: true,
-          darReceiving: { select: { cbm: true, weightKg: true } },
-          chinaReceiving: { select: { cbm: true, weightKg: true } },
+          darReceiving: {
+            select: { cbm: true, weightKg: true, piecesCount: true, packagesCount: true },
+          },
+          chinaReceiving: {
+            select: { cbm: true, weightKg: true, piecesCount: true, packagesCount: true },
+          },
         },
       },
     },
@@ -738,13 +753,17 @@ export async function setWaitingPrice(
     } else {
       const measured = billingMeasurement(invoice.cargo);
       const quantity =
-        input.basis === "PER_CBM" ? measured.measuredCbm : measured.measuredKg;
+        input.basis === "PER_CBM"
+          ? measured.measuredCbm
+          : input.basis === "PER_KG"
+            ? measured.measuredKg
+            : input.basis === "PER_PIECE"
+              ? measured.measuredPieces
+              : input.basis === "PER_BALE"
+                ? measured.measuredPackages
+                : null;
       if (!quantity || new Prisma.Decimal(quantity).lessThanOrEqualTo(0)) {
-        throw new PriceListRefused(
-          input.basis === "PER_CBM"
-            ? "Nothing has been measured, so there is no volume to charge."
-            : "Nothing has been weighed, so there are no kilos to charge."
-        );
+        throw new PriceListRefused(NOTHING_TO_CHARGE[input.basis]);
       }
       await replaceFreight({
         quantity: new Prisma.Decimal(quantity),
@@ -957,15 +976,27 @@ async function repriceIssuedBill(
     const unit = FREIGHT_UNIT[input.basis];
     const sameUnit =
       freightItems.length > 0 && freightItems.every((i) => i.unit === unit);
+    /* The bill's own billable figure, never a fresh measurement. A bill has
+       no column for a count, so a change to per piece or per bale is only
+       possible on lines that already carry one. */
     const quantity = sameUnit
       ? freightItems.reduce((sum, i) => sum.add(i.quantity), new Prisma.Decimal(0))
-      : /* The bill's own billable figure, never a fresh measurement. */
-        (input.basis === "PER_CBM" ? invoice.billableCbm : invoice.billableKg);
+      : input.basis === "PER_CBM"
+        ? invoice.billableCbm
+        : input.basis === "PER_KG"
+          ? invoice.billableKg
+          : null;
     if (!quantity || quantity.lessThanOrEqualTo(0)) {
       throw new PriceListRefused(
-        input.basis === "PER_CBM"
-          ? `${invoice.number} carries no volume to charge per cubic metre. Type the freight instead.`
-          : `${invoice.number} carries no weight to charge per kilo. Type the freight instead.`
+        `${invoice.number} carries no ${
+          {
+            PER_CBM: "volume to charge per cubic metre",
+            PER_KG: "weight to charge per kilo",
+            PER_PIECE: "piece count to charge per piece",
+            PER_BALE: "bale count to charge per bale",
+            FLAT: "figure to charge",
+          }[input.basis]
+        }. Type the freight instead.`
       );
     }
     if (sameUnit) {
@@ -985,7 +1016,7 @@ async function repriceIssuedBill(
       await client.invoiceItem.create({
         data: {
           invoiceId: invoice.id,
-          description: `Sea freight — re-priced ${unit === "kg" ? "per kg" : "per CBM"}`,
+          description: `Sea freight — re-priced per ${unit}`,
           quantity,
           unit,
           unitPrice: input.rate,
