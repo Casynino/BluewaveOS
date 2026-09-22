@@ -19,7 +19,7 @@ import {
 } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
-import { nextOpenSailing, publicSailings } from "@/lib/sailing-schedule";
+import { expectedArrival, nextOpenSailing, publicSailings } from "@/lib/sailing-schedule";
 import { formMessage } from "@/lib/safe-error";
 import { authorize } from "@/lib/session";
 
@@ -1154,6 +1154,16 @@ export async function advanceContainer(
           ...(to === "ARRIVED" ? { actualArrival: at } : {}),
         },
       });
+
+      /* Thirty days from the day it left, unless the line has promised its
+         own date. Written down rather than worked out on every screen, so the
+         date a customer was told is the date the office reads back. */
+      if (to === "DEPARTED") {
+        await tx.shipment.updateMany({
+          where: { containerId: container.id, eta: null },
+          data: { eta: expectedArrival(at) },
+        });
+      }
 
       if (step.cargo) {
         /* The consignments keep the day they left China in their own history,

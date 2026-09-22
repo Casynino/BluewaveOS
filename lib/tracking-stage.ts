@@ -1,5 +1,7 @@
 import type { CargoStatus, ContainerStatus } from "@prisma/client";
 
+import { expectedArrival } from "@/lib/sailing-schedule";
+
 /**
  * WHERE THE CARGO IS, IN THE CUSTOMER'S WORDS.
  *
@@ -533,7 +535,13 @@ export function publicJourney(input: JourneyInput): Journey {
     COLLECTED: handedOver,
   };
 
-  const etaOpen = container?.eta && !reached.ARRIVED_IN_DAR && !atPort ? container.eta : null;
+  /* The line's date when it gave one, otherwise thirty days from departure —
+     the lane's habit, and what the office tells customers. */
+  const promised = expectedArrival(departedAt, container?.eta ?? null);
+  const etaOpen = promised && !reached.ARRIVED_IN_DAR ? promised : null;
+  /* Past its day and still not in Dar: the customer is told it is late rather
+     than left reading a date that has gone by. */
+  const late = Boolean(etaOpen && etaOpen.getTime() < now.getTime());
 
   const arrivedDetail: Partial<Record<StageCode, string>> = {
     AT_DAR_PORT: "Being checked in at our warehouse",
@@ -578,11 +586,7 @@ export function publicJourney(input: JourneyInput): Journey {
       label: "In transit",
       /* The expected day is printed by the page beside this step; only a date
          that has already gone by, or the last leg, needs words. */
-      detail: atPort && status !== "MISSING_AT_DAR"
-        ? "Arrived in Dar es Salaam — being checked in at our warehouse"
-        : etaOpen && etaOpen.getTime() < now.getTime()
-          ? "Running later than planned"
-          : null,
+      detail: late ? "Delayed — later than the thirty days this lane takes" : null,
       at: departedAt,
       atLabel: "Left China",
     },
@@ -648,7 +652,13 @@ export function publicJourney(input: JourneyInput): Journey {
     than being sent away by a badge.
   */
   const blocking = issue !== null && !ready && !handedOver;
-  const headline = blocking ? ISSUE_HEADLINE[issue] : STAGE_LABEL[stage];
+  const headline = blocking
+    ? ISSUE_HEADLINE[issue]
+    : /* A box past its expected day says so itself: the customer should not
+         have to work out that the date printed beside it has gone by. */
+      late && (stage === "AT_SEA" || stage === "SHIPPED")
+      ? "Delayed at sea — later than expected"
+      : STAGE_LABEL[stage];
 
   const notice = cancelled
     ? "This consignment was cancelled. Contact us if that is not what you expected."

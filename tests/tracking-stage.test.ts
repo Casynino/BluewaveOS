@@ -173,7 +173,22 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.etaPassed, true);
-    assert.match(detail(j, "IN_TRANSIT") ?? "", /later than planned/);
+    assert.match(detail(j, "IN_TRANSIT") ?? "", /Delayed/);
+    assert.equal(j.headline, "Delayed at sea — later than expected");
+  });
+
+  test("no ETA from the line means thirty days from departure, and late after it", () => {
+    const onTime = publicJourney(
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-10), eta: null }) })
+    );
+    assert.equal(onTime.etaPassed, false, "ten days out is not late");
+    assert.ok(onTime.eta, "the lane's thirty days stand in for a promise nobody made");
+
+    const late = publicJourney(
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-31), eta: null }) })
+    );
+    assert.equal(late.etaPassed, true, "day thirty-one is late");
+    assert.equal(late.headline, "Delayed at sea — later than expected");
   });
 
   test("the container moving ahead of the cargo row still moves the customer's view", () => {

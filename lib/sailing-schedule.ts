@@ -32,6 +32,23 @@ const MONDAY = 1;
 /** Days at sea when nobody has said otherwise. This lane's habit, not a law. */
 export const DEFAULT_TRANSIT_DAYS = 30;
 
+/**
+ * WHEN A SAILING IS EXPECTED IN DAR.
+ *
+ * The line's own ETA when it has given one; otherwise thirty days from the day
+ * the box left China, which is what this lane takes and what the office tells
+ * customers. Null before there is a departure to count from — a date nobody
+ * can stand behind is worse than no date.
+ */
+export function expectedArrival(
+  departedAt: Date | null | undefined,
+  eta?: Date | null
+): Date | null {
+  if (eta) return eta;
+  if (!departedAt) return null;
+  return new Date(departedAt.getTime() + DEFAULT_TRANSIT_DAYS * DAY_MS);
+}
+
 export const DEFAULT_ORIGIN = "Foshan";
 export const DEFAULT_DESTINATION = "Dar es Salaam";
 

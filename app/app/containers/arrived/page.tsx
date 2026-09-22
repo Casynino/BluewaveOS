@@ -33,6 +33,7 @@ import { requirePermission } from "@/lib/session";
 import { unsailedToPrice } from "@/lib/unsailed-pricing";
 import { cn } from "@/lib/utils";
 import { cargoTypeOptions } from "@/lib/valuation";
+import { expectedArrival } from "@/lib/sailing-schedule";
 import { localeOf } from "@/lib/viewer-locale";
 import { t } from "@/lib/i18n";
 
@@ -147,6 +148,7 @@ export default async function ArrivedContainersPage({
           voyage: true,
           actualArrival: true,
           eta: true,
+          departureDate: true,
           originPort: true,
         },
       },
@@ -296,6 +298,14 @@ export default async function ArrivedContainersPage({
       collectedTzs: billedTzs - owingTzs,
       spentTzs,
       arrived: container.shipment?.actualArrival ?? container.shipment?.eta ?? null,
+      /* Still at sea past the day it was expected: the desk should see that
+         before a customer rings to ask. */
+      late:
+        state === "sea" &&
+        (() => {
+          const due = expectedArrival(container.shipment?.departureDate ?? null, container.shipment?.eta ?? null);
+          return Boolean(due && due.getTime() < Date.now());
+        })(),
     };
   });
 
@@ -804,7 +814,9 @@ export default async function ArrivedContainersPage({
                       : row.state === "checkin"
                         ? `${t(locale, "Counting")} ${row.counted}/${row.cargo}`
                         : row.state === "sea"
-                          ? t(locale, "In transit")
+                          ? row.late
+                            ? t(locale, "Delayed")
+                            : t(locale, "In transit")
                           : t(locale, "Closed")}
                     {row.toPrice > 0 ? (
                       <span className="mt-1 block w-fit rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">

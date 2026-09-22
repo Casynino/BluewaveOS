@@ -513,6 +513,15 @@ function noteFor(input: {
     };
   }
   if (reachedIn(journey, "IN_TRANSIT")) {
+    if (journey.etaPassed && input.eta) {
+      return {
+        sw: "Mzigo wako umechelewa kidogo njiani; tutakujulisha utakapofika.",
+        en:
+          `It left ${ROUTE.originCity} on ${dayMonthYear(input.departedAt)} and was expected in ` +
+          `${ROUTE.destinationCity} on ${dayMonthYear(input.eta)}. The sailing is running late; ` +
+          `we will tell you the day it arrives.`,
+      };
+    }
     return {
       sw: "Mzigo wako uko safarini.",
       en:
