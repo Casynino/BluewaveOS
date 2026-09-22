@@ -51,12 +51,13 @@ CLEAR=(
   Invoice InvoiceItem Payment PaymentProof Receipt PickupNote Release
   ContainerExpense PayrollRun PayrollItem AccountTransfer CashCount ManagerReview
   DeliveryRequest PickupRequest RequestDocument QuoteRequest SourcingRequest
+  BusinessVisitRequest
   ExceptionCase ExceptionEvent Conversation Message CustomerContact Notification
   AuditLog FieldChange
 )
 KEEP=(Customer User Warehouse ShippingRate CustomerRate ExchangeRate BankAccount
       ExpenseType Vendor Supplier CompanySetting Setting CargoTerm
-      ShipmentSchedule MarketInformation)
+      ShipmentSchedule MarketInformation ChinaCity ProductCategory Factory)
 
 count() {
   local sql="" t
