@@ -83,8 +83,6 @@ const SECTIONS: NavSection[] = [
       { label: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
       { label: "Receiving dock", href: "/app/receive/dar", icon: "PackageCheck", permissions: ["receiving.dar"] },
       { label: "Warehouse floor", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["FINANCE"] },
-      /* Every desk sees what is still in China — Foshan's own floor already is. */
-      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["CHINA_WAREHOUSE"] },
       /* Finance reaches cargo through its containers and its bills, and asked
          for the flat list to come out of its menu. */
       { label: "All cargo", href: "/app/cargo", icon: "Package", permissions: ["cargo.viewAll"], hiddenFor: ["FINANCE"] },
@@ -164,6 +162,9 @@ const SECTIONS: NavSection[] = [
       { label: "Closed containers", href: "/app/containers/closed", icon: "ClipboardCheck", permissions: ["accounting.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      /* Cargo still in China belongs beside the boxes that will carry it, not
+         in a section of its own: Foshan's own floor screen already is this. */
+      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["CHINA_WAREHOUSE"] },
     ],
   },
   {
