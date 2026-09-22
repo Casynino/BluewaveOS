@@ -11,6 +11,22 @@ export function telHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
+/**
+ * The WhatsApp line as a person reads it: "+255 628 430 911".
+ *
+ * The setting holds digits, because that is what wa.me wants; a customer
+ * reading "255628430911" beside a WhatsApp button cannot tell whether it is
+ * the number they should save. Null when there is nothing to show.
+ */
+export function whatsappLabel(number: string | null | undefined): string | null {
+  const digits = (number ?? "").replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  if (digits.startsWith("255") && digits.length === 12) {
+    return `+255 ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}`;
+  }
+  return `+${digits}`;
+}
+
 /** Null when the setting is empty or holds no digits, so no dead button renders. */
 export function whatsappHref(number: string | null | undefined) {
   const digits = (number ?? "").replace(/\D/g, "");

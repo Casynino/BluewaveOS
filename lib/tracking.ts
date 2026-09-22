@@ -8,6 +8,7 @@ import { CUSTOMER_PHOTO_KINDS } from "@/lib/file-access";
 import { accountsForInvoice, type InvoiceAccount } from "@/lib/invoice-accounts";
 import { balanceOf } from "@/lib/invoice-balance";
 import { pickupAddress } from "@/lib/cargo-events";
+import { whatsappLabel } from "@/lib/site-contact";
 import { prisma } from "@/lib/prisma";
 import { checkRelease, RELEASE_INCLUDE } from "@/lib/release";
 import { storagePosition } from "@/lib/storage-fee";
@@ -714,7 +715,9 @@ export function publicTracking(input: {
     charge,
     accounts,
     whatsapp: settings?.whatsapp ?? null,
-    whatsappLabel: settings?.phone ?? settings?.whatsapp ?? null,
+    /* The WhatsApp line, never the office phone: a customer told to send proof
+       "on WhatsApp" to a number the company does not answer there is lost. */
+    whatsappLabel: whatsappLabel(settings?.whatsapp) ?? settings?.phone ?? null,
     officeAddress: settings?.darAddress ?? null,
     pickupAddress: settings?.pickupAddress ?? null,
     note: noteFor({
