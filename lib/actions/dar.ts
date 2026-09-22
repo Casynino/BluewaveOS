@@ -515,24 +515,14 @@ export async function verifyContainer(
   });
 
   /*
-    AND THE BOX IS SHUT.
+    CONFIRMING IS NOT CLOSING.
 
-    Confirming is the end of the discharge, so the container reaches its closed
-    state here rather than waiting for somebody to find the container page —
-    through the same door and the same permission as pressing Close there, so
-    there is one set of rules about when a container may close and not two.
-    Never over an override: a box with cargo nobody counted still has work on
-    it, and it stays on the dock where that work is listed.
+    Confirming ends the discharge: every consignment is counted, signed off or
+    reported missing. Closing says the sailing is finished with, and it is the
+    owner's decision to make on the container page — a box closed under Dar's
+    feet by the act of counting is one nobody remembers closing, and it takes
+    the sailing off the Active list while its customers still owe on it.
   */
-  let closed = false;
-  if (!overridden && container.status === "ARRIVED") {
-    const close = new FormData();
-    close.set("containerId", container.id);
-    close.set("to", "CLOSED");
-    const advanced = await advanceContainer({}, close);
-    closed = !advanced.error;
-  }
-
   revalidatePath("/app/receive/dar");
   revalidatePath(`/app/receive/dar/${container.id}`);
   revalidatePath(`/app/containers/${container.id}`);
@@ -547,7 +537,7 @@ export async function verifyContainer(
       stranded.length
         ? `${stranded.length} unchecked, each with a case: ${stranded.join(", ")}.`
         : "",
-      closed ? "The container is closed." : "",
+      "Close it on the container page when the sailing is finished with.",
     ]
       .filter(Boolean)
       .join(" "),
