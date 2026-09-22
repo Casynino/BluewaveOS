@@ -132,9 +132,29 @@ export function ReqContact({
   /** Also print the Foshan warehouse's number. */
   china?: boolean;
 }) {
+  /* Which of the two office numbers is the one answered on WhatsApp. Both
+     labelled "Dar es Salaam office" told a customer nothing about which to
+     message, and the company answers those two lines differently. */
+  const isWhatsApp = (number: string) => {
+    const digits = number.replace(/\D/g, "");
+    return digits.length >= 9 && !!company.whatsapp?.includes(digits);
+  };
+
   const lines: { where: string; number: string; href: string | null }[] = [];
-  if (company.phone) lines.push({ where: "Dar es Salaam office", number: company.phone, href: company.phoneHref });
-  if (company.altPhone) lines.push({ where: "Dar es Salaam office", number: company.altPhone, href: company.altPhoneHref });
+  if (company.phone) {
+    lines.push({
+      where: isWhatsApp(company.phone) ? "Dar es Salaam · call or WhatsApp" : "Dar es Salaam office",
+      number: company.phone,
+      href: company.phoneHref,
+    });
+  }
+  if (company.altPhone) {
+    lines.push({
+      where: isWhatsApp(company.altPhone) ? "Dar es Salaam · call or WhatsApp" : "Dar es Salaam · second line",
+      number: company.altPhone,
+      href: company.altPhoneHref,
+    });
+  }
   if (china && company.chinaPhone) lines.push({ where: `${company.chinaCity} warehouse`, number: company.chinaPhone, href: null });
 
   return (

@@ -18,6 +18,8 @@ const PAGES: [path: string, priority: number, frequency: MetadataRoute.Sitemap[n
   ["/explore", 0.8, "weekly"],
   ["/markets", 0.7, "weekly"],
   ["/factories", 0.7, "weekly"],
+  ["/sourcing", 0.8, "monthly"],
+  ["/visit", 0.7, "monthly"],
   ["/book", 0.7, "monthly"],
   ["/pickup", 0.6, "monthly"],
   ["/about", 0.6, "monthly"],

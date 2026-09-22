@@ -223,7 +223,7 @@ export default async function HowItWorksPage() {
           <SectionIntro
             index="01"
             label="The lane"
-            title={<span id="lane">Seven stations, one reference</span>}
+            title={<span id="lane">Six stations, one reference</span>}
             lead="The whole route at a glance. Below, each step in detail."
           />
           <div className="mt-14 lg:mt-20">
@@ -288,7 +288,7 @@ export default async function HowItWorksPage() {
                 items: [
                   "Check the photos and figures from Foshan",
                   "Track your reference while it is at sea",
-                  "Keep your phone on while it clears",
+                  "Keep your phone on — we call the day it is checked in at Dar",
                 ],
               },
               {
