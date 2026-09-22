@@ -33,6 +33,14 @@ const UNIT_HINT: Record<RateUnit, string> = {
   PIECE: "Charged by the piece — count the pieces.",
   BALE: "Charged by the bale — each package is a bale.",
 };
+
+/* The figure a line is charged on is the one the counter must not leave blank.
+   Volume is still asked of every line — the container is packed by it — but it
+   stops the form only where it is the price, or where the type is not chosen
+   yet and nobody knows. */
+function needsVolume(unit: string | null | undefined) {
+  return !unit || unit === "CBM";
+}
 const PACKAGE_TYPES = [
   ["CARTON", "Carton 纸箱"],
   ["BALE", "Bale 包"],
@@ -611,7 +619,10 @@ export function IntakeForm({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor={`cbm-${line.key}`}>{t("CBM")}</Label>
+                    <Label htmlFor={`cbm-${line.key}`}>
+                      {t("CBM")}
+                      {needsVolume(units[line.cargoType]) ? <span className="text-destructive"> *</span> : null}
+                    </Label>
                     <Input
                       id={`cbm-${line.key}`}
                       name="itemCbm"
@@ -619,7 +630,7 @@ export function IntakeForm({
                       step="0.0001"
                       min={0}
                       inputMode="decimal"
-                      required
+                      required={needsVolume(units[line.cargoType])}
                       className="tnum font-medium"
                       value={line.cbm}
                       onChange={(e) => update(line.key, "cbm", e.target.value)}
@@ -627,12 +638,16 @@ export function IntakeForm({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor={`w-${line.key}`}>{t("Weight kg")}</Label>
+                    <Label htmlFor={`w-${line.key}`}>
+                      {t("Weight kg")}
+                      {units[line.cargoType] === "TONNE" ? <span className="text-destructive"> *</span> : null}
+                    </Label>
                     <Input
                       id={`w-${line.key}`}
                       name="itemWeightKg"
                       type="number"
                       step="0.01"
+                      required={units[line.cargoType] === "TONNE"}
                       min={0}
                       inputMode="decimal"
                       value={line.weightKg}
