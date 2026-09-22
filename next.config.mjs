@@ -1,0 +1,69 @@
+/**
+ * Headers every response carries.
+ *
+ * Not a full Content-Security-Policy: Next's own inline bootstrap scripts need
+ * a nonce pipeline to lock script-src down, and a half-done one breaks pages
+ * silently. What is here costs nothing and closes real doors — the app cannot
+ * be framed by another site (a payment button clicked through an invisible
+ * frame), a stored file cannot be sniffed into a script, a link out does not
+ * carry an invoice id in the Referer, and only this site may ask for the camera,
+ * which the warehouse photo capture needs.
+ */
+const securityHeaders = [
+  {
+    key: "Content-Security-Policy",
+    value: "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'",
+  },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
+  ...(process.env.NODE_ENV === "production"
+    ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
+    : []),
+];
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  /* A production build can be made beside a running dev server for timing. */
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  poweredByHeader: false,
+  /* Development only: lets a phone on the same Wi-Fi load the dev server's
+     scripts, so the site can be checked on a real handset. Comma-separated
+     hosts in ALLOWED_DEV_ORIGINS, e.g. 192.168.1.155. */
+  allowedDevOrigins: (process.env.ALLOWED_DEV_ORIGINS ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean),
+  experimental: {
+    // Cargo photos and payment proofs are uploaded straight through a server
+    // action; the default 1 MB body cap rejects a phone camera photo. One file
+    // may be 12 MB (lib/storage-drivers.ts), so the body must carry that plus
+    // the rest of the form. On Vercel the platform caps a request at 4.5 MB
+    // regardless; components/upload-budget.tsx keeps a form under that.
+    serverActions: { bodySizeLimit: "16mb" },
+  },
+  // The invoice, report and payslip PDFs read the logo from public/ on disk
+  // (lib/invoice-pdf-data.ts). A serverless function only carries the files the
+  // build traced into it, and a path built from process.cwd() is not traced, so
+  // without this every bill on Vercel prints without its mark.
+  outputFileTracingIncludes: {
+    "/app/**/*": ["./public/brand/bluewave-cargo.png"],
+    // The tracking share card draws the mark into a 1200x630 PNG at request
+    // time (app/(public)/track/opengraph-image.tsx). Same reason as above: a
+    // path built from process.cwd() is invisible to the tracer, and without
+    // this every link pasted into WhatsApp previews without the logo.
+    "/track/**": ["./public/brand/icon.png"],
+  },
+  images: {
+    // Every <Image> in the app is a local file or a data URL. A wildcard here
+    // turned /_next/image into a proxy that fetched any address on the internet
+    // on request, from our server and on our bandwidth.
+    remotePatterns: [],
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
+};
+
+export default nextConfig;

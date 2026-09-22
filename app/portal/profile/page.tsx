@@ -1,0 +1,107 @@
+import type { Metadata } from "next";
+
+import { CopyField } from "@/components/app/copy-field";
+import { SupplierAddressCard } from "@/components/app/supplier-address-card";
+import { supplierAddress } from "@/lib/supplier-address";
+import { Field } from "@/components/app/field";
+import { BusinessDetailsForm, PasswordForm } from "@/components/portal/profile-forms";
+import { formatTzPhone } from "@/lib/phone";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
+import { requireCustomer } from "@/lib/session";
+
+export const metadata: Metadata = { title: "My details" };
+
+export default async function PortalProfilePage() {
+  const user = await requireCustomer();
+
+  const [customer, company] = await Promise.all([
+    prisma.customer.findUnique({ where: { id: user.customerId } }),
+    prisma.companySetting.findUnique({ where: { id: "singleton" } }),
+  ]);
+
+  const forSupplier = await supplierAddress(customer?.shippingMark ?? null);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your phone number is how we find your account — ring us to change it.
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Your shipping mark</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CopyField
+            value={customer?.shippingMark ?? "—"}
+            label="shipping mark"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">
+            Your supplier writes this on every box. It never changes, even if
+            your name does — boxes already in Foshan carry the old mark in
+            marker pen.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Where to send your goods</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {forSupplier ? (
+            <SupplierAddressCard {...forSupplier} />
+          ) : (
+            <CopyField value={company?.chinaAddress ?? "Ask us for the address"} label="warehouse address" />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Account</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-5 sm:grid-cols-2">
+            <Field label="Name" value={customer?.fullName} />
+            <Field label="Phone (your account ID)" value={customer?.phone ? formatTzPhone(customer.phone) : null} mono />
+            <Field label="Email" value={customer?.email} />
+            <Field label="Customer code" value={customer?.code} mono />
+            <Field label="Member since" value={formatDate(customer?.createdAt)} />
+          </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Business details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BusinessDetailsForm
+            defaults={{
+              businessName: customer?.businessName ?? "",
+              address: customer?.address ?? "",
+              city: customer?.city ?? "",
+              altPhone: customer?.altPhone ?? "",
+              taxId: customer?.taxId ?? "",
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Security</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PasswordForm />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
