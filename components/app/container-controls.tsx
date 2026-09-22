@@ -14,6 +14,7 @@ import {
   type ActionState,
 } from "@/lib/actions/containers";
 import { FormMessage } from "@/components/app/form-message";
+import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatCbm } from "@/lib/format";
 import { distinctMark } from "@/lib/customer-name";
+import type { Verification } from "@/lib/verification";
 
 import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
@@ -389,7 +391,15 @@ export function AdvancePanel({
   canArrive: boolean;
   canClose: boolean;
   /** Left China, due in Dar, and whether that day has gone by. */
-  sailing?: { departed: string | null; due: string | null; lateBy: string | null } | null;
+  sailing?: {
+    departed: string | null;
+    due: string | null;
+    lateBy: string | null;
+    /** The day it actually landed; once it has, the promise is history. */
+    arrived: string | null;
+    /** How the crossing went, once it is over: "35 days at sea", "4 days late". */
+    took: string | null;
+  } | null;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
@@ -419,28 +429,40 @@ export function AdvancePanel({
       {/* THE DAY IT IS DUE, ABOVE THE WORK. Every desk reads the date the
           customer is reading, and a sailing past that day says how far past —
           in days, then weeks, then months, the way the office says it. */}
-      {sailing?.due ? (
+      {sailing?.arrived || sailing?.due ? (
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border px-4 py-3.5",
-            sailing.lateBy ? "border-warning/40 bg-warning/5" : "bg-card"
+            sailing.arrived
+              ? "border-success/40 bg-success/5"
+              : sailing.lateBy
+                ? "border-warning/40 bg-warning/5"
+                : "bg-card"
           )}
         >
           <div className="flex min-w-0 items-center gap-3">
             <span
               className={cn(
                 "grid size-10 shrink-0 place-items-center rounded-lg",
-                sailing.lateBy ? "bg-warning/15 text-warning" : "bg-brand/10 text-brand"
+                sailing.arrived
+                  ? "bg-success/15 text-success"
+                  : sailing.lateBy
+                    ? "bg-warning/15 text-warning"
+                    : "bg-brand/10 text-brand"
               )}
               aria-hidden
             >
-              <CalendarClock className="size-5" />
+              {sailing.arrived ? <Anchor className="size-5" /> : <CalendarClock className="size-5" />}
             </span>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {tx("Expected arrival in Dar es Salaam")}
+                {sailing.arrived
+                  ? tx("Arrived in Dar es Salaam")
+                  : tx("Expected arrival in Dar es Salaam")}
               </p>
-              <p className="tnum mt-0.5 text-xl font-semibold tracking-tight">{sailing.due}</p>
+              <p className="tnum mt-0.5 text-xl font-semibold tracking-tight">
+                {sailing.arrived ?? sailing.due}
+              </p>
             </div>
           </div>
           <div className="text-right">
@@ -451,7 +473,7 @@ export function AdvancePanel({
             ) : null}
             <p className="mt-1.5 text-xs text-muted-foreground">
               {sailing.departed ? `${tx("Left China")} ${sailing.departed} · ` : ""}
-              {tx("35 days at sea")}
+              {sailing.took ? tx(sailing.took) : tx("35 days at sea")}
             </p>
           </div>
         </div>
@@ -670,6 +692,8 @@ export type LoadedLine = {
   /** The rate bands in this consignment, as the floor would name the goods. */
   category: string | null;
   cbm: string;
+  /** Where Dar's verification stands. See lib/verification.ts. */
+  verification: Verification;
 };
 
 /**
@@ -696,7 +720,12 @@ export function LoadedTable({
   const [state, action] = useActionState<ActionState, FormData>(unloadCargo, {});
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const totalCbm = lines.reduce((sum, l) => sum + Number(l.cbm), 0);
+  /* Goods reported missing keep their row and lose their volume: they are not
+     in the box, and a total that counts them describes a container nobody
+     emptied. The foot says how many were left out. */
+  const present = lines.filter((l) => l.verification !== "MISSING");
+  const missing = lines.length - present.length;
+  const totalCbm = present.reduce((sum, l) => sum + Number(l.cbm), 0);
   const selectedCbm = lines
     .filter((l) => selected.has(l.cargoId))
     .reduce((sum, l) => sum + Number(l.cbm), 0);
@@ -798,6 +827,14 @@ export function LoadedTable({
               </TableCell>
               <TableCell className="tnum whitespace-nowrap text-right text-sm font-medium">
                 {formatCbm(line.cbm)}
+                {line.verification === "MISSING" ? (
+                  /* Named on the row rather than removed from it: the QR, the
+                     history and the case all still hang off this consignment,
+                     and somebody has to be able to find it. */
+                  <Badge tone="bad" className="ml-2 align-middle">
+                    {tx("Missing")}
+                  </Badge>
+                ) : null}
               </TableCell>
             </TableRow>
           ))}
@@ -812,7 +849,9 @@ export function LoadedTable({
           <span className="text-sm text-muted-foreground">
             {selected.size > 0
               ? `${selected.size} ${tx("selected")} · ${formatCbm(selectedCbm)}`
-              : tx("Tick a row to take it back off.")}
+              : missing > 0
+                ? `${tx("Tick a row to take it back off.")} ${missing} ${tx("missing, not counted in the totals.")}`
+                : tx("Tick a row to take it back off.")}
           </span>
           <SubmitButton
             variant="outline"

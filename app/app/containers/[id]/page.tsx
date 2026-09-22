@@ -4,13 +4,16 @@ import type { Metadata } from "next";
 import { Prisma } from "@prisma/client";
 import {
   Boxes,
+  ClipboardCheck,
   ClipboardList,
   Container as ContainerIcon,
   Layers,
   Lock,
   Package,
+  PackageX,
   Pencil,
   Scale,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 
@@ -23,6 +26,7 @@ import {
   VoyageForm,
 } from "@/components/app/container-controls";
 import { EmptyState } from "@/components/app/empty-state";
+import { StatStrip } from "@/components/app/stat-strip";
 import { Field } from "@/components/app/field";
 import { PackingListButton } from "@/components/app/packing-list-button";
 import { KpiCard } from "@/components/app/kpi-card";
@@ -55,6 +59,11 @@ import {
   formatWeight,
 } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import {
+  countsInContainer,
+  verificationOf,
+  verificationSummary,
+} from "@/lib/verification";
 import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
 import { can, canAny } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -107,6 +116,17 @@ export default async function ContainerPage({
           cargo: {
             include: {
               sender: { select: { fullName: true, code: true } },
+              /* WHAT THE DAR FLOOR HAS FOUND, which is a different question
+                 from where the box is. The container arriving is the goods
+                 arriving; verifying them is Dar's own act afterwards, and the
+                 summary below reads it while they are still scanning. */
+              darReceiving: {
+                select: { verified: true, discrepancy: true, condition: true },
+              },
+              exceptions: {
+                where: { status: { notIn: ["RESOLVED", "CLOSED"] } },
+                select: { id: true },
+              },
               /* The container's totals are added up from the goods themselves.
                  Nobody types a total anywhere, and a corrected line changes the
                  box's figures the moment it is corrected. */
@@ -139,6 +159,9 @@ export default async function ContainerPage({
     container.status
   );
   const showMoney = sailed && can(user.role, "finance.view");
+  /* The box is in Dar and the floor is working through it: the verification
+     summary belongs on the page from the moment it lands until it is shut. */
+  const landed = container.status === "ARRIVED" || container.status === "CLOSED";
 
   /*
     EVERYTHING RECEIVED IN FOSHAN AND NOT YET ON A BOX.
@@ -237,10 +260,23 @@ export default async function ContainerPage({
               container.shipment?.eta ?? null
             );
             if (!due) return null;
+            /* Once it has landed the promise is history: the banner reads the
+               day it arrived, and how the crossing actually went. */
+            const landed = container.shipment?.actualArrival ?? null;
+            const departed = container.shipment?.departureDate ?? null;
+            const atSea =
+              landed && departed
+                ? Math.max(
+                    1,
+                    Math.round((landed.getTime() - departed.getTime()) / (24 * 60 * 60 * 1000))
+                  )
+                : null;
             return {
-              departed: formatDate(container.shipment?.departureDate) ?? null,
+              departed: formatDate(departed) ?? null,
               due: formatDate(due) ?? null,
-              lateBy: container.shipment?.actualArrival ? null : (delayFor(due)?.label ?? null),
+              arrived: formatDate(landed) ?? null,
+              took: atSea ? `${atSea} days at sea` : null,
+              lateBy: delayFor(due, landed ?? undefined)?.label ?? null,
             };
           })()}
         />
@@ -283,13 +319,41 @@ export default async function ContainerPage({
       },
     })) === 0;
 
-  const loadedCbm = container.cargoLines.reduce(
+  /*
+    WHAT IS ACTUALLY IN THE BOX.
+
+    A consignment reported missing at Dar keeps its row on this manifest — its
+    reference, its QR, its photographs, its history, and the word Missing
+    against it, because a row that disappears is a row somebody spends an
+    afternoon looking for. It comes out of the ARITHMETIC, though: those goods
+    are not in the container, and counting their packages, volume and weight
+    into the box's totals states something untrue about a box that has already
+    been emptied. Every figure below is over these lines, and the screen prints
+    "· N missing" beside them so a smaller total is never a mystery.
+  */
+  const present = container.cargoLines.filter((l) =>
+    countsInContainer({ status: l.cargo.status, darReceiving: null }),
+  );
+  const missingLines = container.cargoLines.length - present.length;
+
+  const loadedCbm = present.reduce(
     (sum, l) => sum.add(l.cbm),
     new Prisma.Decimal(0),
   );
-  const customers = new Set(container.cargoLines.map((l) => l.cargo.senderId));
+  const customers = new Set(present.map((l) => l.cargo.senderId));
 
-  const totals = container.cargoLines.reduce(
+  /* One word per consignment, counted in lib/verification.ts — the same helper
+     the receiving dock's strip and the check-in rows read, so the box and the
+     floor never print two different numbers for the same question. */
+  const verification = verificationSummary(
+    container.cargoLines.map((l) => ({
+      status: l.cargo.status,
+      darReceiving: l.cargo.darReceiving,
+      openCases: l.cargo.exceptions.length,
+    })),
+  );
+
+  const totals = present.reduce(
     (acc, line) => {
       const items = line.cargo.packages;
       acc.packages += items.length
@@ -453,19 +517,26 @@ export default async function ContainerPage({
       {/*
         THE BOX, IN SIX FIGURES.
 
-        All six are added up from the consignments inside — nobody types a total
-        anywhere — and the volume card carries a ring, because "4.8 CBM" means
-        nothing on its own and "4.8 of 67" is the only question the loading bay
-        is actually asking.
+        All six are added up from the consignments actually in it — nobody
+        types a total anywhere, and anything reported missing at Dar is left
+        out and named in the hint rather than quietly dropped. The volume card
+        carries a ring, because "4.8 CBM" means nothing on its own and "4.8 of
+        67" is the only question the loading bay is actually asking.
       */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           index={0}
           label={T("Consignments")}
-          numeric={container.cargoLines.length}
+          numeric={present.length}
           icon={Package}
           tone="brand"
-          hint={open ? T("Still taking cargo") : undefined}
+          hint={
+            missingLines > 0
+              ? `${missingLines} ${T("missing, not counted")}`
+              : open
+                ? T("Still taking cargo")
+                : undefined
+          }
         />
         <KpiCard
           index={1}
@@ -531,6 +602,66 @@ export default async function ContainerPage({
       </div>
 
       {/*
+        WHAT DAR HAS FOUND, WHILE THEY ARE STILL FINDING IT.
+
+        The arrival was one press and it moved the whole box; this is the other
+        half of the owner's rule — the floor's own verification, consignment by
+        consignment, rendered live as they scan. "Expected" is the manifest
+        including anything missing, because the missing ones are exactly what
+        this box has to answer for.
+      */}
+      {landed ? (
+        <StatStrip
+          chips={[
+            {
+              label: "Expected",
+              value: String(verification.expected),
+              icon: Package,
+            },
+            {
+              label: "Checked in",
+              value: `${verification.checkedIn} / ${verification.expected}`,
+              icon: ClipboardCheck,
+              tone:
+                verification.checkedIn === verification.expected
+                  ? "success"
+                  : "neutral",
+            },
+            {
+              label: "Verified",
+              value: String(verification.verified),
+              icon: ClipboardCheck,
+              tone: verification.verified > 0 ? "success" : "neutral",
+            },
+            {
+              label: "Pending",
+              value: String(verification.pending),
+              icon: ClipboardCheck,
+              tone: verification.pending > 0 ? "warning" : "success",
+            },
+            {
+              label: "Missing",
+              value: String(verification.missing),
+              icon: PackageX,
+              tone: verification.missing > 0 ? "danger" : "neutral",
+            },
+            {
+              label: "Damaged",
+              value: String(verification.damaged),
+              icon: TriangleAlert,
+              tone: verification.damaged > 0 ? "danger" : "neutral",
+            },
+            {
+              label: "Issue",
+              value: String(verification.issue),
+              icon: TriangleAlert,
+              tone: verification.issue > 0 ? "warning" : "neutral",
+            },
+          ]}
+        />
+      ) : null}
+
+      {/*
         THE MONEY, ON THE SAME SCREEN AS THE BOX.
 
         One container, one page. The floor reads the contents and Finance reads
@@ -579,10 +710,11 @@ export default async function ContainerPage({
                     <span className="block text-sm font-semibold text-foreground">
                       {formatCbm(loadedCbm)}
                     </span>
-                    {container.cargoLines.length} consignment
-                    {container.cargoLines.length === 1 ? "" : "s"} ·{" "}
+                    {present.length} consignment
+                    {present.length === 1 ? "" : "s"} ·{" "}
                     {totals.packages} pkg · {customers.size} customer
                     {customers.size === 1 ? "" : "s"}
+                    {missingLines > 0 ? ` · ${missingLines} missing` : ""}
                   </span>
                 ) : null}
               </CardHeader>
@@ -612,6 +744,14 @@ export default async function ContainerPage({
                           ),
                         ].join(", ") || null,
                       cbm: line.cbm.toString(),
+                      /* The row stays on the manifest whatever Dar found, and
+                         says which it was. lib/verification.ts decides the
+                         word; nothing here re-invents it. */
+                      verification: verificationOf({
+                        status: line.cargo.status,
+                        darReceiving: line.cargo.darReceiving,
+                        openCases: line.cargo.exceptions.length,
+                      }),
                     }))}
                   />
 
@@ -646,10 +786,11 @@ export default async function ContainerPage({
                   <span className="block text-sm font-semibold text-foreground">
                     {formatCbm(loadedCbm)}
                   </span>
-                  {container.cargoLines.length} consignment
-                  {container.cargoLines.length === 1 ? "" : "s"} ·{" "}
+                  {present.length} consignment
+                  {present.length === 1 ? "" : "s"} ·{" "}
                   {totals.packages} pkg · {customers.size} customer
                   {customers.size === 1 ? "" : "s"}
+                  {missingLines > 0 ? ` · ${missingLines} missing` : ""}
                 </span>
               ) : null}
             </CardHeader>
@@ -679,6 +820,11 @@ export default async function ContainerPage({
                         ),
                       ].join(", ") || null,
                     cbm: line.cbm.toString(),
+                    verification: verificationOf({
+                      status: line.cargo.status,
+                      darReceiving: line.cargo.darReceiving,
+                      openCases: line.cargo.exceptions.length,
+                    }),
                   }))}
                 />
 
