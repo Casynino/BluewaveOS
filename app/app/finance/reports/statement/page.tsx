@@ -81,7 +81,9 @@ export default async function StatementPage({
     <div className="mx-auto max-w-4xl space-y-4">
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref="/app/finance/reports" fallbackLabel={T("Profit & loss")} />
-        <PrintButton label={T("Download PDF / print")} />
+        {/* The statement has no file of its own yet; this control prints,
+            and says only that. */}
+        <PrintButton label={T("Print")} />
       </div>
 
       <article className="rounded-lg border bg-white p-10 text-black print:border-0 print:p-0">

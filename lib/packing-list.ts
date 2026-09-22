@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 
+import { LOADABLE_CONTAINER_STATUSES } from "@/lib/constants";
 import { nextPackingListNumber } from "@/lib/ids";
 import { prisma, type TxClient } from "@/lib/prisma";
 
@@ -241,6 +242,46 @@ export async function buildSnapshot(
     totalCargo: lines.length,
     totalCustomers: new Set(lines.map((l) => l.customerCode)).size,
     lines,
+  };
+}
+
+/**
+ * THE SHEET AS IT SHOULD PRINT, FOR WHOEVER IS PRINTING IT.
+ *
+ * Issued or not, there is always a list. Before the container is sealed this is
+ * drawn live from what is loaded, so the sheet a clerk prints mid-load is what
+ * is actually in the box at that moment. Sealing freezes it, and from then on
+ * the frozen copy is what prints — the paper somebody is holding at a port
+ * cannot be rewritten by a later correction.
+ *
+ * A number handed out early does not freeze the box: a container still open is
+ * still drawn live even though it already has a list.
+ *
+ * The screen and the PDF both come through here, because "which drawing is the
+ * true one" is a rule about the document and not about either of them.
+ */
+export async function sheetFor(containerId: string) {
+  const [list, company, box] = await Promise.all([
+    prisma.packingList.findUnique({
+      where: { containerId },
+      include: { issuedBy: { select: { name: true } } },
+    }),
+    prisma.companySetting.findUnique({ where: { id: "singleton" } }),
+    prisma.container.findUnique({ where: { id: containerId }, select: { status: true } }),
+  ]);
+  const stillOpen = !!box && LOADABLE_CONTAINER_STATUSES.includes(box.status);
+
+  const snap = (list && !stillOpen
+    ? (list.snapshot as unknown as PackingSnapshot)
+    : await buildSnapshot(prisma, containerId)) as PackingSnapshot | null;
+  if (!snap) return null;
+
+  return {
+    snap,
+    company,
+    list: list
+      ? { number: list.number, issuedAt: list.issuedAt, issuedBy: list.issuedBy?.name ?? null }
+      : null,
   };
 }
 

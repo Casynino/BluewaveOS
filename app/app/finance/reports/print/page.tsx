@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { ReportTableView } from "@/components/app/report-table";
 import { loadBooks } from "@/lib/finance-report";
 import { readReportParams } from "@/lib/report-params";
@@ -10,7 +10,7 @@ import { buildReport, REPORTS } from "@/lib/report-tables";
 import { requirePermission } from "@/lib/session";
 import { SmartBack } from "@/components/app/smart-back";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
 export async function generateMetadata({
   searchParams,
@@ -39,7 +39,14 @@ export default async function PrintReportPage({
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref={`/app/finance/reports?${back.toString()}`} fallbackLabel="Profit & loss" />
-        <PrintButton label="Download PDF / print" />
+        <DocumentActions
+          href={`/app/finance/reports/export?${new URLSearchParams([
+            ...(Object.entries(sp).filter(([, v]) => v) as [string, string][]),
+            ["format", "pdf"],
+          ]).toString()}`}
+          printLabel={T("Print")}
+          downloadLabel={T("Download PDF")}
+        />
       </div>
       <article className="rounded-lg border bg-white p-8 text-black print:border-0 print:p-0">
         <header className="mb-6 flex items-start justify-between gap-4 border-b border-black pb-4">

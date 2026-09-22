@@ -1,16 +1,15 @@
-import { Download } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { InvoiceDocument } from "@/components/app/invoice-document";
-import { AutoPrint, PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
+import { AutoPrint } from "@/components/app/print-button";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { SmartBack } from "@/components/app/smart-back";
-import { Button } from "@/components/ui/button";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 /*
   THE FILENAME IS THE PAGE TITLE.
 
@@ -52,18 +51,13 @@ export default async function InvoiceDocumentPage({
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref={`/app/finance/invoices/${id}`} fallbackLabel={`${invoice.number}`} />
-        <div className="flex items-center gap-2">
-          {/* A draft's price is unconfirmed and the file route refuses it. */}
-          {invoice.status !== "DRAFT" ? (
-            <Button asChild>
-              <a href={`/app/finance/invoices/${id}/pdf`} download>
-                <Download />
-                Download PDF
-              </a>
-            </Button>
-          ) : null}
-          <PrintButton label="Print" />
-        </div>
+        {/* A draft's price is unconfirmed and the file route refuses it, so
+            there is nothing to download until Finance has said so. */}
+        <DocumentActions
+          href={invoice.status !== "DRAFT" ? `/app/finance/invoices/${id}/pdf` : null}
+          printLabel={T("Print")}
+          downloadLabel={T("Download PDF")}
+        />
         <AutoPrint />
       </div>
       <InvoiceDocument id={id} />

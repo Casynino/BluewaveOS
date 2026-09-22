@@ -18,6 +18,11 @@ export const maxDuration = 60;
  * account. The key in that link is what stands in for one — it is signed over
  * this reference and cannot be made for another — and the bill must belong to
  * this consignment. A draft is nobody's bill yet and is never handed out.
+ *
+ * `?view=1` serves the same bytes to be opened rather than saved. A public
+ * tracking page carries no invoice sheet to print, so opening the document is
+ * the print path there — the customer's own viewer has the print button, and it
+ * reaches a printer the same way any print dialog does.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -54,7 +59,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(full)}`,
+      "Content-Disposition": `${
+        url.searchParams.get("view") === "1" ? "inline" : "attachment"
+      }; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(full)}`,
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex",
     },

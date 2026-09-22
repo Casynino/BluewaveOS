@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { formatDateTime } from "@/lib/format";
 import { qrDataUrl, qrPayload } from "@/lib/qr";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +10,7 @@ import { requirePermission } from "@/lib/session";
 import { SmartBack } from "@/components/app/smart-back";
 import { distinctMark } from "@/lib/customer-name";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Delivery note" };
 
@@ -103,7 +103,11 @@ export default async function DeliveryNotePage({
 
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref={`/app/cargo/${id}`} fallbackLabel={`${snap.cargoReference}`} />
-        <PrintButton label="Print delivery note" />
+        <DocumentActions
+          href={`/app/cargo/${id}/delivery-note/pdf`}
+          printLabel={T("Print delivery note")}
+          downloadLabel={T("Download PDF")}
+        />
       </div>
 
       <article className="dn-sheet mx-auto overflow-hidden bg-white text-[#0b1b2b] shadow-raised ring-1 ring-black/5 print:shadow-none print:ring-0">

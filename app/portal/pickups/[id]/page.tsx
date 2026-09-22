@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -67,7 +67,14 @@ export default async function PortalPickupNotePage({ params }: { params: Promise
           <ChevronLeft className="size-4" />
           {t(locale, "My pickups")}
         </Link>
-        <PrintButton label={t(locale, "Print")} />
+        {/* A withdrawn note is no longer authority to collect anything, and
+            the route refuses it; offering the file would be a dead button. */}
+        <DocumentActions
+          size="sm"
+          href={note.status === "CANCELLED" ? null : `/portal/pickups/${id}/pdf`}
+          printLabel={t(locale, "Print")}
+          downloadLabel={t(locale, "Download PDF")}
+        />
       </div>
 
       <Card className="overflow-hidden">

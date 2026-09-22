@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 import { PayForm } from "@/components/portal/pay-form";
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { ShareLink } from "@/components/portal/share-link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -82,13 +81,12 @@ export default async function PortalInvoicePage({
       </div>
 
       <div className="flex flex-wrap gap-2 print:hidden">
-        <Button asChild size="sm">
-          <a href={`/portal/invoices/${invoice.id}/pdf`}>
-            <Download />
-            Download PDF
-          </a>
-        </Button>
-        <PrintButton label="Print" />
+        <DocumentActions
+          size="sm"
+          href={`/portal/invoices/${invoice.id}/pdf`}
+          printLabel="Print"
+          downloadLabel="Download PDF"
+        />
         <ShareLink title={`Invoice ${invoice.number}`} />
       </div>
 

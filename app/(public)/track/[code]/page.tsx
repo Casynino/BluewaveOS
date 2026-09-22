@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Camera, Clock, Download, FileText, MessageCircle } from "lucide-react";
+import { Camera, Clock, Download, FileText, MessageCircle, Printer } from "lucide-react";
 
 import { JourneyGroups, RouteStage, WhatNext, phaseOf, stageCopy } from "@/components/bw/track-journey";
 import { TrackField } from "@/components/bw/track-field";
@@ -442,20 +442,32 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
         ) : null}
       </div>
 
+      {/* Two ways out, never one control doing both: the file to keep, and the
+          document opened in the phone's own viewer — which is where a customer
+          with no invoice sheet in front of them finds a print button. */}
       {invoiceHref ? (
-        <a
-          href={invoiceHref}
-          download
-          rel="nofollow"
-          className="group flex items-center gap-4 border-b border-bw-line bg-bw-ground px-6 py-4"
-        >
-          <FileText className="size-6 shrink-0 text-bw-harbour" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-bw-fg">Pakua invoice hapa</span>
-            <span className="block text-sm text-bw-muted">Download your invoice · PDF</span>
-          </span>
-          <Download className="size-5 shrink-0 text-bw-coral transition-transform group-hover:translate-y-0.5" />
-        </a>
+        <div className="border-b border-bw-line bg-bw-ground">
+          <a href={invoiceHref} download rel="nofollow" className="group flex items-center gap-4 px-6 py-4">
+            <FileText className="size-6 shrink-0 text-bw-harbour" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-bw-fg">Pakua invoice hapa</span>
+              <span className="block text-sm text-bw-muted">Download your invoice · PDF</span>
+            </span>
+            <Download className="size-5 shrink-0 text-bw-coral transition-transform group-hover:translate-y-0.5" />
+          </a>
+          <a
+            href={`${invoiceHref}&view=1`}
+            target="_blank"
+            rel="nofollow noreferrer"
+            className="group flex items-center gap-4 border-t border-bw-line px-6 py-3"
+          >
+            <Printer className="size-5 shrink-0 text-bw-harbour" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-bw-fg">Chapisha invoice</span>
+              <span className="block text-sm text-bw-muted">Open it to print</span>
+            </span>
+          </a>
+        </div>
       ) : null}
 
       {charge.lines.length > 0 ? (

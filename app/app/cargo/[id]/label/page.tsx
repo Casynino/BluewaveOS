@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM, type StickerData } from "@/components/app/cargo-sticker";
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { stickersFor } from "@/lib/box-labels";
@@ -103,10 +103,12 @@ export default async function CargoLabelPage({
             {stickers.length === 1 ? "" : "es"}.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
-            <PrintButton
-              primary
-              className="w-full sm:w-auto"
-              label={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
+            <DocumentActions
+              className="col-span-2 sm:contents"
+              primaryPrint
+              href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
+              printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
+              downloadLabel={T("Download PDF")}
             />
             <Link
               href="/app/receive/new"
@@ -126,8 +128,10 @@ export default async function CargoLabelPage({
             {LABEL_MM.height} mm.
           </p>
         </div>
-        <PrintButton
-          label={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
+        <DocumentActions
+          href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
+          printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
+          downloadLabel={T("Download PDF")}
         />
       </div>
 

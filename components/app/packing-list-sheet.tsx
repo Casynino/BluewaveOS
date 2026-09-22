@@ -1,10 +1,11 @@
 import Image from "next/image";
 import type { CompanySetting } from "@prisma/client";
 
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { SmartBack } from "@/components/app/smart-back";
 import { formatDate } from "@/lib/format";
 import type { PackingSnapshot } from "@/lib/packing-list";
+import { T } from "@/lib/server-t";
 
 /**
  * THE PACKING LIST, AS PRINTED.
@@ -157,7 +158,13 @@ export function PackingListSheet({
 
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref={`/app/containers/${id}`} fallbackLabel={`${snap.container}`} />
-        <PrintButton label={list ? "Download / print" : "Download / print provisional"} />
+        {/* A list drawn before the seal is not withheld — it is the honest
+            answer to what is in the box now, and it says so on its face. */}
+        <DocumentActions
+          href={`/app/containers/${id}/packing-list/pdf`}
+          printLabel={T(list ? "Print" : "Print provisional")}
+          downloadLabel={T(list ? "Download PDF" : "Download provisional PDF")}
+        />
       </div>
 
       <article className="pl-sheet mx-auto bg-white p-[10mm] text-[#0b1b2b] shadow-raised ring-1 ring-black/5 print:shadow-none print:ring-0">

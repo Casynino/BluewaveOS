@@ -197,7 +197,7 @@ export default async function InvoicePage({
             </Button>
           ) : null}
           <Button asChild>
-            <a href={`/app/finance/invoices/${invoice.id}/document?download=1`} target="_blank" rel="noreferrer">
+            <a href={`/app/finance/invoices/${invoice.id}/document?print=1`} target="_blank" rel="noreferrer">
               <Printer />
               {T("Print")}
             </a>

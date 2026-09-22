@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM } from "@/components/app/cargo-sticker";
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { SmartBack } from "@/components/app/smart-back";
 import { recordAudit } from "@/lib/audit";
 import { stickersFor } from "@/lib/box-labels";
@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { canAny } from "@/lib/rbac";
 import { requireStaff } from "@/lib/session";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Box labels" };
 
 /**
@@ -56,7 +56,12 @@ export default async function ContainerLabelsPage({
             physical box. {LABEL_MM.width} × {LABEL_MM.height} mm.
           </p>
         </div>
-        <PrintButton label={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`} />
+        <DocumentActions
+          href={`/app/containers/${container.id}/labels/pdf`}
+          primaryPrint
+          printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
+          downloadLabel={T("Download PDF")}
+        />
       </div>
       <div className="-mx-4 overflow-x-auto px-4 print:mx-0 print:overflow-visible print:px-0">
         <div className="mx-auto flex w-max flex-col items-center gap-4 print:gap-0">

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { SmartBack } from "@/components/app/smart-back";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 /* The filename is the title, so the saved PDF is already named for the person. */
 export async function generateMetadata({
   params,
@@ -107,7 +107,9 @@ export default async function CombinedBillPage({
 
       <div className="flex items-center justify-between print:hidden">
         <SmartBack fallbackHref={`/app/finance/payments/new/${customer.id}`} fallbackLabel={`${name}`} />
-        <PrintButton label="Download / print" />
+        {/* No file yet for the combined bill — this control prints, and says
+            only that. Each invoice on it downloads from its own page. */}
+        <PrintButton label={T("Print")} />
       </div>
 
       <article className="cb-sheet mx-auto overflow-hidden bg-white text-[#0b1b2b] shadow-raised ring-1 ring-black/5 print:shadow-none print:ring-0">

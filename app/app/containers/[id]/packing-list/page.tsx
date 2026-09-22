@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { buildSnapshot, type PackingSnapshot } from "@/lib/packing-list";
+import { sheetFor } from "@/lib/packing-list";
 import { PackingListSheet } from "@/components/app/packing-list-sheet";
-import { LOADABLE_CONTAINER_STATUSES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
@@ -48,38 +47,17 @@ export default async function PackingListPage({
   await requirePermission("packingList.view");
   const { id } = await params;
 
-  const [list, company, box] = await Promise.all([
-    prisma.packingList.findUnique({
-      where: { containerId: id },
-      include: { issuedBy: { select: { name: true } } },
-    }),
-    prisma.companySetting.findUnique({ where: { id: "singleton" } }),
-    prisma.container.findUnique({ where: { id }, select: { status: true } }),
-  ]);
-  /* A number handed out early does not freeze the box. Until the seal the
-     sheet is still what is loaded right now. */
-  const stillOpen = !!box && LOADABLE_CONTAINER_STATUSES.includes(box.status);
-
-  /*
-    ISSUED OR NOT, THERE IS ALWAYS A LIST.
-
-    Before the container is sealed this is drawn live from what is loaded, so
-    the sheet a clerk prints mid-load is what is actually in the box at that
-    moment. Sealing freezes it, and from then on the frozen copy is what prints
-    — the paper somebody is holding at a port cannot be rewritten by a later
-    correction.
-  */
-  const snap = (list && !stillOpen
-    ? (list.snapshot as unknown as PackingSnapshot)
-    : await buildSnapshot(prisma, id)) as PackingSnapshot | null;
-  if (!snap) notFound();
+  /* Issued or not, there is always a list; which drawing is the true one is
+     lib/packing-list.ts's rule, and the download route asks it the same way. */
+  const sheet = await sheetFor(id);
+  if (!sheet) notFound();
 
   return (
     <PackingListSheet
-      snap={snap}
+      snap={sheet.snap}
       containerId={id}
-      list={list ? { number: list.number, issuedAt: list.issuedAt, issuedBy: list.issuedBy?.name ?? null } : null}
-      company={company}
+      list={sheet.list}
+      company={sheet.company}
     />
   );
 }

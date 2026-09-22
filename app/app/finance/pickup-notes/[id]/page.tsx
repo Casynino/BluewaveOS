@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { PrintButton } from "@/components/app/print-button";
+import { DocumentActions } from "@/components/app/document-actions";
 import { WhatsAppButton } from "@/components/app/whatsapp-button";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -13,7 +13,7 @@ import { qrDataUrl, qrPayload } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 import { SmartBack } from "@/components/app/smart-back";
 
-import { primeLocale } from "@/lib/server-t";
+import { T, primeLocale } from "@/lib/server-t";
 export async function generateMetadata({
   params,
 }: {
@@ -142,7 +142,13 @@ export default async function PickupNotePage({
               freeStorageDays: company?.freeStorageDays ?? null,
             })}
           />
-          <PrintButton label="Print note" />
+          {/* A withdrawn note has nothing to hand out, so there is no file to
+              offer; the route refuses one too. */}
+          <DocumentActions
+            href={note.status === "CANCELLED" ? null : `/app/finance/pickup-notes/${note.id}/pdf`}
+            printLabel={T("Print note")}
+            downloadLabel={T("Download PDF")}
+          />
         </div>
       </div>
 
