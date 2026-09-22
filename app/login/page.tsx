@@ -36,7 +36,7 @@ export default async function LoginPage({
         </>
       }
       points={[
-        "Every box, Foshan to Kariakoo",
+        "Every box, Foshan to Dar es Salaam",
         "Invoices and receipts",
         "Pickup notes for Dar",
         "Updates as your goods move",
