@@ -45,3 +45,27 @@ export async function screenPublicRequest(formData: FormData, phone: string): Pr
   }
   return null;
 }
+
+/**
+ * A PRIVATE STATUS LINK IS NOT HANDED OUT ON THE STRENGTH OF A PHONE NUMBER.
+ *
+ * Both website forms suppress a duplicate by looking for a request from the
+ * same number inside a short window, so a second press of Send does not raise a
+ * second trip. What that lookup must not do is answer with the row's
+ * `publicKey`: the key is the whole of the status page's security — the page
+ * says so in as many words — and a phone number is written on every delivery
+ * note and every box. Returning it meant that anybody who typed a customer's
+ * number into the public form within the window was handed their private link,
+ * with their travel dates, their markets and the plan the desk wrote on it.
+ *
+ * The key goes back only to somebody the row already belongs to: a signed-in
+ * customer whose own id is on it. A stranger is told we have the request and
+ * given the reference, which opens nothing by itself.
+ */
+export function statusKeyFor(
+  row: { customerId: string | null; publicKey: string | null },
+  viewerCustomerId: string | null
+): string | null {
+  if (!row.publicKey || !viewerCustomerId) return null;
+  return row.customerId === viewerCustomerId ? row.publicKey : null;
+}

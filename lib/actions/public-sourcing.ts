@@ -9,7 +9,7 @@ import { generatePublicKey, nextSourcingReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseAnyPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
-import { screenPublicRequest } from "@/lib/public-guard";
+import { screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
 import { currentUser } from "@/lib/session";
 import { store, UploadError } from "@/lib/storage";
 
@@ -100,6 +100,12 @@ export async function submitSourcingRequest(
   const screened = await screenPublicRequest(formData, input.contactPhone);
   if (screened) return screened;
 
+  const viewer = await currentUser();
+  const customerId = viewer?.role === "CUSTOMER" ? viewer.customerId : null;
+
+  /* Matched on a phone number and the product text, neither of which is a
+     secret, so the row's key goes back only to somebody it already belongs
+     to — see `statusKeyFor`. */
   const recent = await prisma.sourcingRequest.findFirst({
     where: {
       contactPhone: input.contactPhone,
@@ -107,13 +113,14 @@ export async function submitSourcingRequest(
       channel: "WEBSITE",
       createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
     },
-    select: { reference: true, publicKey: true },
+    select: { reference: true, publicKey: true, customerId: true },
   });
-  if (recent?.publicKey) {
+  if (recent) {
+    const key = statusKeyFor(recent, customerId);
     return {
       ok: `We already have this request. Your reference is ${recent.reference}.`,
       reference: recent.reference,
-      statusHref: statusHref(recent.reference, recent.publicKey),
+      ...(key ? { statusHref: statusHref(recent.reference, key) } : {}),
     };
   }
 
@@ -126,9 +133,6 @@ export async function submitSourcingRequest(
   } catch (error) {
     return { error: error instanceof UploadError ? error.message : "That photo could not be uploaded." };
   }
-
-  const viewer = await currentUser();
-  const customerId = viewer?.role === "CUSTOMER" ? viewer.customerId : null;
 
   const created = await prisma.$transaction(async (tx) => {
     const reference = await nextSourcingReference(tx);

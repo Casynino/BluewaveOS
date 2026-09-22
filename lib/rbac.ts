@@ -264,17 +264,11 @@ const CHINA_WAREHOUSE: Permission[] = [
 ];
 
 /**
- * Dar es Salaam. Receive the container, verify against the packing list, store,
- * and hand over what the system says may be handed over.
- *
- * It holds `release.execute` but nothing that sets a price: `finance.view` lets
- * it read a bill that already exists, because somebody collecting goods asks
- * whether they are paid up, and `release.view` gives it the answer it must act
- * on. It cannot raise, price, discount or verify anything, so the floor acts on
- * the release answer and cannot influence it.
- */
-/**
  * DAR RECEIVES, KEEPS AND RELEASES. THAT IS THE WHOLE JOB.
+ *
+ * It holds `release.execute` and nothing that sets a price. `release.view` is
+ * the answer it must act on — computed, never asserted — so the floor acts on
+ * the release decision and cannot influence it.
  *
  * What arrived, what is on the floor, what may go out. They read a container
  * because a container is what the goods came off — `container.view` opens the

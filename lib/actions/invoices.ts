@@ -1412,8 +1412,18 @@ async function addInvoiceCharge(formData: FormData): Promise<ActionState> {
 
 async function setInvoiceNote(invoiceId: string, note: string): Promise<ActionState> {
   const actor = await authorize("invoice.discount");
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { notes: true } });
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { notes: true, status: true, cargoId: true },
+  });
   if (!invoice) return { error: "That invoice no longer exists." };
+  /* The note is printed on the bill and on its PDF, so it is part of the
+     document the customer is holding and runs on the same rail as the figures
+     beside it. Without this, the one line on a paid or already-handed-over
+     bill that `invoice.discount` alone could still rewrite was the sentence
+     explaining the rest of it. */
+  const settled = await settledRefusal(actor, invoice);
+  if (settled) return { error: settled };
   await prisma.$transaction(async (tx) => {
     await recordFieldChange(
       { actor, entity: "Invoice", entityId: invoiceId, field: "notes", oldValue: invoice.notes, newValue: note || null },
