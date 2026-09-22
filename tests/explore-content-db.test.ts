@@ -4,6 +4,8 @@ import { after, before, describe, test } from "node:test";
 
 import { PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   THE CHINA GUIDE'S STAFF FORMS, AGAINST THE REAL DATABASE.
 
@@ -14,12 +16,9 @@ import { PrismaClient } from "@prisma/client";
   forms are the names the actions read.
 
   Writes, then removes what it wrote and puts back what it changed. Run only
-  against bluewave_test.
+  against a throwaway database.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test(\?|$)/.test(url)) {
-  throw new Error(`Refusing to run: DATABASE_URL must point at bluewave_test (got ${url || "nothing"}).`);
-}
+requireScratchDatabase();
 
 const load = createRequire(import.meta.url);
 load("./stubs/hook.cjs");

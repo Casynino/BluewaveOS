@@ -62,7 +62,7 @@ export default async function ContentPage() {
     <div className="space-y-6">
       <PageHeader
         title={T("Website content")}
-        description={T("The public schedule runs itself: cargo in by Friday, packed that Friday, sails Monday, thirty days at sea. Publish a row here only for the week that is different.")}
+        description={T("The public schedule runs itself: cargo in by Friday, packed that Friday, sails Monday, thirty-five days at sea. Publish a row here only for the week that is different.")}
       />
       <SectionTabs />
 

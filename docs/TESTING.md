@@ -34,8 +34,18 @@ npm test
 real server actions — receive in Foshan, load, depart (straight to In transit),
 arrive, check in at Dar, clear, confirm the price, pay, pick up — and commits
 it. Run it first on a fresh database: three of the database-guarantee tests need
-an issued invoice to exist. It refuses to run against anything but
-`bluewave_test`.
+an issued invoice to exist.
+
+`tests/cargo-flow-db.test.ts` runs the same journey for what only shows up over
+days and repeated presses: the storage arithmetic, the same figure in Finance's
+screens, the customer portal, the PDF and the balance, what a transaction that
+fails part-way leaves behind, and a container of a hundred consignments
+arriving in one press.
+
+The tests that commit what they write refuse to run anywhere but a throwaway
+database — one with `_test` or `_audit` in its name, checked by
+`tests/scratch-db.ts`. The development database `bluewave` is not one, which is
+the whole point of the check.
 
 ## Sign in
 

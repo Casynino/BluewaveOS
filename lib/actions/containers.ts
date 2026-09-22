@@ -8,7 +8,7 @@ import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { DateOutOfRange, formDate } from "@/lib/dates";
 import { issueFor as issuePackingListFor } from "@/lib/packing-list";
 import { setCargoStatus, setCargoStatusBulk } from "@/lib/cargo";
-import { announceCargoEvent } from "@/lib/cargo-events";
+import { announceCargoEvents } from "@/lib/cargo-events";
 import { priceOnCheckIn } from "@/lib/price-confirmation";
 import {
   CARGO_STATUS_META,
@@ -1183,9 +1183,9 @@ export async function advanceContainer(
         },
       });
 
-      /* Thirty days from the day it left, unless the line has promised its
-         own date. Written down rather than worked out on every screen, so the
-         date a customer was told is the date the office reads back. */
+      /* Thirty-five days from the day it left, unless the line has promised a
+         date of its own. Written down rather than worked out on every screen,
+         so the date a customer was told is the date the office reads back. */
       if (to === "DEPARTED") {
         await tx.shipment.updateMany({
           where: { containerId: container.id, eta: null },
@@ -1217,10 +1217,13 @@ export async function advanceContainer(
           /* Every consignment on the box is in transit now, and each customer
              hears it once — with their own reference, the container and the
              ETA when one is recorded. The key on each row stops a retried
-             departure from saying it twice. */
-          for (const line of container.cargoLines) {
-            await announceCargoEvent(tx, "CARGO_IN_TRANSIT", line.cargoId);
-          }
+             departure from saying it twice. Read and written for the whole box
+             at once: a box of a hundred is one press, not a hundred. */
+          await announceCargoEvents(
+            tx,
+            "CARGO_IN_TRANSIT",
+            container.cargoLines.map((l) => l.cargoId)
+          );
         }
 
         if (to === "ARRIVED") {
@@ -1233,9 +1236,7 @@ export async function advanceContainer(
             where: { id: { in: ids }, darArrivedAt: null, status: { not: "MISSING_AT_DAR" } },
             data: { darArrivedAt: at },
           });
-          for (const id of ids) {
-            await announceCargoEvent(tx, "CARGO_ARRIVED_DAR", id);
-          }
+          await announceCargoEvents(tx, "CARGO_ARRIVED_DAR", ids);
         }
       }
 

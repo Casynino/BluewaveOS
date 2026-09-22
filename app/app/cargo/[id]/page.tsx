@@ -289,6 +289,10 @@ export default async function CargoDetailPage({
         )._sum.amount ?? 0
       )
     : 0;
+  /* What another press would put on the bill: the run so far, less what is
+     already charged for. Naming the whole calculated figure on the button is
+     how the first week gets charged twice. */
+  const storageToAdd = Math.max(0, Number(storage.amount) - storageOnBill);
 
   const otherUnpaid = otherBills.filter((i) => !balanceOf(i).settled).length;
 
@@ -869,6 +873,8 @@ export default async function CargoDetailPage({
                   ? formatMoney(storageOnBill, billHere.currency)
                   : null
               }
+              toAdd={formatMoney(storageToAdd, storage.currency)}
+              canAdd={storageToAdd > 0}
               since={formatDate(dar.receivedAt)}
             />
           ) : null}

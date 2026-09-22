@@ -7,6 +7,8 @@ import { after, before, describe, test } from "node:test";
 
 import { PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   TWO EVENTS, NEVER ONE PRESS: ARRIVAL, THEN VERIFICATION.
 
@@ -21,14 +23,9 @@ import { PrismaClient } from "@prisma/client";
   find is not deleted and cannot be released, and the box's own totals come
   down when goods are not in it — and back up when they are found.
 
-  Nothing is rolled back. Run it only against bluewave_test.
+  Nothing is rolled back. Run it only against a throwaway database.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test(\?|$)/.test(url)) {
-  throw new Error(
-    `Refusing to run: DATABASE_URL must point at bluewave_test (got ${url || "nothing"}).`
-  );
-}
+requireScratchDatabase();
 
 const uploadDir = path.join(os.tmpdir(), "bluewave-arrival-verification-uploads");
 mkdirSync(uploadDir, { recursive: true });

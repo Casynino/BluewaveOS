@@ -1029,6 +1029,12 @@ export async function repriceInvoice(
  * decides. Whether to charge a customer who was three days late is a commercial
  * judgement, and a charge that appears by itself is one nobody can explain when
  * the customer rings.
+ *
+ * EVERY DAY IS CHARGED ONCE. The clock keeps running after a charge is added,
+ * so the same bill is charged again a week later; what goes on it then is the
+ * days since, never the whole run a second time. The days already billed are
+ * counted off the lines that are on the bill, so the arithmetic survives a
+ * waiver, a rate that moved and a counter that pressed the button twice.
  */
 export async function chargeStorage(
   _prev: ActionState,
@@ -1038,6 +1044,7 @@ export async function chargeStorage(
 
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const remove = String(formData.get("remove") ?? "") === "1";
+  const reason = String(formData.get("reason") ?? "").trim();
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
@@ -1054,6 +1061,12 @@ export async function chargeStorage(
   if (settled) return { error: settled };
 
   const existing = invoice.items.filter((i) => i.category === "Storage");
+  /* Days, not money: the rate can have moved between one charge and the next,
+     and what must not happen twice is a day being charged, not a dollar. */
+  const chargedDays = existing.reduce(
+    (sum, i) => sum.add(i.quantity),
+    new Prisma.Decimal(0)
+  );
 
   if (remove) {
     if (existing.length === 0) return { error: "There is no storage on it." };
@@ -1063,8 +1076,24 @@ export async function chargeStorage(
     );
     const subtotal = invoice.subtotal.sub(off);
     const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+    const why = reason || "Storage taken off at the counter";
 
     await prisma.$transaction(async (tx) => {
+      /* The lines come off the bill, so what the waiver was worth and who
+         decided it lives where every other change to a figure a customer has
+         been shown lives — written before it takes effect. */
+      await recordFieldChange(
+        {
+          actor,
+          entity: "Invoice",
+          entityId: invoice.id,
+          field: "total",
+          oldValue: invoice.total.toString(),
+          newValue: total.toString(),
+          reason: why,
+        },
+        tx
+      );
       await tx.invoiceItem.deleteMany({
         where: { id: { in: existing.map((i) => i.id) } },
       });
@@ -1086,17 +1115,14 @@ export async function chargeStorage(
       action: "invoice.storage.waive",
       entity: "Invoice",
       entityId: invoice.id,
-      summary: `Waived ${invoice.currency} ${off} of storage on ${invoice.number}`,
+      summary: `Waived ${invoice.currency} ${off} of storage on ${invoice.number}: ${why}`,
+      metadata: { amount: off.toString(), days: chargedDays.toString(), reason: why },
     });
 
     await refreshInvoiceStatus(invoice.id);
 
     revalidatePath(`/app/finance/invoices/${invoice.id}`);
     return { ok: "Storage taken off." };
-  }
-
-  if (existing.length > 0) {
-    return { ok: "Storage is already on this bill." };
   }
 
   const settings = await companySettings();
@@ -1120,18 +1146,54 @@ export async function chargeStorage(
     };
   }
 
-  const subtotal = invoice.subtotal.add(position.amount);
+  /* What is left to bill: the days the clock has run, less the days already on
+     this bill. Zero of them is the second press of the same button, and the
+     answer to that is nothing at all. */
+  const days = new Prisma.Decimal(position.chargeableDays).sub(chargedDays);
+  if (days.lessThanOrEqualTo(0)) {
+    return {
+      ok:
+        existing.length > 0
+          ? `Storage to day ${position.chargeableDays} is already on this bill.`
+          : "Storage is already on this bill.",
+    };
+  }
+  /* Priced at the rate in force now, for the days now being charged. The days
+     charged last month keep the rate they were charged at. */
+  const amount = position.perDay.mul(days).toDecimalPlaces(2);
+
+  const subtotal = invoice.subtotal.add(amount);
   const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+  const why =
+    reason ||
+    (existing.length > 0
+      ? `Storage for ${days} further day(s) beyond the ${position.freeDays} free`
+      : `Storage for ${days} day(s) beyond the ${position.freeDays} free`);
 
   await prisma.$transaction(async (tx) => {
+    await recordFieldChange(
+      {
+        actor,
+        entity: "Invoice",
+        entityId: invoice.id,
+        field: "total",
+        oldValue: invoice.total.toString(),
+        newValue: total.toString(),
+        reason: why,
+      },
+      tx
+    );
     await tx.invoiceItem.create({
       data: {
         invoiceId: invoice.id,
-        description: `Storage — ${position.chargeableDays} day(s) beyond ${position.freeDays} free`,
-        quantity: new Prisma.Decimal(position.chargeableDays),
+        description:
+          existing.length > 0
+            ? `Storage — ${days} further day(s) beyond ${position.freeDays} free`
+            : `Storage — ${days} day(s) beyond ${position.freeDays} free`,
+        quantity: days,
         unit: "day",
         unitPrice: position.perDay,
-        amount: position.amount,
+        amount,
         category: "Storage",
         taxable: true,
       },
@@ -1154,13 +1216,22 @@ export async function chargeStorage(
     action: "invoice.storage.charge",
     entity: "Invoice",
     entityId: invoice.id,
-    summary: `Added ${invoice.currency} ${position.amount} storage to ${invoice.number} (${position.chargeableDays} day(s))`,
+    summary: `Added ${invoice.currency} ${amount} storage to ${invoice.number} (${days} day(s)${
+      chargedDays.greaterThan(0) ? `, ${chargedDays} already billed` : ""
+    })`,
+    metadata: {
+      amount: amount.toString(),
+      days: days.toString(),
+      daysAlreadyBilled: chargedDays.toString(),
+      chargeableDays: position.chargeableDays,
+      perDay: position.perDay.toString(),
+    },
   });
 
   await refreshInvoiceStatus(invoice.id);
 
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
-  return { ok: `${invoice.currency} ${position.amount} of storage added.` };
+  return { ok: `${invoice.currency} ${amount} of storage added.` };
 }
 
 
@@ -1293,7 +1364,7 @@ export async function saveInvoiceAdjustments(
   if (wantStorage !== hasStorage) {
     steps.push({
       label: "storage",
-      run: () => chargeStorage({}, form(wantStorage ? {} : { remove: "1" })),
+      run: () => chargeStorage({}, form(wantStorage ? { reason } : { remove: "1", reason })),
     });
   }
 
