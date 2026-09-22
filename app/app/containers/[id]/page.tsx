@@ -9,6 +9,7 @@ import {
   Layers,
   Lock,
   Package,
+  Pencil,
   Scale,
   Users,
 } from "lucide-react";
@@ -42,6 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  CONTAINER_EDIT_PERMISSIONS,
   CONTAINER_STATUS_LABELS,
   LOADABLE_CONTAINER_STATUSES,
   SHIPMENT_STATUS_LABELS,
@@ -53,7 +55,8 @@ import {
   formatWeight,
 } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { expectedArrival } from "@/lib/sailing-schedule";
+import { can, canAny } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -388,6 +391,20 @@ export default async function ContainerPage({
             <Badge tone={container.status === "ARRIVED" ? "good" : "progress"}>
               {T(CONTAINER_STATUS_LABELS[container.status])}
             </Badge>
+            {/* ONE DOOR, WHATEVER STAGE THE BOX HAS REACHED.
+                Correcting a sailing and correcting what is inside used to be
+                two different gestures in two different places, and for a box
+                between the seal and the port the second did not exist at all —
+                a consignment found inside a container already at sea could not
+                be recorded until it landed. */}
+            {canAny(user.role, CONTAINER_EDIT_PERMISSIONS) ? (
+              <Button asChild variant="outline">
+                <Link href={`/app/containers/${container.id}/edit`}>
+                  <Pencil />
+                  {T("Edit")}
+                </Link>
+              </Button>
+            ) : null}
             {can(user.role, "packingList.view") ? (
               <PackingListButton
                 containerId={container.id}
@@ -689,8 +706,14 @@ export default async function ContainerPage({
                   label: "Done",
                   keepScroll: true,
                 }
-              : can(user.role, "shipment.edit") && container.shipment
-                ? { href: `?edit=voyage`, label: "Edit the voyage", keepScroll: true }
+              : /* The full page: the sailing AND what is inside, which is the
+                   half this shelf could never reach. The small form below is
+                   still here on `?edit=voyage` for a link somebody kept. */
+                can(user.role, "shipment.edit") && container.shipment
+                ? {
+                    href: `/app/containers/${container.id}/edit`,
+                    label: "Edit the sailing",
+                  }
                 : /* While the doors are open the box's own particulars are the
                      thing worth correcting; once it has sailed, only the
                      sailing is. Whichever this desk can do is offered. */
@@ -782,7 +805,23 @@ export default async function ContainerPage({
                       SHIPMENT_STATUS_LABELS[container.shipment.status],
                       false,
                     ],
-                    ["ETA", formatDate(container.shipment.eta) ?? "—", false],
+                    [
+                      /* The line's date, or the lane's thirty-five days from
+                         the day it left — and it says so when that day has
+                         gone by, because that is what the customer is told. */
+                      "ETA",
+                      (() => {
+                        const due = expectedArrival(
+                          container.shipment.departureDate,
+                          container.shipment.eta
+                        );
+                        if (!due) return "—";
+                        const late =
+                          !container.shipment.actualArrival && due.getTime() < Date.now();
+                        return `${formatDate(due)}${late ? ` · ${T("Delayed")}` : ""}`;
+                      })(),
+                      false,
+                    ],
                     [
                       "Arrived",
                       formatDate(container.shipment.actualArrival) ?? "—",
