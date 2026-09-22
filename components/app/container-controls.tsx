@@ -336,7 +336,7 @@ const NEXT_STEP: Record<string, Step | null> = {
     body: "Close it once every consignment on it is checked in or reported missing. Nothing more can happen to a closed container.",
     button: "Close the container",
     icon: <Lock />,
-    waiting: "Dar closes the container once everything on it is booked in.",
+    waiting: "Finance closes the container once everything on it is booked in.",
   },
   CLOSED: null,
 };

@@ -586,9 +586,16 @@ describe("the Dar floor never sees a price and cannot set one", () => {
   });
 
   test("it receives, keeps and releases", () => {
-    for (const permission of ["receiving.dar", "receiving.verify", "release.execute", "container.arrive", "container.close"] as const) {
+    for (const permission of ["receiving.dar", "receiving.verify", "release.execute", "container.arrive"] as const) {
       assert.equal(rbac.can("DAR_WAREHOUSE", permission), true);
     }
+    /* Shutting the sailing is the office's: Dar counts the boxes off it. */
+    assert.equal(rbac.can("DAR_WAREHOUSE", "container.close"), false);
+    for (const role of ["FINANCE", "MANAGER", "ADMIN"] as const) {
+      assert.ok(rbac.can(role, "container.close"), role);
+    }
+    assert.equal(rbac.can("CUSTOMER_SUPPORT", "container.close"), false);
+    assert.equal(rbac.can("CHINA_WAREHOUSE", "container.close"), false);
   });
 
   test("signing a box off over uncounted cargo sits above the counting desk", () => {

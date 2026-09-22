@@ -4610,7 +4610,7 @@ const ZH: Record<string, string> = {
   "Close it once every consignment on it is checked in or reported missing. Nothing more can happen to a closed container.": "柜内所有货物入库或报缺后再关闭。关闭后的货柜不能再做任何操作。",
   "Foshan records the departure.": "由佛山仓库记录离港。",
   "Dar, Finance or Support records the arrival.": "由达累斯萨拉姆仓库、财务或客服记录到港。",
-  "Dar closes the container once everything on it is booked in.": "所有货物入库后由达累斯萨拉姆仓库关闭货柜。",
+  "Finance closes the container once everything on it is booked in.": "所有货物入库后由财务关闭货柜。",
   "Today's date and time are recorded with your name.": "系统会记录今天的日期、时间和您的名字。",
   "The app was updated while this page was open.": "本页面打开期间系统已更新。",
   "Still working…": "仍在处理中…",

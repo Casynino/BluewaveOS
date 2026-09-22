@@ -302,7 +302,9 @@ const DAR_WAREHOUSE: Permission[] = [
   "warehouse.reports",
   "container.view",
   "container.arrive",
-  "container.close",
+  /* NOT `container.close`. Dar counts the boxes off; shutting the sailing for
+     good is the office's, by the owner's decision — Finance, the manager and
+     the owner, who answer for the money still on it. */
   /* The floor that opens the box is the floor that discovers the manifest is
      wrong, and by the owner's decision it is the floor that corrects it. */
   "container.amendArrived",
@@ -416,6 +418,10 @@ const FINANCE: Permission[] = [
      container is still the floor's word. */
   "container.view",
   "container.arrive",
+  /* And Finance shuts the sailing: the owner's decision. Nothing more can be
+     added to a closed container, so the desk that answers for what is still
+     owed on it is the desk that says it is finished with. */
+  "container.close",
   /* Finance is the other desk that notices: a container whose price list does
      not add up to the cargo standing in the warehouse. */
   "container.amendArrived",
