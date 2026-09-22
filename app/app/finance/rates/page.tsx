@@ -15,7 +15,9 @@ import {
   ExchangeRateForm,
   RateForm,
 } from "@/components/app/finance-forms";
+import { LoadRateBook } from "@/components/app/load-rate-book";
 import { PageHeader } from "@/components/app/page-header";
+import { RATE_BOOK } from "@/prisma/data/rate-book";
 import {
   CustomerRateActions,
   ExchangeRateRemove,
@@ -134,6 +136,9 @@ export default async function RateBookPage() {
   const typeNames = [...new Set(live.map((r) => r.cargoType).filter((t): t is string => !!t))];
   const allTypes = [...new Set([...typeNames, ...usedTypes.map((t) => t.cargoType!)])];
 
+  const liveLcl = new Set(live.filter((r) => r.service === "LCL" && r.cargoType).map((r) => r.cargoType!.toLowerCase()));
+  const bookMissing = RATE_BOOK.filter(([english]) => !liveLcl.has(english.toLowerCase())).length;
+
   const agreedFor = (cargoType: string | null) =>
     customerRates.filter((c) => (c.cargoType ?? null) === cargoType).length;
 
@@ -198,6 +203,8 @@ export default async function RateBookPage() {
           </div>
         ))}
       </dl>
+
+      {mayPublish && bookMissing > 0 ? <LoadRateBook missing={bookMissing} /> : null}
 
       {unpriced.length > 0 ? (
         <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4">

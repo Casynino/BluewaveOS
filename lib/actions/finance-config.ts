@@ -850,3 +850,65 @@ export async function deleteExchangeRate(
   revalidatePath("/app/finance");
   return { ok: `Withdrawn. ${formatRate(previous.rate)} is live again.` };
 }
+
+/**
+ * Publish the company's own rate book (prisma/data/rate-book.ts) in one press.
+ *
+ * Only cargo types with no live loose-cargo rate are added. A price somebody
+ * has already published or changed on this page is never overwritten from the
+ * file — the page is where the book is kept; the file only starts it.
+ */
+export async function loadCompanyRateBook(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+  const actor = await authorize("rate.manage");
+  const { RATE_BOOK, rateRow } = await import("@/prisma/data/rate-book");
+
+  const now = new Date();
+  const live = await prisma.shippingRate.findMany({
+    where: {
+      service: "LCL",
+      active: true,
+      cargoType: { not: null },
+      effectiveFrom: { lte: now },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+    },
+    select: { cargoType: true },
+  });
+  const have = new Set(live.map((r) => r.cargoType!.toLowerCase()));
+  const missing = RATE_BOOK.map(rateRow).filter((row) => !have.has(row.cargoType.toLowerCase()));
+  if (missing.length === 0) return { ok: "Every cargo type in BlueWave's price list is already live." };
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of missing) {
+      const created = await tx.shippingRate.create({
+        data: {
+          origin: "China",
+          destination: "Tanzania",
+          service: "LCL",
+          cargoType: row.cargoType,
+          basis: row.basis,
+          rate: row.rate,
+          currency: "USD",
+          published: true,
+          minimumCbm: null,
+          notes: row.notes,
+        },
+      });
+      await recordAudit(
+        {
+          actor,
+          action: "rate.publish",
+          entity: "ShippingRate",
+          entityId: created.id,
+          summary: `Published LCL / ${row.cargoType} at USD ${row.rate} ${row.basis.replace("_", " ").toLowerCase()} from the company price list`,
+          metadata: { service: "LCL", cargoType: row.cargoType, basis: row.basis, newValue: `USD ${row.rate}` },
+        },
+        tx
+      );
+    }
+  });
+
+  revalidatePath("/app/finance/rates");
+  revalidatePath("/calculator");
+  revalidatePath("/");
+  return { ok: `${missing.length} price${missing.length === 1 ? "" : "s"} published from BlueWave's price list.` };
+}
