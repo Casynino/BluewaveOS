@@ -28,7 +28,7 @@ function grid(i: number): [number, number] {
 /**
  * THE CORRIDOR, DRAWN.
  *
- * Seven platforms on a concrete floor, each with what happens there standing
+ * One platform per station on a concrete floor, each with what happens there standing
  * on it, joined by the lane — a coral line with cargo flowing along it. Wide
  * screens get the isometric floor; a phone gets the same platforms stacked,
  * which is how a list of steps is read with a thumb.

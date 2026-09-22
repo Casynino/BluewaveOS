@@ -11,6 +11,7 @@ import { TrackField } from "@/components/bw/track-field";
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { PHOTOS } from "@/components/site/photos";
 import { FACTORY_LISTING_LABEL } from "@/lib/china-content";
+import { formatRate } from "@/lib/currency";
 import { chinaSettings, listCategories, listCities, listFactories, listMarkets } from "@/lib/explore";
 import { DEFAULT_TRANSIT_DAYS } from "@/lib/sailing-schedule";
 import { cn } from "@/lib/utils";
@@ -329,7 +330,7 @@ export default async function HomePage() {
                 <p className="bw-label text-bw-muted">Price a shipment</p>
                 <p className="mt-3 font-bw-display text-3xl font-semibold uppercase text-bw-fg">CBM × rate = USD</p>
                 <p className="mt-2 text-bw-muted">
-                  Paid in shillings{rate ? ` · today 1 USD = ${Number(rate.rate).toLocaleString("en-GB")} TZS` : ""}.
+                  Paid in shillings{rate ? ` · today ${formatRate(rate.rate)}` : ""}.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">

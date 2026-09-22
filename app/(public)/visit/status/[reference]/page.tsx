@@ -5,6 +5,7 @@ import { ReqBlock, ReqContact } from "@/components/bw/req-layout";
 import { Frame, Label, PageBanner } from "@/components/bw/ui";
 import { VsFacts, VsNotFound, VsProgress, VsTags, vsDay } from "@/components/bw/vs-status";
 import { VISIT_FLOW, VISIT_STATUS_LABEL, VISIT_STATUS_NOTE } from "@/lib/china-content";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 /* One visitor's trip: never cached, never indexed, and the key in the address
@@ -105,7 +106,9 @@ export default async function VisitStatusPage({
             <span aria-hidden className={cancelled ? "size-2 bg-bw-coral-bright" : "size-2 bg-bw-cyan"} />
             {VISIT_STATUS_LABEL[visit.status]}
           </span>
-          <span className="bw-mono text-xs text-white/55">Requested {vsDay(visit.createdAt)}</span>
+          {/* "Sent", not "Requested": the pill beside it already says Requested
+              while the status is REQUESTED, and the word twice reads as a fault. */}
+          <span className="bw-mono text-xs text-white/55">Sent {formatDate(visit.createdAt)}</span>
         </div>
       </PageBanner>
 

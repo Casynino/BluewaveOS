@@ -52,7 +52,11 @@ export default async function PortalMessagesPage() {
 
       {conversations.length === 0 ? (
         <Card>
-          <EmptyState icon="MessagesSquare" title="No messages yet" />
+          <EmptyState
+            icon="MessagesSquare"
+            title="No messages yet"
+            description="Start one in the box above — a question about a consignment, an invoice or a pickup. The office's replies appear here."
+          />
         </Card>
       ) : (
         <ul className="space-y-3">

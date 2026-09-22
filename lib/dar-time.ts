@@ -34,6 +34,18 @@ export function darMidnight(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month, day) - DAR_OFFSET_MS);
 }
 
+/**
+ * Today in Dar, "YYYY-MM-DD", the shape a date input's `min` wants.
+ *
+ * Read at render rather than when the module loads: a constant computed at
+ * import time is the day the server booted, which after a night up is
+ * yesterday in the browser and a floor a customer has to argue past.
+ */
+export function darDateInput(at: Date = new Date()): string {
+  const { year, month, day } = darFields(at);
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /** The start of the Dar day this instant falls in. */
 export function darStartOfDay(at: Date = new Date()): Date {
   const { year, month, day } = darFields(at);

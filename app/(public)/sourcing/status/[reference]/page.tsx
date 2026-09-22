@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact } from "@/components/bw/req-layout";
 import { Frame, Label, PageBanner } from "@/components/bw/ui";
-import { VsFacts, VsNotFound, VsProgress, vsDay } from "@/components/bw/vs-status";
+import { VsFacts, VsNotFound, VsProgress } from "@/components/bw/vs-status";
 import { SOURCING_SERVICES, SOURCING_STATUS_NOTE, isSourcingService } from "@/lib/china-content";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 /* One visitor's request: never cached, never indexed, and the key in the
@@ -111,7 +112,7 @@ export default async function SourcingStatusPage({
             <span aria-hidden className={cancelled || waiting ? "size-2 bg-bw-coral-bright" : "size-2 bg-bw-cyan"} />
             {STATUS_LABEL[request.status] ?? request.status}
           </span>
-          <span className="bw-mono text-xs text-white/55">Sent {vsDay(request.createdAt)}</span>
+          <span className="bw-mono text-xs text-white/55">Sent {formatDate(request.createdAt)}</span>
         </div>
       </PageBanner>
 

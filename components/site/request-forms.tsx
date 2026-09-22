@@ -17,13 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { darDateInput } from "@/lib/dar-time";
 import { DEFAULT_LOCALE, t } from "@/lib/i18n";
 
 const locale = DEFAULT_LOCALE;
-
-/* A date input's floor. Yesterday's readiness date is a typing slip, and the
-   server refuses one anyway — this is so the browser argues first. */
-const TODAY = new Date().toISOString().slice(0, 10);
 
 function Optional() {
   return (
@@ -223,6 +220,10 @@ export function PickupForm({
   cargoTypes?: string[];
   contact?: ContactDefaults;
 }) {
+  /* Read at render: a floor computed when the module loaded is the day the
+     server booted, and the server refuses a past date anyway. */
+  const today = darDateInput();
+
   return (
     <PublicForm action={submitPickupRequest} submitLabel={t(locale, "Request a pickup")}>
       <Section title={t(locale, "Who we are collecting for")}>
@@ -289,7 +290,7 @@ export function PickupForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="p-preferredDate">{t(locale, "Ready for collection on")}</Label>
-            <Input id="p-preferredDate" name="preferredDate" type="date" min={TODAY} max="2099-12-31" />
+            <Input id="p-preferredDate" name="preferredDate" type="date" min={today} max="2099-12-31" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="p-preferredTime">
@@ -423,6 +424,8 @@ export function BookingForm({
 
   const freight = service !== "CUSTOMS_CLEARANCE";
   const chosen = SERVICES.find(([value]) => value === service)!;
+  /* Read at render, for the same reason as the pickup form's. */
+  const today = darDateInput();
 
   return (
     <PublicForm action={submitBooking} submitLabel={t(locale, "Submit request")}>
@@ -476,7 +479,7 @@ export function BookingForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="b-readinessDate">{t(locale, "Cargo ready on")}</Label>
-                <Input id="b-readinessDate" name="readinessDate" type="date" min={TODAY} max="2099-12-31" />
+                <Input id="b-readinessDate" name="readinessDate" type="date" min={today} max="2099-12-31" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="b-supplierName">

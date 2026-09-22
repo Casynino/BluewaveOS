@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { bwExchangeRate } from "@/components/bw/data";
 import { FreightQuote } from "@/components/bw/freight-quote";
 import { Action, Frame, Label, PageBanner } from "@/components/bw/ui";
-import { formatCurrency, isCurrency } from "@/lib/currency";
+import { formatCurrency, formatRate, isCurrency } from "@/lib/currency";
 import { prisma } from "@/lib/prisma";
 import { publicRateBook } from "@/lib/public-estimate";
 
@@ -87,7 +87,7 @@ export default async function CalculatorPage() {
               [
                 "Shillings at the invoice rate",
                 rate
-                  ? `The invoice is in USD with the TZS amount at the rate of the day it is issued — today 1 USD = ${Number(rate.rate).toLocaleString("en-GB")} TZS.`
+                  ? `The invoice is in USD with the TZS amount at the rate of the day it is issued — today ${formatRate(rate.rate)}.`
                   : "The invoice is in USD with the TZS amount at the rate of the day it is issued.",
               ],
             ].map(([title, body], i) => (
