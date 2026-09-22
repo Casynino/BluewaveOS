@@ -7,6 +7,8 @@ import { after, before, describe, test } from "node:test";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   ONE CONSIGNMENT, FOSHAN TO THE DAR COUNTER, THROUGH THE REAL ACTIONS.
 
@@ -19,10 +21,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
   headers, Next's cache, `server-only` and the session — before any project file
   is loaded. Everything else is the real code against the real database.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
-  throw new Error(`Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`);
-}
+requireScratchDatabase();
 
 /* Uploaded photos land in a throwaway folder, never in the project or a blob store. */
 const uploadDir = path.join(os.tmpdir(), "bluewave-lifecycle-e2e-uploads");

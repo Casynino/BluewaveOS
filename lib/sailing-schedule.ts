@@ -6,10 +6,10 @@ import { prisma, type TxClient } from "@/lib/prisma";
  * THE SCHEDULE IS A RULE, NOT A LIST OF DATES.
  *
  * Foshan takes cargo until Friday, packs the box that Friday, and the ship
- * leaves the Monday after. Thirty days later it is off Dar es Salaam. That is
- * the whole of it, and it repeats every week, so the public page is generated
- * from the rule rather than typed — a list of dates somebody has to remember to
- * extend is a website that quietly goes blank in the new year.
+ * leaves the Monday after. Thirty-five days later it is off Dar es Salaam.
+ * That is the whole of it, and it repeats every week, so the public page is
+ * generated from the rule rather than typed — a list of dates somebody has to
+ * remember to extend is a website that quietly goes blank in the new year.
  *
  * A stored `ShipmentSchedule` row is the EXCEPTION: the week that slipped, the
  * week with a vessel worth naming, the week cancelled for a holiday. It names

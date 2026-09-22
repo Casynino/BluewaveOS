@@ -119,6 +119,10 @@ const grouped = (value: Prisma.Decimal, places: number) =>
     maximumFractionDigits: places,
   });
 
+type NoticeRow = Prisma.CargoGetPayload<{ include: typeof NOTICE_INCLUDE }>;
+
+type SubjectOptions = { invoiceId?: string | null; withMoney?: boolean; now?: Date };
+
 /**
  * Everything the templates can say about one consignment, read once.
  *
@@ -129,19 +133,50 @@ const grouped = (value: Prisma.Decimal, places: number) =>
 export async function noticeSubject(
   tx: TxClient,
   cargoId: string,
-  options: { invoiceId?: string | null; withMoney?: boolean; now?: Date } = {}
+  options: SubjectOptions = {}
 ): Promise<NoticeSubject | null> {
   const cargo = await tx.cargo.findFirst({
     where: { id: cargoId, deletedAt: null },
     include: NOTICE_INCLUDE,
   });
   if (!cargo) return null;
+  return subjectOf(cargo, options, await storageSettings(tx), await pickupAddress(tx));
+}
+
+/**
+ * The same, for every consignment on a container, in one read.
+ *
+ * A box holds a hundred consignments and every one of them is told the same
+ * day it lands. Asked one at a time this is a hundred reads of the cargo, the
+ * customer, the bills — and a hundred more of the settings row and the
+ * warehouse address, which are the same answer every time. The arrival is one
+ * press and has to stay one press.
+ */
+export async function noticeSubjects(
+  tx: TxClient,
+  cargoIds: string[],
+  options: SubjectOptions = {}
+): Promise<Map<string, NoticeSubject>> {
+  if (cargoIds.length === 0) return new Map();
+  const [rows, settings, address] = await Promise.all([
+    tx.cargo.findMany({ where: { id: { in: cargoIds }, deletedAt: null }, include: NOTICE_INCLUDE }),
+    storageSettings(tx),
+    pickupAddress(tx),
+  ]);
+  return new Map(rows.map((row) => [row.id, subjectOf(row, options, settings, address)]));
+}
+
+function subjectOf(
+  cargo: NoticeRow,
+  options: SubjectOptions,
+  settings: StorageSettings,
+  address: string | null
+): NoticeSubject {
   const withMoney = options.withMoney ?? true;
   const now = options.now ?? new Date();
 
   const measured = cargo.darReceiving ?? cargo.chinaReceiving;
   const container = cargo.containerLines[0]?.container ?? null;
-  const settings = await storageSettings(tx);
 
   const bills = cargo.invoices.map((invoice) => ({ invoice, balance: balanceOf(invoice) }));
   const bill =
@@ -204,7 +239,7 @@ export async function noticeSubject(
     freeUntil: clock?.lastFreeDay ?? null,
     storagePerDay: withMoney && Number(settings.storagePerDay.toString()) > 0 ? settings.storagePerDay.toString() : null,
     storageCurrency: settings.storageCurrency,
-    pickupAddress: await pickupAddress(tx),
+    pickupAddress: address,
     pickupNoteNumber: activeNote?.noteNumber ?? null,
     collectedAt: cargo.release?.releasedAt ?? null,
     collectedBy: cargo.release?.collectedByName ?? null,
@@ -252,44 +287,78 @@ export async function announceCargoEvent(
   tx: TxClient,
   event: CargoEvent,
   cargoId: string,
-  options: { invoiceId?: string | null; recipients?: "both" | "sender"; issue?: boolean } = {}
+  options: AnnounceOptions = {}
 ): Promise<number> {
-  const subject = await noticeSubject(tx, cargoId, { invoiceId: options.invoiceId });
-  if (!subject) return 0;
-  const facts = { ...subject.facts, issue: options.issue ?? subject.facts.issue };
+  return announceCargoEvents(tx, event, [cargoId], options);
+}
 
-  const notice = buildCargoNotice(
-    event,
-    facts,
-    portalLinks({
-      reference: subject.cargo.reference,
-      invoiceId: subject.invoiceId,
-      pickupNoteId: subject.pickupNoteId,
-    })
-  );
-  const { title, body } = noticePortal(notice);
+type AnnounceOptions = {
+  invoiceId?: string | null;
+  recipients?: "both" | "sender";
+  issue?: boolean;
+};
 
-  const recipients =
-    event === "PRICE_CONFIRMED" && subject.invoiceCustomerId
-      ? [subject.invoiceCustomerId]
-      : options.recipients === "sender"
-        ? [subject.cargo.senderId]
-        : [subject.cargo.receiverId, subject.cargo.senderId];
-  const billKey = options.invoiceId ?? subject.invoiceId;
-  const eventKey =
-    event === "PRICE_CONFIRMED" && billKey ? `${event}:${billKey}` : `${event}:${cargoId}`;
+/**
+ * Tell every customer on a container, once, in one write.
+ *
+ * The same rules as one consignment — sender and receiver both, a bill to the
+ * customer it is addressed to, the event and the consignment as the key that
+ * stops a retry saying it twice — read and written for the whole box at once.
+ * A departure or an arrival is one press whether the box holds three
+ * consignments or a hundred.
+ */
+export async function announceCargoEvents(
+  tx: TxClient,
+  event: CargoEvent,
+  cargoIds: string[],
+  options: AnnounceOptions = {}
+): Promise<number> {
+  const subjects = await noticeSubjects(tx, cargoIds, { invoiceId: options.invoiceId });
+  if (subjects.size === 0) return 0;
 
-  const written = await tx.notification.createMany({
-    data: [...new Set(recipients)].filter(Boolean).map((customerId) => ({
-      customerId,
-      kind: event,
-      eventKey,
-      title,
-      body,
-      href: notice.links[0]?.href ?? `/portal/cargo/${encodeURIComponent(subject.cargo.reference)}`,
-    })),
-    skipDuplicates: true,
-  });
+  const rows: Prisma.NotificationCreateManyInput[] = [];
+  for (const cargoId of cargoIds) {
+    const subject = subjects.get(cargoId);
+    if (!subject) continue;
+    const facts = { ...subject.facts, issue: options.issue ?? subject.facts.issue };
+
+    const notice = buildCargoNotice(
+      event,
+      facts,
+      portalLinks({
+        reference: subject.cargo.reference,
+        invoiceId: subject.invoiceId,
+        pickupNoteId: subject.pickupNoteId,
+      })
+    );
+    const { title, body } = noticePortal(notice);
+
+    const recipients =
+      event === "PRICE_CONFIRMED" && subject.invoiceCustomerId
+        ? [subject.invoiceCustomerId]
+        : options.recipients === "sender"
+          ? [subject.cargo.senderId]
+          : [subject.cargo.receiverId, subject.cargo.senderId];
+    const billKey = options.invoiceId ?? subject.invoiceId;
+    const eventKey =
+      event === "PRICE_CONFIRMED" && billKey ? `${event}:${billKey}` : `${event}:${cargoId}`;
+
+    for (const customerId of new Set(recipients.filter(Boolean))) {
+      rows.push({
+        customerId,
+        kind: event,
+        eventKey,
+        title,
+        body,
+        href: notice.links[0]?.href ?? `/portal/cargo/${encodeURIComponent(subject.cargo.reference)}`,
+      });
+    }
+  }
+  if (rows.length === 0) return 0;
+
+  /* One insert, and the key on each row is what makes a second press write
+     nothing rather than writing everything twice. */
+  const written = await tx.notification.createMany({ data: rows, skipDuplicates: true });
   return written.count;
 }
 

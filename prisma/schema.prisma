@@ -2362,7 +2362,7 @@ enum SailingStatus {
 /**
  * A SAILING THE WEBSITE PUBLISHES, WHEN IT DIFFERS FROM THE WEEKLY RULE.
  * The schedule is a rule, not a list: cargo is received until Friday, the box
- * is packed that Friday, the ship leaves Monday, and it is thirty days at sea.
+ * is packed that Friday, the ship leaves Monday, and it is thirty-five days at sea.
  * lib/sailing-schedule.ts generates the weeks from that rule, so the public
  * page is never a table of dates somebody has to remember to extend.
  * A row here is an EXCEPTION to the rule — a week that slipped, a vessel worth

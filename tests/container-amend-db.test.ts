@@ -4,6 +4,8 @@ import { after, before, describe, test } from "node:test";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   CORRECTING WHAT IS INSIDE A BOX THAT HAS ALREADY SAILED.
 
@@ -16,12 +18,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
   Committed, not rolled back, like the lifecycle run: the records stay in the
   test database so a failure can be read afterwards.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
-  throw new Error(
-    `Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`
-  );
-}
+requireScratchDatabase();
 
 const load = createRequire(import.meta.url);
 load("./stubs/hook.cjs");

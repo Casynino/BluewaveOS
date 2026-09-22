@@ -34,6 +34,8 @@ export function StorageCard({
   chargeableDays,
   calculated,
   onTheBill,
+  toAdd,
+  canAdd,
   since,
 }: {
   invoiceId: string;
@@ -45,6 +47,15 @@ export function StorageCard({
   calculated: string;
   /** What is actually on the invoice, formatted. Null when nothing is. */
   onTheBill: string | null;
+  /**
+   * What pressing the button would add, formatted: the days the clock has run
+   * less the days already billed. On a bill charged once already that is not
+   * the calculated total, and a button that names the total would be asking
+   * the clerk to charge the first week twice.
+   */
+  toAdd: string;
+  /** False when every chargeable day is already on the bill. */
+  canAdd: boolean;
   /** The day the boxes landed on the Dar floor, formatted. */
   since: string;
 }) {
@@ -119,9 +130,9 @@ export function StorageCard({
         <div className="flex flex-wrap gap-2">
           <form action={action}>
             <input type="hidden" name="invoiceId" value={invoiceId} />
-            <SubmitButton size="sm" variant="outline" disabled={!running}>
+            <SubmitButton size="sm" variant="outline" disabled={!running || !canAdd}>
               <CheckCircle2 />
-              Add storage fee · {calculated}
+              Add storage fee · {toAdd}
             </SubmitButton>
           </form>
           {onTheBill ? (

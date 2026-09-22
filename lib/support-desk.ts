@@ -6,6 +6,8 @@ import { fromBase } from "@/lib/currency";
 import { BUSINESS_TZ } from "@/lib/format";
 import { balanceOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
+import { storageStart } from "@/lib/storage-clock";
+import { storagePosition } from "@/lib/storage-fee";
 
 /**
  * THE SUPPORT DESK'S HOME, AS DATA.
@@ -172,6 +174,7 @@ export async function followUpQueue() {
           select: {
             reference: true,
             description: true,
+            darArrivedAt: true,
             darReceiving: { select: { receivedAt: true } },
             release: { select: { releasedAt: true } },
           },
@@ -192,9 +195,17 @@ export async function followUpQueue() {
     const owed = owing(bill);
     if (owed.settled) continue;
 
-    const landed = bill.cargo.darReceiving?.receivedAt ?? null;
-    const until = bill.cargo.release?.releasedAt ?? now;
-    const held = landed ? daysBetween(landed, until) : 0;
+    /* Counted by the storage clock itself, from the day the container landed —
+       not from the day Dar got round to booking the boxes in, and not in
+       elapsed hours. A clerk ringing a customer must read the same "days past
+       free" the invoice is charged on. */
+    const floor = storagePosition({
+      receivedAt: storageStart(bill.cargo.darReceiving?.receivedAt, bill.cargo.darArrivedAt),
+      collectedAt: bill.cargo.release?.releasedAt ?? null,
+      freeDays,
+      perDay: 0,
+      currency: "USD",
+    });
 
     rows.push({
       invoiceId: bill.id,
@@ -205,7 +216,7 @@ export async function followUpQueue() {
       description: bill.cargo.description,
       owedTzs: owed.tzs,
       owedUsd: owed.usd,
-      storageDays: Math.max(0, held - freeDays),
+      storageDays: floor.chargeableDays,
       overdueDays: bill.dueAt && bill.dueAt < now ? daysBetween(bill.dueAt, now) : 0,
       billedDaysAgo: daysBetween(bill.issuedAt ?? bill.createdAt, now),
       paymentPending: bill.payments.some((p) => p.status === "PENDING" && !p.writtenOff),
@@ -265,6 +276,7 @@ export async function darWarehouse() {
     },
     select: {
       id: true,
+      darArrivedAt: true,
       darReceiving: { select: { receivedAt: true } },
       invoices: {
         where: { status: { notIn: ["DRAFT", "CANCELLED"] } },
@@ -273,7 +285,11 @@ export async function darWarehouse() {
     },
   });
 
-  const now = new Date();
+  const freeDays =
+    (await prisma.companySetting.findUnique({
+      where: { id: "singleton" },
+      select: { freeStorageDays: true },
+    }))?.freeStorageDays ?? 7;
   return cargo.map((c): WarehouseRow => {
     let owes = false;
     let tzs: Prisma.Decimal | null = null;
@@ -287,7 +303,15 @@ export async function darWarehouse() {
     }
     return {
       cargoId: c.id,
-      daysInWarehouse: c.darReceiving ? daysBetween(c.darReceiving.receivedAt, now) : 0,
+      /* The day number the cargo page and the customer's own tracking show:
+         the day it landed is day one. */
+      daysInWarehouse: storagePosition({
+        receivedAt: storageStart(c.darReceiving?.receivedAt, c.darArrivedAt),
+        collectedAt: null,
+        freeDays,
+        perDay: 0,
+        currency: "USD",
+      }).daysHeld,
       billed: c.invoices.length > 0,
       owes,
       owedTzs: tzs,
