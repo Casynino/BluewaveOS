@@ -50,6 +50,44 @@ export function expectedArrival(
   return new Date(departedAt.getTime() + DEFAULT_TRANSIT_DAYS * DAY_MS);
 }
 
+/**
+ * HOW LATE, IN WORDS SOMEBODY READS RATHER THAN COUNTS.
+ *
+ * A number of days is exact and useless past a fortnight: "37 days late" is
+ * read twice, "5 weeks late" once. Days up to a week, then weeks, then months
+ * — the same ladder the office uses on the phone. Null while the day has not
+ * passed, so a caller can print nothing at all.
+ */
+export function delayFor(
+  due: Date | null | undefined,
+  now: Date = new Date()
+): { days: number; label: string; labelSw: string } | null {
+  if (!due) return null;
+  const days = Math.floor((now.getTime() - due.getTime()) / DAY_MS);
+  if (days < 1) return null;
+  if (days < 7) {
+    return {
+      days,
+      label: days === 1 ? "1 day late" : `${days} days late`,
+      labelSw: `imechelewa siku ${days}`,
+    };
+  }
+  if (days < 28) {
+    const weeks = Math.floor(days / 7);
+    return {
+      days,
+      label: weeks === 1 ? "1 week late" : `${weeks} weeks late`,
+      labelSw: `imechelewa wiki ${weeks}`,
+    };
+  }
+  const months = Math.floor(days / 30) || 1;
+  return {
+    days,
+    label: months === 1 ? "1 month late" : `${months} months late`,
+    labelSw: months === 1 ? "imechelewa mwezi 1" : `imechelewa miezi ${months}`,
+  };
+}
+
 export const DEFAULT_ORIGIN = "Foshan";
 export const DEFAULT_DESTINATION = "Dar es Salaam";
 

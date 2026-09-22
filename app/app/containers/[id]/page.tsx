@@ -55,7 +55,7 @@ import {
   formatWeight,
 } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { expectedArrival } from "@/lib/sailing-schedule";
+import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
 import { can, canAny } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -240,7 +240,7 @@ export default async function ContainerPage({
             return {
               departed: formatDate(container.shipment?.departureDate) ?? null,
               due: formatDate(due) ?? null,
-              late: !container.shipment?.actualArrival && due.getTime() < Date.now(),
+              lateBy: container.shipment?.actualArrival ? null : (delayFor(due)?.label ?? null),
             };
           })()}
         />

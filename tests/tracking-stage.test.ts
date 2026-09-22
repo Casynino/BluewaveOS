@@ -174,7 +174,8 @@ describe("public journey", () => {
     );
     assert.equal(j.etaPassed, true);
     assert.match(detail(j, "IN_TRANSIT") ?? "", /Delayed/);
-    assert.equal(j.headline, "Delayed at sea — later than expected");
+    assert.equal(j.headline, "Delayed at sea — 2 days late");
+    assert.equal(j.lateBy, "2 days late");
   });
 
   test("no ETA from the line means thirty-five days from departure, and late after them", () => {
@@ -188,7 +189,19 @@ describe("public journey", () => {
       input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-36), eta: null }) })
     );
     assert.equal(late.etaPassed, true, "day thirty-six is late");
-    assert.equal(late.headline, "Delayed at sea — later than expected");
+    assert.equal(late.lateBy, "1 day late", "day thirty-six is one day late");
+  });
+
+  test("how late is said in days, then weeks, then months", () => {
+    const at = (daysOut: number) =>
+      publicJourney(
+        input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-35 - daysOut), eta: null }) })
+      ).lateBy;
+    assert.equal(at(3), "3 days late");
+    assert.equal(at(7), "1 week late");
+    assert.equal(at(15), "2 weeks late");
+    assert.equal(at(31), "1 month late");
+    assert.equal(at(70), "2 months late");
   });
 
   test("the container moving ahead of the cargo row still moves the customer's view", () => {

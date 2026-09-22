@@ -33,7 +33,7 @@ import { requirePermission } from "@/lib/session";
 import { unsailedToPrice } from "@/lib/unsailed-pricing";
 import { cn } from "@/lib/utils";
 import { cargoTypeOptions } from "@/lib/valuation";
-import { expectedArrival } from "@/lib/sailing-schedule";
+import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
 import { localeOf } from "@/lib/viewer-locale";
 import { t } from "@/lib/i18n";
 
@@ -300,12 +300,12 @@ export default async function ArrivedContainersPage({
       arrived: container.shipment?.actualArrival ?? container.shipment?.eta ?? null,
       /* Still at sea past the day it was expected: the desk should see that
          before a customer rings to ask. */
-      late:
-        state === "sea" &&
-        (() => {
-          const due = expectedArrival(container.shipment?.departureDate ?? null, container.shipment?.eta ?? null);
-          return Boolean(due && due.getTime() < Date.now());
-        })(),
+      lateBy:
+        state === "sea"
+          ? (delayFor(
+              expectedArrival(container.shipment?.departureDate ?? null, container.shipment?.eta ?? null)
+            )?.label ?? null)
+          : null,
     };
   });
 
@@ -814,8 +814,8 @@ export default async function ArrivedContainersPage({
                       : row.state === "checkin"
                         ? `${t(locale, "Counting")} ${row.counted}/${row.cargo}`
                         : row.state === "sea"
-                          ? row.late
-                            ? t(locale, "Delayed")
+                          ? row.lateBy
+                            ? `${t(locale, "Delayed")} · ${t(locale, row.lateBy)}`
                             : t(locale, "In transit")
                           : t(locale, "Closed")}
                     {row.toPrice > 0 ? (

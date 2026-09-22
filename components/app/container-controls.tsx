@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Anchor, Lock, PackageMinus, PackagePlus, Ship, Truck } from "lucide-react";
+import { Anchor, CalendarClock, Lock, PackageMinus, PackagePlus, Ship, Truck } from "lucide-react";
 
 import {
   advanceContainer,
@@ -389,7 +389,7 @@ export function AdvancePanel({
   canArrive: boolean;
   canClose: boolean;
   /** Left China, due in Dar, and whether that day has gone by. */
-  sailing?: { departed: string | null; due: string | null; late: boolean } | null;
+  sailing?: { departed: string | null; due: string | null; lateBy: string | null } | null;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
@@ -416,34 +416,45 @@ export function AdvancePanel({
         </p>
       </div>
 
-      {/* THE DAY IT IS DUE, WHERE THE BOX IS BEING WORKED. Every desk reads the
-          same date the customer is reading, and a sailing past its day says so
-          rather than leaving somebody to count. */}
+      {/* THE DAY IT IS DUE, ABOVE THE WORK. Every desk reads the date the
+          customer is reading, and a sailing past that day says how far past —
+          in days, then weeks, then months, the way the office says it. */}
       {sailing?.due ? (
-        <dl className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border bg-card px-4 py-3">
-          {sailing.departed ? (
-            <div>
-              <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {tx("Left China")}
-              </dt>
-              <dd className="tnum mt-0.5 text-sm font-medium">{sailing.departed}</dd>
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border px-4 py-3.5",
+            sailing.lateBy ? "border-warning/40 bg-warning/5" : "bg-card"
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className={cn(
+                "grid size-10 shrink-0 place-items-center rounded-lg",
+                sailing.lateBy ? "bg-warning/15 text-warning" : "bg-brand/10 text-brand"
+              )}
+              aria-hidden
+            >
+              <CalendarClock className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tx("Expected arrival in Dar es Salaam")}
+              </p>
+              <p className="tnum mt-0.5 text-xl font-semibold tracking-tight">{sailing.due}</p>
             </div>
-          ) : null}
-          <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {tx("Expected in Dar")}
-            </dt>
-            <dd className="tnum mt-0.5 text-sm font-medium">{sailing.due}</dd>
           </div>
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium",
-              sailing.late ? "bg-destructive/15 text-destructive" : "bg-brand/10 text-brand"
-            )}
-          >
-            {sailing.late ? tx("Delayed") : tx("35 days at sea")}
-          </span>
-        </dl>
+          <div className="text-right">
+            {sailing.lateBy ? (
+              <span className="inline-block rounded-full bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning">
+                {tx("Delayed")} · {tx(sailing.lateBy)}
+              </span>
+            ) : null}
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {sailing.departed ? `${tx("Left China")} ${sailing.departed} · ` : ""}
+              {tx("35 days at sea")}
+            </p>
+          </div>
+        </div>
       ) : null}
       {allowed ? (
         /* ONE PRESS, NOT A FORM. The moment of the press is the date: the

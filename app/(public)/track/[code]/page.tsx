@@ -227,8 +227,13 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
               {result.arrivedInDarAt ? (
                 <Stat label="Arrived in Dar" value={dayMonthYear(result.arrivedInDarAt)} />
               ) : phase === "SEA" || phase === "CHINA" ? (
-                /* Only a recorded ETA is printed; nothing is estimated here. */
-                <Stat label="Expected in Dar" value={eta ? dayMonthYear(eta) : phase === "SEA" ? "Not yet confirmed" : "Once it sails"} />
+                /* The day it is due, and — once that day has gone — how far
+                   past it, in the words the office would use on the phone. */
+                <Stat
+                  label="Expected in Dar"
+                  value={eta ? dayMonthYear(eta) : phase === "SEA" ? "Not yet confirmed" : "Once it sails"}
+                  sub={journey.lateBy}
+                />
               ) : (
                 <Stat
                   label="Latest update"

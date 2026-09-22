@@ -1,6 +1,6 @@
 import type { CargoStatus, ContainerStatus } from "@prisma/client";
 
-import { expectedArrival } from "@/lib/sailing-schedule";
+import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
 
 /**
  * WHERE THE CARGO IS, IN THE CUSTOMER'S WORDS.
@@ -231,6 +231,9 @@ export type Journey = {
   eta: Date | null;
   /** The promise has passed and the box is still at sea. */
   etaPassed: boolean;
+  /** How far past that day, in words: "3 days late", "2 weeks late". */
+  lateBy: string | null;
+  lateBySw: string | null;
   /** Null while nothing stops the cargo moving. */
   notice: string | null;
 };
@@ -541,7 +544,8 @@ export function publicJourney(input: JourneyInput): Journey {
   const etaOpen = promised && !reached.ARRIVED_IN_DAR ? promised : null;
   /* Past its day and still not in Dar: the customer is told it is late rather
      than left reading a date that has gone by. */
-  const late = Boolean(etaOpen && etaOpen.getTime() < now.getTime());
+  const delay = delayFor(etaOpen, now);
+  const late = Boolean(delay);
 
   const arrivedDetail: Partial<Record<StageCode, string>> = {
     AT_DAR_PORT: "Being checked in at our warehouse",
@@ -586,7 +590,7 @@ export function publicJourney(input: JourneyInput): Journey {
       label: "In transit",
       /* The expected day is printed by the page beside this step; only a date
          that has already gone by, or the last leg, needs words. */
-      detail: late ? "Delayed — later than the 35 days at sea" : null,
+      detail: delay ? `Delayed — ${delay.label}` : null,
       at: departedAt,
       atLabel: "Left China",
     },
@@ -657,7 +661,7 @@ export function publicJourney(input: JourneyInput): Journey {
     : /* A box past its expected day says so itself: the customer should not
          have to work out that the date printed beside it has gone by. */
       late && (stage === "AT_SEA" || stage === "SHIPPED")
-      ? "Delayed at sea — later than expected"
+      ? `Delayed at sea — ${delay!.label}`
       : STAGE_LABEL[stage];
 
   const notice = cancelled
@@ -681,7 +685,9 @@ export function publicJourney(input: JourneyInput): Journey {
     issue,
     ready,
     eta: etaOpen,
-    etaPassed: Boolean(etaOpen && etaOpen.getTime() < now.getTime()),
+    etaPassed: late,
+    lateBy: delay?.label ?? null,
+    lateBySw: delay?.labelSw ?? null,
     notice,
   };
 }
