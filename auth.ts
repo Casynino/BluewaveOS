@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
+import { defaultLocaleForRole } from "@/lib/locale";
 import { normaliseTzPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
@@ -136,7 +137,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const now = new Date();
         await prisma.user.update({
           where: { id: user.id },
-          data: { lastLoginAt: now, lastActiveAt: now },
+          data: {
+            lastLoginAt: now,
+            lastActiveAt: now,
+            /* The Foshan floor opens in Chinese at every sign-in, by the owner's
+               decision. English is one press away for the rest of the visit,
+               but a switch made for one look at a screen does not follow the
+               account into tomorrow's shift. */
+            ...(user.role === "CHINA_WAREHOUSE" ? { locale: defaultLocaleForRole(user.role) } : {}),
+          },
         });
 
         await prisma.auditLog.create({
