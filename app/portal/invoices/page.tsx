@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
 import { formatCurrency, formatRate } from "@/lib/currency";
-import { balanceOf, outstandingOf, owedAcross, paidOn } from "@/lib/invoice-balance";
+import { BALANCE_SELECT, balanceOf, outstandingOf, owedAcross, paidOn } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { requireCustomer } from "@/lib/session";
 
@@ -19,10 +19,15 @@ export default async function PortalInvoicesPage() {
   const invoices = await prisma.invoice.findMany({
     where: { customerId: user.customerId, status: { not: "DRAFT" } },
     orderBy: { createdAt: "desc" },
-    include: {
+    /* The customer's own bills, and only what their own page prints. The
+       receipts were carried down with every row and drawn nowhere. */
+    select: {
+      ...BALANCE_SELECT,
+      id: true,
+      number: true,
+      status: true,
+      dueAt: true,
       cargo: { select: { reference: true, description: true } },
-      payments: true,
-      receipts: true,
     },
   });
 

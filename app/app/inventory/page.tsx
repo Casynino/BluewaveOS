@@ -236,7 +236,7 @@ export default async function InventoryPage({
         take: 3,
       },
       containerLines: {
-        include: {
+        select: {
           container: { select: { id: true, reference: true, containerNumber: true } },
         },
       },
@@ -281,9 +281,19 @@ export default async function InventoryPage({
         select: { cargoId: true, kind: true, createdAt: true, sentBy: { select: { name: true } } },
       })
     : [];
+  /* Filed under the consignment once, newest first as it was read. Searched
+     per row it is two hundred passes over every message ever sent about any of
+     them. */
+  const toldBy = new Map<string, typeof told>();
+  for (const contact of told) {
+    if (!contact.cargoId) continue;
+    const kept = toldBy.get(contact.cargoId);
+    if (kept) kept.push(contact);
+    else toldBy.set(contact.cargoId, [contact]);
+  }
   const lastTold = (cargoId: string, kind: string) => {
     const earlier = kind === "CARGO_RECEIVED_CHINA" ? "cargo.received_china" : "cargo.loaded";
-    const row = told.find((c) => c.cargoId === cargoId && (c.kind === kind || c.kind === earlier));
+    const row = toldBy.get(cargoId)?.find((c) => c.kind === kind || c.kind === earlier);
     return row ? { when: formatDate(row.createdAt), by: row.sentBy?.name ?? "somebody" } : null;
   };
 
