@@ -150,6 +150,9 @@ export function billLetter(status: CargoStatus, owing: boolean): ContactKind {
      letter with the bill in it — never a "reminder" about a bill nobody has
      told them of. The reminder is for chasing, chosen on purpose. */
   if (owing && bluewaveStageOf(status) === "ARRIVED_IN_DAR") return "CARGO_ARRIVED_DAR";
+  /* Priced while still at sea: the customer is told the goods are on the way,
+     with the bill in the same letter — not reminded of a debt. */
+  if (bluewaveStageOf(status) === "IN_TRANSIT") return "CARGO_IN_TRANSIT";
   return "PRICE_CONFIRMED";
 }
 
@@ -184,7 +187,11 @@ function rateLine(context: MessageContext): string | null {
  * the invoice and the ways to pay. No customs wording: BlueWave has no
  * clearance stage, and the storage clock starts the day Dar books the goods in.
  */
-function darBillLetter(context: MessageContext, lead: string): string {
+function darBillLetter(
+  context: MessageContext,
+  lead: string,
+  extra: [string, string | null | undefined][] = []
+): string {
   const name = context.customerName.split(" ")[0] || context.customerName;
   const ref = context.reference ?? "";
   const owing = !context.paid;
@@ -195,6 +202,7 @@ function darBillLetter(context: MessageContext, lead: string): string {
     ["Ujazo", context.cbm ? `${context.cbm} CBM` : null],
     ["Mizigo", context.packages ? String(context.packages) : null],
     ["Rate", rateLine(context)],
+    ...extra,
   ];
   const money: string[] = [];
   if (context.amountTzs) {
@@ -214,7 +222,7 @@ function darBillLetter(context: MessageContext, lead: string): string {
       " Baada ya hapo storage charges zinaweza kutozwa."
     : stage === "ARRIVED_IN_DAR" || stage === "READY_FOR_PICKUP"
       ? `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako ulipofika.`
-      : `*STORAGE:* Utapata siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako utakapopokelewa.`;
+      : `*STORAGE:* Utapata siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako utakapofika.`;
 
   return [
     `*${COMPANY.name.toUpperCase()}*`,
@@ -307,6 +315,26 @@ export function composeMessage(kind: ContactKind, context: MessageContext): stri
         : context.paid
           ? "Mzigo wako umefika salama Dar es Salaam na malipo yako yamepokelewa. Tutakujulisha mara utakapokuwa tayari kuchukuliwa."
           : "Mzigo wako umefika salama Dar es Salaam. Tutakutumia invoice yako mara bei itakapothibitishwa."
+    );
+  }
+  /* The goods at sea with a bill already issued: the travel letter, carrying
+     the money the way the arrival letter does. */
+  if (
+    context.invoiceId &&
+    (kind === "CARGO_IN_TRANSIT" ||
+      (kind === "PRICE_CONFIRMED" && context.status && bluewaveStageOf(context.status) === "IN_TRANSIT"))
+  ) {
+    return darBillLetter(
+      context,
+      "Mzigo wako uko njiani kutoka China kuelekea Dar es Salaam. Bei ya usafirishaji imethibitishwa na invoice yako iko tayari." +
+        (context.paid
+          ? " Malipo yako yamepokelewa, asante — mzigo wako utakuwa tayari kuchukuliwa mara utakapofika."
+          : " Unaweza kulipa sasa ili mzigo wako uwe tayari kuchukuliwa mara utakapofika Dar es Salaam."),
+      [
+        ["Kontena", context.containerNumber],
+        ["Kuondoka China", day(context.departedAt)],
+        ["Inatarajiwa kufika", day(context.eta)],
+      ]
     );
   }
   if (kind === "PRICE_CONFIRMED" && context.invoiceId) {

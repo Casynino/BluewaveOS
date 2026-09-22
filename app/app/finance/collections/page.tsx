@@ -30,7 +30,18 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatMoney } from "@/lib/format";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
-import { billLetter, composeMessage, whatsappNumber } from "@/lib/messages";
+import { billLetter, composeMessage, whatsappNumber, type ContactKind } from "@/lib/messages";
+import type { CargoStatus } from "@prisma/client";
+import { bluewaveStageOf } from "@/lib/tracking-stage";
+
+/* A reminder only chases goods already in Dar that the customer has heard
+   about. Goods at sea get the travel letter with the bill in it, and the first
+   word about goods in Dar is the arrival letter. */
+function chaseLetter(status: CargoStatus, contacted: boolean): ContactKind {
+  const stage = bluewaveStageOf(status);
+  if (contacted && (stage === "ARRIVED_IN_DAR" || stage === "READY_FOR_PICKUP")) return "payment.reminder";
+  return billLetter(status, true);
+}
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -646,13 +657,13 @@ export default async function CollectionsPage({
                         cargoId={row.invoice.cargo.id}
                         invoiceId={row.invoice.id}
                         phone={whatsappNumber(row.invoice.customer.phone)}
-                        kind={row.lastContact ? "payment.reminder" : billLetter(row.invoice.cargo.status, true)}
+                        kind={chaseLetter(row.invoice.cargo.status, Boolean(row.lastContact))}
                         label={
                           row.lastContact
                             ? `Chase ${row.invoice.customer.fullName}`
                             : `Tell ${row.invoice.customer.fullName}`
                         }
-                        message={composeMessage(row.lastContact ? "payment.reminder" : billLetter(row.invoice.cargo.status, true), {
+                        message={composeMessage(chaseLetter(row.invoice.cargo.status, Boolean(row.lastContact)), {
                           status: row.invoice.cargo.status,
                           customerName: row.invoice.customer.fullName,
                           reference: row.invoice.cargo.reference,
@@ -676,6 +687,7 @@ export default async function CollectionsPage({
                           fxRate: row.invoice.fxRate
                             ? Number(row.invoice.fxRate).toLocaleString("en-US")
                             : null,
+                          containerNumber: row.invoice.cargo.containerLines[0]?.container.reference ?? null,
                           rate: row.invoice.appliedRate ? Number(row.invoice.appliedRate) : null,
                           rateBasis: row.invoice.rateBasis ?? null,
                         })}
