@@ -98,9 +98,11 @@ describe("stage messages", () => {
         if (other === event) continue;
         assert.doesNotMatch(body, SIGNATURE[other], `${event} borrows ${other}'s words`);
       }
-      assert.match(body, /^\*BLUEWAVE CARGO — /, "the title leads");
-      assert.match(body, /Habari Fatuma,/, "the greeting uses the first name");
-      assert.match(body, /Cargo ref: BW0125/);
+      assert.match(body, /^\*BLUEWAVE CARGO\*/, "the company leads");
+      assert.match(body, /Habari Fatuma!/, "the greeting uses the first name");
+      assert.match(body, /Tracking: BW0125/);
+      assert.ok(body.includes(LINKS.track), "one link: the keyed tracking page");
+      assert.ok(!body.includes("/portal/"), "never a portal link most customers cannot open");
     }
   });
 
@@ -116,54 +118,53 @@ describe("stage messages", () => {
 
   test("received in China carries the counter's facts and no money, and never in-transit words", () => {
     const body = text("CARGO_RECEIVED_CHINA");
-    for (const fact of ["Plastic chairs", "CBM: 1.440", "Packages: 12", "Pieces: 240", "Shipping mark: FATUMA-DSM", "Receipt no.: R-5521", "Status: Received in China"]) {
+    for (const fact of ["Plastic chairs", "Ujazo: 1.440 CBM", "Mizigo: 12", "Vipande: 240", "Shipping mark: FATUMA-DSM", "Namba ya risiti: R-5521", "Status: Received in China"]) {
       assert.ok(body.includes(fact), fact);
     }
-    assert.doesNotMatch(body, /TZS|USD|In transit|Estimated arrival|Container/);
+    assert.doesNotMatch(body, /TZS|USD|In transit|Inatarajiwa kufika|Kontena/);
     assert.ok(body.includes(LINKS.track));
   });
 
   test("in transit names the container, China to Dar, and an ETA only when one is recorded", () => {
     const known = text("CARGO_IN_TRANSIT");
-    assert.match(known, /Container: BWC26M09C3 \(MSKU1234567\)/);
-    assert.match(known, /Departure: China/);
-    assert.match(known, /Destination: Dar es Salaam, Tanzania/);
-    assert.match(known, /Estimated arrival: 30 Sept? 2026/);
+    assert.match(known, /Kontena: BWC26M09C3 \(MSKU1234567\)/);
+    assert.match(known, /Kuondoka: China/);
+    assert.match(known, /Kuelekea: Dar es Salaam, Tanzania/);
+    assert.match(known, /Inatarajiwa kufika: 30 Sept? 2026/);
     const unknown = text("CARGO_IN_TRANSIT", { ...FULL, eta: null });
-    assert.doesNotMatch(unknown, /Estimated arrival/, "an unknown ETA is left out, never invented");
-    assert.match(unknown, /Track your cargo/);
+    assert.doesNotMatch(unknown, /Inatarajiwa kufika/, "an unknown ETA is left out, never invented");
+    assert.match(unknown, /Fuatilia mzigo wako/);
   });
 
   test("the invoice message gives shillings first, the dollar equivalent, and the real links", () => {
     const body = text("PRICE_CONFIRMED");
-    assert.match(body, /Amount due: TZS 1,080,000/);
-    assert.match(body, /USD equivalent: USD 400.00/);
+    assert.match(body, /\*Kiasi cha kulipa: TZS 1,080,000\*/);
+    assert.match(body, /Sawa na: USD 400.00/);
     assert.match(body, /Invoice: INV-2026-000125/);
-    for (const href of [LINKS.invoice, LINKS.viewCargo, LINKS.payNow]) assert.ok(body.includes(href), href);
-    const paid = text("PRICE_CONFIRMED", { ...FULL, paid: true });
-    assert.ok(!paid.includes(LINKS.payNow), "nothing to pay on a settled bill");
+    assert.match(body, /Angalia invoice na njia za malipo/);
+    assert.ok(body.includes(LINKS.track));
   });
 
   test("arrived in Dar gives the pickup warehouse and the storage countdown from today", () => {
     const body = text("CARGO_ARRIVED_DAR");
     assert.match(body, /Tabata Matumbi, nyuma ya Azania Group/);
-    assert.match(body, /Free storage period: 7 days/);
-    assert.match(body, /Countdown starts: today/);
-    assert.match(body, /Free storage until: 28 Sept? 2026/);
+    assert.match(body, /Storage bure: 7 days/);
+    assert.match(body, /Storage inaanza: today/);
+    assert.match(body, /Storage bure hadi: 28 Sept? 2026/);
     assert.match(body, /Status: Arrived in Dar es Salaam/);
-    for (const href of [LINKS.viewCargo, LINKS.payNow, LINKS.warehouse]) assert.ok(body.includes(href), href);
+    assert.ok(body.includes(LINKS.track));
   });
 
   test("ready for pickup sends to the pickup note and the warehouse", () => {
     const body = text("CARGO_READY_FOR_PICKUP");
     assert.match(body, /Pickup note: PN-2026-000044/);
-    assert.match(body, /View pickup details/);
-    assert.ok(body.includes(LINKS.pickup) && body.includes(LINKS.warehouse));
+    assert.match(body, /Tabata Matumbi, nyuma ya Azania Group/);
+    assert.ok(body.includes(LINKS.track));
   });
 
-  test("a link with no page is not drawn", () => {
-    const body = text("PRICE_CONFIRMED", FULL, { ...LINKS, invoice: "", payNow: "" });
-    assert.doesNotMatch(body, /Download invoice|Pay now/);
+  test("a letter with no tracking page draws no link", () => {
+    const body = text("PRICE_CONFIRMED", FULL, { ...LINKS, track: "" });
+    assert.doesNotMatch(body, /https?:\/\//);
   });
 
   test("the six stages cover every status, and none of them is clearance", () => {

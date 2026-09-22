@@ -120,6 +120,8 @@ export type CargoNotice = {
   explanation: string;
   closing: string | null;
   links: NoticeLink[];
+  /** The keyed tracking page: the one link a WhatsApp letter carries. */
+  trackHref: string | null;
 };
 
 const LINK_LABEL: Record<NoticeLinkKey, string> = {
@@ -348,6 +350,7 @@ export function buildCargoNotice(
     explanation,
     closing,
     links: shown,
+    trackHref: links.track ?? null,
   };
 }
 
@@ -358,24 +361,69 @@ export function buildCargoNotice(
  * literally — the message has to look right in the app, not in a terminal.
  */
 export function noticeWhatsApp(notice: CargoNotice): string {
+  const first = notice.greeting.replace(/^Habari\s+/, "").replace(/,$/, "");
+  const row = (r: { label: string; value: string }) => {
+    const label = SW_LABEL[r.label] ?? r.label;
+    const value = r.label === "CBM" ? `${r.value} CBM` : r.value;
+    return r.label === "Amount due" ? `• *${label}: ${value}*` : `• ${label}: ${value}`;
+  };
+  const hasStage = notice.details.some((r) => r.label === "Cargo stage");
+  const money = notice.event === "PRICE_CONFIRMED" || notice.event === "CARGO_ARRIVED_DAR";
   const blocks: string[] = [
-    `*${notice.title}*`,
-    notice.greeting,
+    `*${COMPANY.name.toUpperCase()}*`,
+    `Habari ${first}!`,
     notice.intro,
     [
-      "*Cargo details*",
-      ...notice.details.map((row) => `• ${row.label}: ${row.value}`),
-      `• Status: ${notice.status}`,
+      "*MAELEZO YA MZIGO*",
+      ...notice.details.map(row),
+      ...(hasStage ? [] : [`• Status: ${notice.status}`]),
     ].join("\n"),
     ...notice.sections.map((section) =>
-      [`*${section.title}*`, ...section.rows.map((row) => `• ${row.label}: ${row.value}`)].join("\n")
+      [`*${(SW_SECTION[section.title] ?? section.title).toUpperCase()}*`, ...section.rows.map(row)].join("\n")
     ),
     notice.explanation,
-    ...notice.links.map((link) => `*${link.label}:*\n${link.href}`),
   ];
   if (notice.closing) blocks.push(notice.closing);
+  /* One link, the keyed tracking page: it carries the invoice, the ways to pay
+     and the pickup note, and opens without an account — most customers have
+     none, and a portal link sends them to a sign-in page. */
+  if (notice.trackHref) {
+    blocks.push(`*${money ? "Angalia invoice na njia za malipo" : "Fuatilia mzigo wako"}:*\n${notice.trackHref}`);
+  }
   return blocks.join("\n\n");
 }
+
+/* The customer's letters are in Swahili; the facts keep their English keys
+   everywhere else (portal rows, staff screens, tests). */
+const SW_LABEL: Record<string, string> = {
+  "Cargo ref": "Tracking",
+  Product: "Bidhaa",
+  CBM: "Ujazo",
+  Packages: "Mizigo",
+  Pieces: "Vipande",
+  "Receipt no.": "Namba ya risiti",
+  Container: "Kontena",
+  Departure: "Kuondoka",
+  Destination: "Kuelekea",
+  "Estimated arrival": "Inatarajiwa kufika",
+  "Amount due": "Kiasi cha kulipa",
+  Amount: "Kiasi",
+  "USD equivalent": "Sawa na",
+  "Exchange rate": "Exchange Rate",
+  "Cargo stage": "Status",
+  Arrived: "Imefika",
+  "Free storage period": "Storage bure",
+  "Free storage until": "Storage bure hadi",
+  "Countdown starts": "Storage inaanza",
+  "Collected by": "Aliyechukua",
+  "Collected on": "Imechukuliwa",
+  "After that": "Baada ya hapo",
+};
+
+const SW_SECTION: Record<string, string> = {
+  "Pickup location": "Mahali pa kuchukua mzigo",
+  Storage: "Storage",
+};
 
 /**
  * The portal notification: the title as the heading of the row, and a body

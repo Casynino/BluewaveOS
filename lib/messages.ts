@@ -309,6 +309,18 @@ export function composeMessage(kind: ContactKind, context: MessageContext): stri
           : "Mzigo wako umefika salama Dar es Salaam. Tutakutumia invoice yako mara bei itakapothibitishwa."
     );
   }
+  if (kind === "PRICE_CONFIRMED" && context.invoiceId) {
+    const inDar = context.status ? ["ARRIVED_IN_DAR", "READY_FOR_PICKUP"].includes(bluewaveStageOf(context.status) ?? "") : false;
+    return darBillLetter(
+      context,
+      "Bei ya usafirishaji wa mzigo wako imethibitishwa na invoice yako iko tayari. " +
+        (context.paid
+          ? "Invoice hii imeshalipwa, asante."
+          : inDar
+            ? "Unaweza kulipa sasa ili mzigo wako uwe tayari kuchukuliwa."
+            : "Unaweza kulipa sasa ili mzigo wako uwe tayari kuchukuliwa mara utakapofika Dar es Salaam.")
+    );
+  }
   if (kind === "payment.reminder") {
     return darBillLetter(
       context,
