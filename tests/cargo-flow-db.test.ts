@@ -199,7 +199,13 @@ before(async () => {
   }
   s.darWarehouseId = (await prisma.warehouse.findUniqueOrThrow({ where: { code: "DAR" } })).id;
 
-  const settings = await prisma.companySetting.findUniqueOrThrow({ where: { id: "singleton" } });
+  /* The floor's terms, written rather than assumed: a database seeded before
+     the company set its daily rate would otherwise fail the arithmetic here
+     for a reason that has nothing to do with the code under test. */
+  const settings = await prisma.companySetting.update({
+    where: { id: "singleton" },
+    data: { freeStorageDays: 7, storagePerDay: 5, storageCurrency: "USD" },
+  });
   assert.equal(settings.freeStorageDays, 7, "seven free days");
   assert.equal(settings.storagePerDay.toString(), "5", "USD 5 a day after them");
   assert.equal(settings.storageCurrency, "USD");
