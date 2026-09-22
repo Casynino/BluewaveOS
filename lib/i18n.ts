@@ -6094,6 +6094,7 @@ const ZH: Record<string, string> = {
   "Done editing": "完成编辑",
   "Edit wording": "修改文字",
   "Everything in China": "全部在中国的货物",
+  "Cargo in China": "在中国的货物",
   "Everything received in Foshan that has not sailed yet — on the floor or in a container — and whether its customer has been told.": "佛山已收货、尚未开船的全部货物（在仓库地面或已装柜），以及是否已通知客户。",
   "Found, but not ready": "已找到，但尚不可提货",
   "Last contacted about": "上次联系事由",

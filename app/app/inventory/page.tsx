@@ -85,18 +85,23 @@ export default async function InventoryPage({
     type?: string;
     from?: string;
     to?: string;
+    at?: string;
   }>;
 }) {
   await primeLocale();
   const user = await requirePermission("inventory.view");
-  const { q, state, type, from, to } = await searchParams;
+  const { q, state, type, from, to, at } = await searchParams;
   const query = q?.trim() ?? "";
   const category = type?.trim() ?? "";
 
   /* Dar's own desk sees Dar. China, and management looking at the origin end,
      see Foshan. */
+  /* Every desk may ask what is still in China (the "Cargo in China" menu
+     entry passes at=china); Dar's own floor stays its default. */
+  const askedChina = at === "china";
+  const floorPath = askedChina ? "/app/inventory/china" : "/app/inventory";
   const inChina =
-    can(user.role, "receiving.china") || !can(user.role, "receiving.dar");
+    askedChina || can(user.role, "receiving.china") || !can(user.role, "receiving.dar");
 
   const statuses = inChina ? CHINA_STATUSES : DAR_STATUSES;
 
@@ -126,7 +131,7 @@ export default async function InventoryPage({
   */
   const mayNotify =
     inChina && (can(user.role, "conversation.reply") || can(user.role, "payment.submit"));
-  const allChina = inChina && (state === "china" || (!state && mayNotify));
+  const allChina = inChina && (state === "china" || (!state && (mayNotify || askedChina)));
 
   const filtered: CargoStatus[] = loadedView
     ? CHINA_LOADED_STATUSES
@@ -292,7 +297,7 @@ export default async function InventoryPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={inChina ? T("Foshan floor") : T("Dar es Salaam floor")}
+        title={inChina ? T("Cargo in China") : T("Dar es Salaam floor")}
         description={
           inChina
             ? loadedView
@@ -330,7 +335,7 @@ export default async function InventoryPage({
           numeric={waiting}
           icon={Boxes}
           tone={waiting > 0 ? "signal" : "success"}
-          href={inChina ? "/app/inventory?state=waiting" : "/app/release"}
+          href={inChina ? `${floorPath}?state=waiting` : "/app/release"}
         />
         <KpiCard
           index={2}
@@ -339,7 +344,7 @@ export default async function InventoryPage({
           icon={ContainerIcon}
           tone="marine"
           hint={inChina ? T("Still in Foshan, in a box") : undefined}
-          href={inChina ? "/app/inventory?state=loaded" : undefined}
+          href={inChina ? `${floorPath}?state=loaded` : undefined}
         />
         <KpiCard
           index={3}

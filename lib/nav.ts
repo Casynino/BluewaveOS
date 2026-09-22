@@ -82,7 +82,9 @@ const SECTIONS: NavSection[] = [
          container off — and the floor is what those two screens fill. */
       { label: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
       { label: "Receiving dock", href: "/app/receive/dar", icon: "PackageCheck", permissions: ["receiving.dar"] },
-      { label: "Warehouse floor", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Warehouse floor", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["FINANCE"] },
+      /* Every desk sees what is still in China — Foshan's own floor already is. */
+      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["CHINA_WAREHOUSE"] },
       /* Finance reaches cargo through its containers and its bills, and asked
          for the flat list to come out of its menu. */
       { label: "All cargo", href: "/app/cargo", icon: "Package", permissions: ["cargo.viewAll"], hiddenFor: ["FINANCE"] },
@@ -235,7 +237,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     icon: "Container",
     items: [
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
@@ -291,7 +293,7 @@ const MANAGER_SECTIONS: NavSection[] = [
       { label: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
     ],
   },
   {
@@ -375,7 +377,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { label: "Scan & release", href: "/app/scan", icon: "ScanLine", permissions: ["cargo.scan"] },
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
