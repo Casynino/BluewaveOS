@@ -68,7 +68,6 @@ function compact(tzs: number) {
  */
 const VIEWS = {
   active: "Active",
-  /* Kept for an address somebody saved; no chip offers it. */
   sea: "In transit",
   checkin: "At port — to check in",
   checked: "Checked in",
@@ -81,19 +80,17 @@ type View = keyof typeof VIEWS;
 /*
   ACTIVE IS WHAT HAS LANDED AND IS NOT FINISHED WITH.
 
-  Every landed container that is not closed: at the port waiting to be checked
-  in, and checked in with its money still to collect. A closed container is
-  finished — nothing can be added to it, and it is opened again only to be
-  read — so it reads under History, and what is owed on it is chased from
-  Collections like any other bill.
+  A box still on the water has no cargo to count and nothing to check in — it
+  is watched, not worked — so it reads under In transit alone. A closed
+  container is finished with: nothing can be added to it, and it is opened
+  again only to be read, so it reads under History and what is owed on it is
+  chased from Collections. Active is the two states in between.
 
   "Waiting for prices" is not a chip. It is a cut across the same rows rather
   than a place a container is in, and it is reached from the band above the
   list, which appears only while there is something in it.
 */
-/* No "In transit" chip: a box still on the water has not arrived, and this is
-   the arrivals page. It is watched on the loading tables until it lands. */
-const CHIPS: View[] = ["active", "checkin", "checked", "history", "all"];
+const CHIPS: View[] = ["active", "sea", "checkin", "checked", "history", "all"];
 
 export default async function ArrivedContainersPage({
   searchParams,
@@ -303,10 +300,7 @@ export default async function ArrivedContainersPage({
   });
 
   const needle = query.toLowerCase();
-  /* Arrived means arrived: a container still at sea belongs to the loading
-     tables, not to the page Dar and Finance work landed boxes from. */
-  const landed = rows.filter((r) => r.state !== "sea");
-  const matched = landed.filter((r) => {
+  const matched = rows.filter((r) => {
     if (!needle) return true;
     const hay = [
       r.container.reference,
@@ -324,9 +318,10 @@ export default async function ArrivedContainersPage({
      read zero because you are standing on a different one. */
   const counts: Record<View, number> = {
     /* Landed and not closed: waiting to be checked in, or counted and waiting
-       on its money. A closed container is finished with and reads under
-       History; the money on it is chased from Collections. */
-    active: matched.filter((r) => r.state !== "history").length,
+       on its money. A box still on the water is watched, not worked, so it
+       reads under In transit alone; a closed container is finished with and
+       reads under History, and what is owed on it is chased from Collections. */
+    active: matched.filter((r) => r.state === "checkin" || r.state === "checked").length,
     sea: matched.filter((r) => r.state === "sea").length,
     checkin: matched.filter((r) => r.state === "checkin").length,
     checked: matched.filter((r) => r.state === "checked").length,
@@ -341,7 +336,7 @@ export default async function ArrivedContainersPage({
 
   const shown = matched.filter((r) => {
     if (chosen === "all") return true;
-    if (chosen === "active") return r.state !== "history";
+    if (chosen === "active") return r.state === "checkin" || r.state === "checked";
     if (chosen === "pricing") return r.toPrice > 0;
     return r.state === chosen;
   });
