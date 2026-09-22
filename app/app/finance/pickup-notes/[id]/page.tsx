@@ -82,14 +82,25 @@ export default async function PickupNotePage({
   const boxes = note.cargo.boxes;
   const packages = boxes.length || note.cargo.darReceiving?.packagesCount || 0;
 
+  /* THE STATE OF THE NOTE, READ ACROSS A COUNTER.
+     A clean badge rather than a tilted rubber stamp: the counter reads it in
+     one glance beside the identification line, and both sit on one baseline. */
   const stamp =
     note.status === "ACTIVE"
       ? note.onCredit
-        ? { text: "Released on credit", tone: "border-amber-500 text-amber-600" }
-        : { text: "Paid · valid", tone: "border-emerald-600 text-emerald-600" }
+        ? {
+            text: "Released on credit",
+            swahili: "Imetolewa kwa mkopo",
+            tone: "border-amber-300 bg-amber-50 text-amber-700",
+          }
+        : {
+            text: "Paid in full",
+            swahili: "Imelipwa yote",
+            tone: "border-emerald-300 bg-emerald-50 text-emerald-700",
+          }
       : note.status === "USED"
-        ? { text: "Collected", tone: "border-neutral-500 text-neutral-500" }
-        : { text: "Withdrawn", tone: "border-red-600 text-red-600" };
+        ? { text: "Collected", swahili: "Imechukuliwa", tone: "border-neutral-300 bg-neutral-100 text-neutral-600" }
+        : { text: "Withdrawn", swahili: "Imesitishwa", tone: "border-red-300 bg-red-50 text-red-700" };
 
   const label = "text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-500";
   /* Where the goods are handed over: the Dar warehouse record, which is not
@@ -197,12 +208,16 @@ export default async function PickupNotePage({
                 </div>
               </div>
 
-              <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
-                <span className={`rotate-[-4deg] rounded-md border-2 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.2em] ${stamp.tone}`}>
+              <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] ${stamp.tone}`}
+                >
                   {stamp.text}
+                  <span className="font-medium normal-case tracking-normal opacity-70">· {stamp.swahili}</span>
                 </span>
-                <span className="rounded-full bg-[#0a3350] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
-                  Bring photo ID · Leta kitambulisho
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#d6e2ee] bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#0a3350]">
+                  Bring photo ID
+                  <span className="font-medium normal-case tracking-normal text-neutral-500">· Leta kitambulisho</span>
                 </span>
               </div>
             </div>
