@@ -504,10 +504,18 @@ export function VoyageForm({
   containerId,
   shipment,
   sailed = false,
+  etaDefault = null,
 }: {
   containerId: string;
   /** The box has already left China. Changing a sailing fact now needs a reason. */
   sailed?: boolean;
+  /**
+   * The day this lane is due in Dar when the line has promised nothing —
+   * thirty days after departure, worked out by `expectedArrival()`. Shown, not
+   * pre-filled: a date nobody has stood behind must not look like one the
+   * shipping line gave us.
+   */
+  etaDefault?: string | null;
   shipment: {
     shippingLine: string | null;
     vessel: string | null;
@@ -566,6 +574,17 @@ export function VoyageForm({
         <div className="space-y-2">
           <Label htmlFor="eta">ETA</Label>
           <Input id="eta" name="eta" type="date" min="2000-01-01" max="2099-12-31" defaultValue={shipment?.eta ?? ""} />
+          {/* Left blank, the departure decides it. Said here so nobody types a
+              date to "make sure", which is how an estimate becomes a promise. */}
+          {etaDefault ? (
+            <p className="tnum text-xs text-muted-foreground">
+              {tx("Left blank, this sailing is due {date} — thirty-five days after it leaves China.").replace("{date}", etaDefault)}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {tx("Thirty-five days after departure, once there is a departure to count from.")}
+            </p>
+          )}
         </div>
       </div>
       <div className="space-y-2">

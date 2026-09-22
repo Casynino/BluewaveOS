@@ -766,6 +766,11 @@ export default async function ContainerPage({
               <VoyageForm
                 containerId={container.id}
                 sailed={sailed}
+                etaDefault={
+                  /* The same sentence the full edit page prints, so the two
+                     forms never disagree about when the box is due. */
+                  formatDate(expectedArrival(container.shipment?.departureDate ?? null)) ?? null
+                }
                 shipment={
                   container.shipment
                     ? {

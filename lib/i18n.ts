@@ -7931,6 +7931,54 @@ const ZH: Record<string, string> = {
   "this line": "本行",
   "Line charged": "本行计费",
   "The rate book has no price in this unit for these goods. Type the rate agreed": "价目表没有此类货物按此单位的价格。请填写约定运价",
+  /* Correcting a container: the sailing, and what is recorded inside it. */
+  "Edit sailing": "编辑航次",
+  "Correct the voyage and what is recorded inside this container. Every change is kept with your name and the reason you gave.":
+    "修正本柜的航次以及柜内记录的货物。每一项修改都会连同你的姓名和填写的原因一起保存。",
+  "The sailing is Foshan's to correct — the desk that books the space.":
+    "航次由佛山修改——订舱的岗位。",
+  "Expected in Dar": "预计到达达城",
+  "thirty-five days after it left": "开航后三十五天",
+  "Left blank, this sailing is due {date} — thirty-five days after it leaves China.":
+    "不填则本航次预计 {date} 到港——离开中国后三十五天。",
+  "Thirty-five days after departure, once there is a departure to count from.":
+    "自开航日起三十五天，前提是已有开航日。",
+  "This sailing is past the day it was due and the box is still at sea. The customers on it are being told it is delayed.":
+    "本航次已超过预计到港日，柜子仍在海上。柜内客户已被告知延误。",
+
+  "The cargo on this container": "本柜内的货物",
+  "What is recorded inside": "系统记录的柜内货物",
+  "There is nothing on this container.": "本柜内没有货物。",
+  "The doors are open: cargo goes on and comes off as the floor decides.":
+    "柜门还开着：仓库可以随时装货、卸货。",
+  "The box is shut. A consignment inside it that the manifest missed is recorded here, and the packing list is drawn again.":
+    "柜已封。装箱单遗漏的柜内货物在这里补录，装箱单会重新出具。",
+  "The box has landed. Correcting the manifest opens a case, so somebody goes and looks.":
+    "柜已到港。修正装箱单会同时开单立案，确保有人去查。",
+  "Taking a consignment off a box that has sailed puts it back on the Foshan floor and redraws the packing list.":
+    "从已开航的柜上卸下一票货，它会回到佛山库存，并重新出具装箱单。",
+  "Taking a consignment off a landed box puts it back on the Foshan floor and opens a case on where it is.":
+    "从已到港的柜上卸下一票货，它会回到佛山库存，并就其下落开单立案。",
+  "Changing what is on this container is another desk's to do.":
+    "更改本柜内的货物是别的岗位的工作。",
+  "Why it comes off": "卸下的原因",
+  "Why it goes on": "装上的原因",
+  "Pcs": "件数",
+  "Put on": "装上",
+
+  "Still on the Foshan floor": "仍在佛山库存",
+  "Cargo that could have come off this box": "可能从本柜卸下的货物",
+  "Everything Foshan has taken in that is on no container. A box marked as departed before somebody finished recording the load is the usual reason a consignment is sitting here and is really on the water.":
+    "佛山已收但尚未装柜的全部货物。还没来得及录完装柜明细就按了“已开航”，是一票货实际已在海上、记录却还留在这里的常见原因。",
+  "Picked off what Foshan already took in — never retyped. Its own reference, mark and measurements come with it.":
+    "从佛山已收的货物中挑选——不重新录入。它自己的单号、唐唇和尺寸会一并带过来。",
+  "Name, phone, reference, mark or goods…": "姓名、电话、单号、唐唇或货物…",
+  "Nothing is waiting that could go on this container.": "没有可以装入本柜的待装货物。",
+  "Nothing waiting matches that.": "没有匹配的待装货物。",
+  "Showing the {shown} oldest of {total} waiting. Search for the rest.":
+    "共 {total} 票待装货物，显示最早的 {shown} 票。其余请搜索。",
+  "it keeps its number and gains a version each time the cargo on this box changes, because a number already on paper at a port must not change under somebody's hand.":
+    "每次本柜货物变动，它保留原单号并新增一个版本，因为已经打印送到港口的单号不能在别人手里悔改。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
