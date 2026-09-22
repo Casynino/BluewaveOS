@@ -131,8 +131,10 @@ export default async function RateBookPage() {
     (d, r) => (!d || r.effectiveFrom > d ? r.effectiveFrom : d),
     null
   );
-  const cheapest = live.at(-1);
-  const dearest = live[0];
+  /* A per-kg rate is not a price per cubic metre; it has no place in the range. */
+  const perCbm = live.filter((r) => r.basis === "PER_CBM");
+  const cheapest = perCbm.at(-1);
+  const dearest = perCbm[0];
   const typeNames = [...new Set(live.map((r) => r.cargoType).filter((t): t is string => !!t))];
   const allTypes = [...new Set([...typeNames, ...usedTypes.map((t) => t.cargoType!)])];
 

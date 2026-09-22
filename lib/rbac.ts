@@ -394,6 +394,11 @@ const CUSTOMER_SUPPORT: Permission[] = [
   "notification.send",
   "search.global",
   "rate.view",
+  /* The owner's decision: the desk quoting customers keeps the rate book it
+     quotes from — adding a kind of goods, correcting a price. Every change is
+     a superseding row with its audit line, so a bill already raised never
+     moves. The exchange rate stays Finance's. */
+  "rate.manage",
 ];
 
 /**

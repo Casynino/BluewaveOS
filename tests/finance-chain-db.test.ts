@@ -1072,7 +1072,8 @@ describe("who may touch the money", () => {
     assert.ok(!rbac.can("CUSTOMER_SUPPORT", "payment.verify"));
     assert.ok(!rbac.can("CUSTOMER_SUPPORT", "invoice.edit"));
     assert.ok(!rbac.can("CUSTOMER_SUPPORT", "invoice.cancel"));
-    assert.ok(!rbac.can("CUSTOMER_SUPPORT", "rate.manage"));
+    assert.ok(rbac.can("CUSTOMER_SUPPORT", "rate.manage"));
+    assert.ok(!rbac.can("CUSTOMER_SUPPORT", "fx.manage"));
   });
 
   test("verifying money is Finance's and management's, and nobody else's", () => {

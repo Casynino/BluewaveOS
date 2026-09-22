@@ -212,6 +212,6 @@ describe("permissions", () => {
     assert.equal(can("CHINA_WAREHOUSE", "finance.view"), false);
     assert.equal(can("DAR_WAREHOUSE", "rate.manage"), false);
     assert.equal(can("CUSTOMER_SUPPORT", "payment.verify"), false);
-    assert.equal(can("CUSTOMER_SUPPORT", "rate.manage"), false);
+    assert.ok(can("CUSTOMER_SUPPORT", "rate.manage"));
   });
 });

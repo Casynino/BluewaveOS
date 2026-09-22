@@ -101,7 +101,6 @@ describe("the support desk explains; it does not do", () => {
     ["payment.record", "cannot record money as taken"],
     ["payment.verify", "cannot turn a claim into money"],
     ["receipt.issue", "cannot issue a receipt"],
-    ["rate.manage", "cannot move the rate book"],
     ["customerRate.manage", "cannot agree a customer rate"],
     ["fx.manage", "cannot move the board rate"],
     ["invoice.create", "cannot raise a bill by hand"],
