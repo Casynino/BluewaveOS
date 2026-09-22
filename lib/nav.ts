@@ -235,6 +235,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     icon: "Container",
     items: [
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
@@ -290,6 +291,7 @@ const MANAGER_SECTIONS: NavSection[] = [
       { label: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
     ],
   },
   {
@@ -373,6 +375,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { label: "Scan & release", href: "/app/scan", icon: "ScanLine", permissions: ["cargo.scan"] },
       { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "Goods in China", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"] },
       { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
