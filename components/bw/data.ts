@@ -11,18 +11,23 @@ import { telHref, whatsappLink, WHATSAPP_OPENER } from "@/lib/site-contact";
  * WHAT THE PUBLIC SITE KNOWS ABOUT THE COMPANY, READ ONCE PER REQUEST.
  *
  * Every figure on the public pages comes out of the rows the rest of the system
- * runs on — CompanySetting, the China warehouse, the live exchange rate, the
+ * runs on — CompanySetting, the two warehouses, the live exchange rate, the
  * sailing schedule. Nothing here is typed into a component, so changing a phone
  * number in settings changes the header, the footer and the contact page at
  * once, and a sailing moved by the office moves on the timetable.
  */
 export const bwCompany = cache(async () => {
-  const [company, china] = await Promise.all([
+  const [company, china, dar] = await Promise.all([
     prisma.companySetting.findUnique({ where: { id: "singleton" } }),
     prisma.warehouse.findFirst({
       where: { kind: "CHINA", active: true },
       orderBy: { createdAt: "asc" },
       select: { addressLocal: true, addressEnglish: true, phone: true, city: true },
+    }),
+    /* Where customers collect. Not the office: the office is darAddress. */
+    prisma.warehouse.findFirst({
+      where: { code: "DAR" },
+      select: { addressEnglish: true, addressLocal: true, phone: true },
     }),
   ]);
   return {
@@ -38,6 +43,8 @@ export const bwCompany = cache(async () => {
     whatsapp: whatsappLink(company?.whatsapp, WHATSAPP_OPENER),
     instagram: company?.instagram ?? null,
     darAddress: company?.darAddress ?? null,
+    pickupAddress: dar?.addressEnglish ?? dar?.addressLocal ?? null,
+    pickupPhone: dar?.phone ?? null,
     chinaAddress: china?.addressLocal ?? company?.chinaAddress ?? null,
     chinaAddressEnglish: china?.addressEnglish ?? null,
     chinaPhone: china?.phone ?? null,

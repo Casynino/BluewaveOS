@@ -56,12 +56,18 @@ export const CHINA_WAREHOUSE = {
   phone: "+86 153 6042 1106 / +86 186 6654 4018",
 };
 
+/**
+ * Where customers collect — the pickup warehouse, which is not the office. The
+ * office in Kariakoo is `darAddress` above; the goods are handed over here.
+ * Arrival, ready and pickup messages, pickup notes and tracking all read this
+ * row. scripts/set-dar-warehouse-address.ts writes it to a live database.
+ */
 export const DAR_WAREHOUSE = {
   code: "DAR",
   name: "Dar es Salaam Warehouse",
   kind: "TANZANIA" as const,
   addressLocal: null as string | null,
-  addressEnglish: "Aggrey & Likoma Street, near Mkombozi Bank, Kariakoo, Dar es Salaam",
+  addressEnglish: "Tabata Matumbi, nyuma ya Azania Group, Dar es Salaam, Tanzania",
   city: "Dar es Salaam",
   country: "Tanzania",
   phone: "+255 688 887 784",

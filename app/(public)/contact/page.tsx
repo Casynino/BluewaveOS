@@ -79,11 +79,22 @@ export default async function ContactPage() {
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {/* Dar es Salaam: the office customers visit. */}
             <article aria-labelledby="plate-dar" className="flex min-w-0 flex-col overflow-hidden rounded-[3px] border border-bw-fg bg-bw-panel">
-              <PlateHead code="TZ" place="Dar es Salaam" role="Office · warehouse · collection" id="plate-dar" />
+              <PlateHead code="TZ" place="Dar es Salaam" role="Office · pickup warehouse" id="plate-dar" />
               <dl className="flex-1 divide-y divide-bw-line">
                 {company.darAddress ? (
-                  <PlateRow term="Address">
+                  <PlateRow term="Office">
                     <span className="text-lg leading-snug">{company.darAddress}</span>
+                  </PlateRow>
+                ) : null}
+                {/* The link in every arrival and pickup message lands here. */}
+                {company.pickupAddress ? (
+                  <PlateRow term="Pickup warehouse">
+                    <span id="dar-warehouse" className="scroll-mt-28 text-lg leading-snug">
+                      {company.name}, {company.pickupAddress}
+                    </span>
+                    <span className="mt-1 block text-sm text-bw-muted">
+                      Collect here with your ID and pickup note once we tell you your cargo is ready.
+                    </span>
                   </PlateRow>
                 ) : null}
                 {company.phone && company.phoneHref ? (
