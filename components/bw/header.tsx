@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, ChevronDown, Menu, Phone, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, PackageSearch, Phone, X } from "lucide-react";
 
 import { Lockup } from "@/components/bw/lockup";
 import { TrackField } from "@/components/bw/track-field";
@@ -189,22 +189,25 @@ export function BwHeader({ contact }: { contact: Contact }) {
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:ml-3">
           <ThemeToggle
             className={cn(
-              "hidden size-10 rounded-[2px] min-[360px]:grid",
+              "hidden size-10 rounded-[2px] sm:grid",
               solid ? "text-bw-muted hover:bg-bw-ground hover:text-bw-fg" : "text-white/75 hover:bg-white/10 hover:text-white"
             )}
           />
           <Link
             href="/track"
             className={cn(
-              "hidden h-10 items-center rounded-[2px] px-3 text-[0.95rem] font-medium transition-colors sm:inline-flex",
+              "inline-flex h-10 items-center gap-1.5 rounded-[2px] px-2.5 text-[0.95rem] font-medium transition-colors sm:px-3",
               solid ? "text-bw-fg hover:bg-bw-ground" : "text-white hover:bg-white/10"
             )}
           >
-            Track cargo
+            {/* On a phone this is the one thing most visitors came for, so it stays in the bar. */}
+            <PackageSearch className="size-5 sm:hidden" aria-hidden />
+            <span className="max-[359px]:sr-only">Track</span>
+            <span className="hidden sm:inline">&nbsp;cargo</span>
           </Link>
           <Link
             href={account.href}
-            className="inline-flex h-10 items-center gap-2 rounded-[2px] bg-bw-coral px-4 text-[0.95rem] font-semibold text-white transition-colors hover:bg-bw-coral-dark"
+            className="hidden h-10 items-center gap-2 whitespace-nowrap rounded-[2px] bg-bw-coral px-4 text-[0.95rem] font-semibold sm:inline-flex text-white transition-colors hover:bg-bw-coral-dark"
           >
             {account.label}
           </Link>
@@ -300,6 +303,12 @@ export function BwHeader({ contact }: { contact: Contact }) {
               ))}
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href={account.href}
+                className="inline-flex h-11 items-center gap-2 rounded-[2px] bg-bw-coral px-5 font-semibold text-white hover:bg-bw-coral-dark"
+              >
+                {account.label}
+              </Link>
               {contact.dar && contact.darHref ? (
                 <a
                   href={contact.darHref}

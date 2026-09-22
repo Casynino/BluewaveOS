@@ -1094,3 +1094,50 @@
     }
   }
 }
+
+/* THE SKY SHOWS THROUGH. Page-wide bands are laid over the fixed sky
+   (components/bw/sky.tsx) translucent rather than painted solid, so the whole
+   site reads as one night rather than a stack of flat colours. Cards and
+   panels inside them stay opaque — text never sits on moving lines. The dark
+   bands keep more of their colour in the light theme, where the sky beneath
+   them is pale. */
+@layer utilities {
+  .bw section.bg-bw-ground,
+  .bw main > div > section.bg-bw-ground {
+    background-color: rgb(var(--bw-ground) / 0.55);
+  }
+  .bw section.bg-bw-panel {
+    background-color: rgb(var(--bw-panel) / 0.6);
+  }
+  .bw section.bg-bw-night,
+  .bw footer.bg-bw-night {
+    background-color: rgb(6 19 31 / 0.92);
+  }
+  .bw section.bg-bw-ink {
+    background-color: rgb(10 34 54 / 0.9);
+  }
+  .dark .bw section.bg-bw-ground {
+    background-color: rgb(var(--bw-ground) / 0.35);
+  }
+  .dark .bw section.bg-bw-panel {
+    background-color: rgb(var(--bw-panel) / 0.45);
+  }
+  .dark .bw section.bg-bw-night,
+  .dark .bw footer.bg-bw-night {
+    background-color: rgb(6 19 31 / 0.5);
+  }
+  .dark .bw section.bg-bw-ink {
+    background-color: rgb(10 34 54 / 0.55);
+  }
+
+  .bw-glow {
+    animation: bw-glow 26s ease-in-out infinite;
+  }
+  @keyframes bw-glow {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.8; }
+    50% { transform: translate3d(6%, 4%, 0) scale(1.12); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bw-glow { animation: none; }
+  }
+}

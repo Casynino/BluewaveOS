@@ -6,6 +6,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Corridor, corridorStations } from "@/components/bw/corridor";
 import { bwCompany, bwExchangeRate, bwSailings } from "@/components/bw/data";
 import { DepartureBoard } from "@/components/bw/departure-board";
+import { SailingPanel } from "@/components/bw/sailing-panel";
 import { TrackField } from "@/components/bw/track-field";
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { PHOTOS } from "@/components/site/photos";
@@ -28,8 +29,6 @@ export const metadata: Metadata = {
 
 /* Sailings, the exchange rate and the guide move during the day. */
 export const revalidate = 60;
-
-const JOURNEY = ["Discover", "Find", "Visit", "Source", "Buy", "Ship", "Track", "Arrive", "Collect"];
 
 const utc = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { ...o, timeZone: "UTC" });
 const DAY_MONTH = utc({ weekday: "short", day: "2-digit", month: "short" });
@@ -82,36 +81,17 @@ export default async function HomePage() {
               <Action href="/sourcing" tone="ghost-light" size="lg">
                 Start sourcing
               </Action>
-              <Link
-                href="/track"
-                className="bw-mono ml-1 inline-flex h-14 items-center gap-2 px-2 text-xs uppercase tracking-[0.16em] text-white/75 hover:text-white"
-              >
-                Track cargo <ArrowRight className="size-3.5" />
-              </Link>
+            </div>
+            {/* Tracking, in the opening picture — it is what most visitors came for. */}
+            <div className="mt-8 max-w-xl">
+              <p className="bw-mono mb-2.5 text-[0.7rem] uppercase tracking-[0.18em] text-bw-cyan">Track your cargo</p>
+              <TrackField dark id="bw-track-hero" />
             </div>
           </div>
 
-          {/* The whole journey, at a glance — every step a real page. */}
-          <aside aria-label="The BlueWave journey" className="bw-glass bw-rise rounded-[4px] p-5 [animation-delay:150ms] sm:p-6 lg:col-span-5">
-            <Label className="text-white/70">Your journey with BlueWave</Label>
-            <ol className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-[2px] bg-white/10">
-              {JOURNEY.map((step, i) => (
-                <li key={step} className={cn("p-3", i < 5 ? "bg-bw-deep/60" : "bg-bw-night/60")}>
-                  <p className="bw-mono text-[0.68rem] text-bw-cyan">{String(i + 1).padStart(2, "0")}</p>
-                  <p className="font-bw-display text-lg font-semibold uppercase leading-none sm:text-xl">{step}</p>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-white/10 pt-4">
-              <div>
-                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.12em] text-white/60">Next sailing from Foshan</p>
-                <p className="bw-display mt-1 text-3xl">{next ? DAY_MONTH.format(next.departureDate) : "Ask the office"}</p>
-              </div>
-              <div className="text-right">
-                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.12em] text-white/60">At sea</p>
-                <p className="bw-display mt-1 text-3xl">≈ {transitDays} days</p>
-              </div>
-            </div>
+          {/* The next ship: the date that matters to anyone about to buy. */}
+          <aside aria-label="Next sailing" className="bw-rise min-w-0 [animation-delay:150ms] lg:col-span-5">
+            <SailingPanel sailings={sailings} />
           </aside>
         </Frame>
       </section>

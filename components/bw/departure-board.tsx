@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 const utc = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" });
 const DAY = utc({ weekday: "short" });
 const DATE = utc({ day: "2-digit", month: "short" });
-const YEAR = utc({ year: "numeric" });
 
 const STATUS_TONE: Record<Sailing["status"], string> = {
   OPEN_FOR_BOOKING: "text-emerald-300",
@@ -63,17 +62,17 @@ export function DepartureBoard({ sailings, compact = false }: { sailings: Sailin
             <div className="col-span-2 flex items-center justify-between gap-3 md:col-span-3">
               <span
                 className={cn(
-                  "bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em]",
+                  "bw-mono inline-flex min-w-0 items-center gap-2 text-xs uppercase leading-tight tracking-[0.14em]",
                   STATUS_TONE[sailing.status]
                 )}
               >
-                <span className="size-2 bg-current" aria-hidden />
+                <span className="size-2 shrink-0 bg-current" aria-hidden />
                 {SAILING_STATUS_LABEL[sailing.status] ?? sailing.status}
               </span>
               {sailing.bookingOpen ? (
                 <Link
                   href={bookHref(sailing)}
-                  className="inline-flex h-10 items-center gap-2 rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] hover:bg-bw-coral-dark"
+                  className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] hover:bg-bw-coral-dark"
                 >
                   Book <ArrowRight className="size-3.5" aria-hidden />
                 </Link>
@@ -90,17 +89,17 @@ export function DepartureBoard({ sailings, compact = false }: { sailings: Sailin
 }
 
 function BoardDate({ label, date, accent = false, approx = false }: { label: string; date: Date; accent?: boolean; approx?: boolean }) {
+  /* Weekday over the date, not beside it: in a two-column share of the board
+     the two on one line ran into the next column. */
   return (
-    <div className="md:col-span-2">
+    <div className="min-w-0 md:col-span-2">
       <p className="bw-mono text-[0.68rem] uppercase tracking-[0.12em] text-white/50 md:hidden">{label}</p>
-      <p className="bw-mono mt-1 whitespace-nowrap text-base md:mt-0 md:text-lg">
-        <span className={cn("mr-1.5 text-xs uppercase tracking-[0.1em] md:mr-2", accent ? "text-bw-coral-bright" : "text-white/50")}>
-          {DAY.format(date)}
-        </span>
+      <p className={cn("bw-mono mt-1 text-[0.68rem] uppercase tracking-[0.12em] md:mt-0", accent ? "text-bw-coral-bright" : "text-white/50")}>
+        {DAY.format(date)}
+      </p>
+      <p className="bw-mono whitespace-nowrap text-base md:text-lg">
         {approx ? "≈ " : ""}
         {DATE.format(date).toUpperCase()}
-        {/* The year earns its room on a wide board; on a phone it only wraps. */}
-        <span className="ml-1.5 hidden text-xs text-white/40 xl:inline">{YEAR.format(date)}</span>
       </p>
     </div>
   );
