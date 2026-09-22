@@ -21,6 +21,7 @@ import { isUsableRate, tzsToUsd, usdToTzs } from "@/lib/currency";
 import { OPEN_STATUSES } from "@/lib/exception-groups";
 import { formatCbm, formatDate, formatMoney } from "@/lib/format";
 import {
+  BALANCE_SELECT,
   invoiceRate,
   outstandingOf,
   outstandingTzsOf,
@@ -138,6 +139,25 @@ export default async function ArrivedContainersPage({
     where: {
       deletedAt: null,
       status: { in: ["DEPARTED", "IN_TRANSIT", "ARRIVED", "CLOSED"] },
+      /*
+        SEARCHED IN THE DATABASE, NOT OVER THE PAGE.
+
+        Sifted in memory it could only ever find a box among the newest sixty,
+        so a search for a sailing from three months ago came back empty and
+        read as "no such container" rather than "not on this page". The same
+        five fields, asked of the whole table.
+      */
+      ...(query
+        ? {
+            OR: [
+              { reference: { contains: query, mode: "insensitive" as const } },
+              { containerNumber: { contains: query, mode: "insensitive" as const } },
+              { sealNumber: { contains: query, mode: "insensitive" as const } },
+              { shipment: { vessel: { contains: query, mode: "insensitive" as const } } },
+              { shipment: { voyage: { contains: query, mode: "insensitive" as const } } },
+            ],
+          }
+        : {}),
     },
     orderBy: { createdAt: "desc" },
     take: 60,
@@ -175,9 +195,11 @@ export default async function ArrivedContainersPage({
                 where: { status: { in: OPEN_STATUSES } },
                 select: { id: true },
               },
+              /* Only what a balance is made of, plus the status that decides
+                 whether this bill counts towards the sailing at all. */
               invoices: {
                 where: { status: { not: "CANCELLED" } },
-                include: { payments: true },
+                select: { ...BALANCE_SELECT, status: true },
               },
             },
           },
@@ -321,20 +343,8 @@ export default async function ArrivedContainersPage({
     };
   });
 
-  const needle = query.toLowerCase();
-  const matched = rows.filter((r) => {
-    if (!needle) return true;
-    const hay = [
-      r.container.reference,
-      r.container.containerNumber ?? "",
-      r.container.shipment?.vessel ?? "",
-      r.container.shipment?.voyage ?? "",
-      r.container.sealNumber ?? "",
-    ]
-      .join(" ")
-      .toLowerCase();
-    return hay.includes(needle);
-  });
+  /* The search already ran in the `where` above. */
+  const matched = rows;
 
   /* Counts follow the search but never the chip's own filter, so a chip cannot
      read zero because you are standing on a different one. */

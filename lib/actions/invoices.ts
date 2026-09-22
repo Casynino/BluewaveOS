@@ -1158,27 +1158,53 @@ export async function chargeStorage(
           : "Storage is already on this bill.",
     };
   }
-  /* Priced at the rate in force now, for the days now being charged. The days
-     charged last month keep the rate they were charged at. */
-  const amount = position.perDay.mul(days).toDecimalPlaces(2);
-
-  const subtotal = invoice.subtotal.add(amount);
-  const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+  /* Priced at the rate in force now, for the days now being charged; the days
+     charged last month keep the rate they were charged at. The figures are
+     worked out again inside the transaction below, against the bill as it
+     stands there — these are only what the reason sentence says. */
   const why =
     reason ||
     (existing.length > 0
       ? `Storage for ${days} further day(s) beyond the ${position.freeDays} free`
       : `Storage for ${days} day(s) beyond the ${position.freeDays} free`);
 
-  await prisma.$transaction(async (tx) => {
+  /*
+    COUNTED AGAIN INSIDE THE TRANSACTION.
+
+    The days above were counted against a bill read before the rate and the
+    company's settings were fetched. Two presses a moment apart — a second
+    press, or a form the browser retried — both read that older copy, and the
+    customer was charged the same day's floor rent twice. The days already
+    billed are counted again here, against the row nobody else can be writing,
+    and a day that has been charged is never charged again.
+  */
+  const charged = await prisma.$transaction(async (tx) => {
+    const billed = await tx.invoiceItem.aggregate({
+      where: { invoiceId: invoice.id, category: "Storage" },
+      _sum: { quantity: true },
+    });
+    const billedDays = new Prisma.Decimal(billed._sum.quantity ?? 0);
+    const owed = new Prisma.Decimal(position.chargeableDays).sub(billedDays);
+    if (owed.lessThanOrEqualTo(0)) return null;
+
+    /* The bill as it stands now, not as it stood before the settings were
+       read: another desk may have discounted it in between. */
+    const live = await tx.invoice.findUniqueOrThrow({
+      where: { id: invoice.id },
+      select: { subtotal: true, total: true, vatPercent: true, vatInclusive: true, fxRate: true },
+    });
+    const owedAmount = position.perDay.mul(owed).toDecimalPlaces(2);
+    const liveSubtotal = live.subtotal.add(owedAmount);
+    const money = applyVat(liveSubtotal, live.vatPercent, live.vatInclusive);
+
     await recordFieldChange(
       {
         actor,
         entity: "Invoice",
         entityId: invoice.id,
         field: "total",
-        oldValue: invoice.total.toString(),
-        newValue: total.toString(),
+        oldValue: live.total.toString(),
+        newValue: money.total.toString(),
         reason: why,
       },
       tx
@@ -1187,13 +1213,13 @@ export async function chargeStorage(
       data: {
         invoiceId: invoice.id,
         description:
-          existing.length > 0
-            ? `Storage — ${days} further day(s) beyond ${position.freeDays} free`
-            : `Storage — ${days} day(s) beyond ${position.freeDays} free`,
-        quantity: days,
+          billedDays.greaterThan(0)
+            ? `Storage — ${owed} further day(s) beyond ${position.freeDays} free`
+            : `Storage — ${owed} day(s) beyond ${position.freeDays} free`,
+        quantity: owed,
         unit: "day",
         unitPrice: position.perDay,
-        amount,
+        amount: owedAmount,
         category: "Storage",
         taxable: true,
       },
@@ -1201,28 +1227,31 @@ export async function chargeStorage(
     await tx.invoice.update({
       where: { id: invoice.id },
       data: {
-        subtotal,
-        vatAmount,
-        total,
-        totalTzs: invoice.fxRate
-          ? usdToTzs(total, invoice.fxRate)
-          : null,
+        subtotal: liveSubtotal,
+        vatAmount: money.vatAmount,
+        total: money.total,
+        totalTzs: live.fxRate ? usdToTzs(money.total, live.fxRate) : null,
       },
     });
+    return { days: owed, amount: owedAmount, billedDays };
   });
+
+  if (!charged) {
+    return { ok: `Storage to day ${position.chargeableDays} is already on this bill.` };
+  }
 
   await recordAudit({
     actor,
     action: "invoice.storage.charge",
     entity: "Invoice",
     entityId: invoice.id,
-    summary: `Added ${invoice.currency} ${amount} storage to ${invoice.number} (${days} day(s)${
-      chargedDays.greaterThan(0) ? `, ${chargedDays} already billed` : ""
+    summary: `Added ${invoice.currency} ${charged.amount} storage to ${invoice.number} (${charged.days} day(s)${
+      charged.billedDays.greaterThan(0) ? `, ${charged.billedDays} already billed` : ""
     })`,
     metadata: {
-      amount: amount.toString(),
-      days: days.toString(),
-      daysAlreadyBilled: chargedDays.toString(),
+      amount: charged.amount.toString(),
+      days: charged.days.toString(),
+      daysAlreadyBilled: charged.billedDays.toString(),
       chargeableDays: position.chargeableDays,
       perDay: position.perDay.toString(),
     },
@@ -1231,7 +1260,7 @@ export async function chargeStorage(
   await refreshInvoiceStatus(invoice.id);
 
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
-  return { ok: `${invoice.currency} ${amount} of storage added.` };
+  return { ok: `${invoice.currency} ${charged.amount} of storage added.` };
 }
 
 

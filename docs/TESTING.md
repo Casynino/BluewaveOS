@@ -1,5 +1,41 @@
 # BlueWave Cargo — how to run and test it
 
+## Under load
+
+Three consignments prove the arithmetic and nothing about what a screen does
+when Foshan has taken in two thousand. Against a throwaway database — never
+`bluewave`, never `bluewave_test` — invent a year of trading, and then measure
+what each screen actually costs:
+
+```bash
+createdb bluewave_load
+export DATABASE_URL="postgresql://$USER@127.0.0.1:5432/bluewave_load?schema=public" DIRECT_URL="$DATABASE_URL"
+npx prisma migrate deploy && npx prisma db seed
+npx tsx scripts/perf-seed.ts            # 300 customers, 2,000 consignments, 30 containers
+```
+
+`scripts/perf-probe.ts` signs in as a real desk, requests the real pages and
+counts the statements out of Postgres's own log. `pg_stat_database` is no use
+for this: a backend reports its counters at most once a second and an idle one
+does not report at all, so a page that runs forty queries in a fifth of a
+second shows as nothing at all.
+
+```bash
+psql -d postgres -c "ALTER DATABASE bluewave_load SET log_min_duration_statement = 0"
+npx next dev -p 3199 &
+npx tsx scripts/perf-probe.ts
+psql -d postgres -c "ALTER DATABASE bluewave_load RESET log_min_duration_statement"
+```
+
+It prints a query count and a best-of-three wall time per screen. What to look
+for is a number that climbs with the size of the database rather than with the
+size of the page: that is a screen reading rows it never draws.
+
+`npx tsx scripts/audit-integrity.ts` asks the same database the questions the
+screens assume — a bill equals its lines, a balance is its payments, one code
+names one thing, and nothing points at a parent that has been struck off. It
+writes nothing and is safe against any database.
+
 ## Start
 
 ```bash

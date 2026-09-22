@@ -5,9 +5,9 @@ import { EmptyState } from "@/components/app/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { INVOICE_STATUS_LABELS } from "@/lib/constants";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { formatCurrency, formatRate } from "@/lib/currency";
-import { balanceOf, owedAcross } from "@/lib/invoice-balance";
+import { BALANCE_SELECT, balanceOf, outstandingOf, owedAcross, paidOn } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { requireCustomer } from "@/lib/session";
 
@@ -19,10 +19,15 @@ export default async function PortalInvoicesPage() {
   const invoices = await prisma.invoice.findMany({
     where: { customerId: user.customerId, status: { not: "DRAFT" } },
     orderBy: { createdAt: "desc" },
-    include: {
+    /* The customer's own bills, and only what their own page prints. The
+       receipts were carried down with every row and drawn nowhere. */
+    select: {
+      ...BALANCE_SELECT,
+      id: true,
+      number: true,
+      status: true,
+      dueAt: true,
       cargo: { select: { reference: true, description: true } },
-      payments: true,
-      receipts: true,
     },
   });
 
@@ -86,20 +91,11 @@ export default async function PortalInvoicesPage() {
                       </Badge>
                     </div>
 
-                    {/* One formatter for every figure on the card. The note
-                        below prints dollars beside the shillings, and
-                        "$376.20" here against "USD 376.20" there reads as two
-                        different bills. */}
                     <dl className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 text-sm sm:grid-cols-4">
                       {[
-                        ["Total", formatCurrency(tzs ? balance.totalTzs : invoice.total, tzs ? "TZS" : invoice.currency)],
-                        ["Paid", formatCurrency(tzs ? balance.paidTzs : balance.paid, tzs ? "TZS" : invoice.currency)],
-                        [
-                          "Amount due",
-                          cancelled
-                            ? "—"
-                            : formatCurrency(tzs ? balance.outstandingTzs : balance.outstanding, tzs ? "TZS" : invoice.currency),
-                        ],
+                        ["Total", tzs ? formatCurrency(balance.totalTzs, "TZS") : formatMoney(invoice.total, invoice.currency)],
+                        ["Paid", tzs ? formatCurrency(balance.paidTzs, "TZS") : formatMoney(balance.paid, invoice.currency)],
+                        ["Amount due", cancelled ? "—" : tzs ? formatCurrency(balance.outstandingTzs, "TZS") : formatMoney(balance.outstanding, invoice.currency)],
                         ["Due", formatDate(invoice.dueAt)],
                       ].map(([label, value]) => (
                         <div key={label}>

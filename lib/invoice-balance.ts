@@ -41,6 +41,32 @@ type InvoiceLike = {
   payments: PaymentLike[];
 };
 
+/**
+ * THE COLUMNS A BALANCE IS MADE OF, AND NO OTHERS.
+ *
+ * Every screen that shows what is owed was reading whole invoices with whole
+ * payment rows hanging off them — forty columns to answer a question that
+ * needs six, over every bill in the book. Selecting through this leaves the
+ * figure identical and the payload a fraction of it, and what it selects is
+ * exactly what `InvoiceLike` above declares, so the two cannot drift apart.
+ */
+export const BALANCE_SELECT = {
+  total: true,
+  currency: true,
+  fxRate: true,
+  totalTzs: true,
+  payments: {
+    select: {
+      status: true,
+      amount: true,
+      currency: true,
+      fxRate: true,
+      baseCurrencyAmount: true,
+      creditedAmount: true,
+    },
+  },
+} satisfies Prisma.InvoiceSelect;
+
 const ZERO = () => new Prisma.Decimal(0);
 
 /**

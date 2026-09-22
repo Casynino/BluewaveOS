@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
-import { outstandingOf } from "@/lib/invoice-balance";
+import { BALANCE_SELECT, outstandingOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -69,35 +69,49 @@ export default async function CustomerPage({
 
   if (!customer) notFound();
 
-  /* The receiver is who is billed and who collects, so a customer who only
-     ever receives would otherwise read "No cargo yet" on their own page. */
-  const cargoList = await prisma.cargo.findMany({
-    where: {
-      deletedAt: null,
-      OR: [{ senderId: customer.id }, { receiverId: customer.id }],
-    },
-    orderBy: { createdAt: "desc" },
-    take: 25,
-    include: {
-      containerLines: { include: { container: true } },
-      invoices: {
-        where: showMoney ? undefined : { id: { in: [] } },
-        include: { payments: true },
+  const mineWhere = { deletedAt: null, OR: [{ senderId: customer.id }, { receiverId: customer.id }] };
+
+  const [cargoList, owing, forSupplier] = await Promise.all([
+    /* The receiver is who is billed and who collects, so a customer who only
+       ever receives would otherwise read "No cargo yet" on their own page. */
+    prisma.cargo.findMany({
+      where: mineWhere,
+      orderBy: { createdAt: "desc" },
+      take: 25,
+      include: {
+        containerLines: {
+          select: { container: { select: { id: true, reference: true, containerNumber: true, status: true } } },
+        },
+        invoices: {
+          where: showMoney ? undefined : { id: { in: [] } },
+          include: { payments: true },
+        },
       },
-    },
-  });
+    }),
+    /*
+      WHAT THIS CUSTOMER OWES — ALL OF IT.
+
+      The list below shows the latest twenty-five bills, and this figure was
+      added up over those alone while the invoice count beside it was the real
+      one. A customer on their thirtieth bill read a balance lower than what
+      they owe, and it is a figure somebody quotes down a phone. Every live
+      bill, six columns each.
+    */
+    showMoney
+      ? prisma.invoice.findMany({
+          where: { customerId: customer.id, status: { notIn: ["DRAFT", "CANCELLED"] } },
+          select: BALANCE_SELECT,
+        })
+      : Promise.resolve([]),
+    supplierAddress(customer.shippingMark ?? customer.fullName.toUpperCase()),
+  ]);
+
   const invoices = showMoney ? customer.invoices : [];
-
-  const balance = invoices
-    .filter((i) => i.status !== "CANCELLED" && i.status !== "DRAFT")
-    .reduce((sum, invoice) => sum + Number(outstandingOf(invoice)), 0);
-
-  const forSupplier = await supplierAddress(customer.shippingMark ?? customer.fullName.toUpperCase());
+  const balance = owing.reduce((sum, invoice) => sum + Number(outstandingOf(invoice)), 0);
 
   /* The whole relationship in one line, counted rather than listed: the page
      below shows the latest twenty-five, and "how much of everything" is the
      first question on the phone. */
-  const mineWhere = { deletedAt: null, OR: [{ senderId: customer.id }, { receiverId: customer.id }] };
   const [cargoCount, movingCount, invoiceCount, bookingCount, pickupCount] = await Promise.all([
     prisma.cargo.count({ where: mineWhere }),
     prisma.cargo.count({

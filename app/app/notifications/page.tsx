@@ -18,12 +18,18 @@ export default async function NotificationsPage() {
   await primeLocale();
   const user = await requireStaff();
 
-  const notifications = await prisma.notification.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
-  const unread = notifications.filter((n) => !n.readAt).length;
+  /* Counted in the database, not off the hundred on the screen: a desk that
+     has not looked in a fortnight was told there was nothing to mark read
+     while everything older than the hundredth notice still stood unread. The
+     portal has always counted it this way. */
+  const [notifications, unread] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

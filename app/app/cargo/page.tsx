@@ -155,8 +155,10 @@ export default async function CargoPage({
     include: {
       sender: { select: { fullName: true, code: true } },
       chinaReceiving: { select: { packagesCount: true, cbm: true } },
+      /* The column prints one reference. `include` brought the whole
+         commercial line — rate, volume, currency — down with it. */
       containerLines: {
-        include: { container: { select: { reference: true, containerNumber: true } } },
+        select: { container: { select: { reference: true } } },
       },
     },
   });
