@@ -19,8 +19,9 @@ export const COMPANY = {
   email: null as string | null,
   phone: "+255 688 887 784",
   altPhone: "+255 628 430 911",
-  /** The main office line, which the company answers on WhatsApp. */
-  whatsapp: "255688887784",
+  /** The line the company answers on WhatsApp — the owner's: +255 628 430 911.
+      Calls still reach the office number above. */
+  whatsapp: "255628430911",
   darAddress: "Aggrey & Likoma Street, near Mkombozi Bank, Kariakoo, Dar es Salaam, Tanzania",
   chinaAddress: "广东省佛山市南海区大沥镇沥雅路翔丰产业园区1栋 入仓号：BW-021",
   /** The company that signs for goods in China has not been given to us. */
