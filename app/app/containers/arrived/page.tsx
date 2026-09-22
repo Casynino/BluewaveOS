@@ -69,7 +69,7 @@ function compact(tzs: number) {
 const VIEWS = {
   active: "Active",
   sea: "In transit",
-  clearance: "Pending clearance",
+  checkin: "At port — to check in",
   checked: "Checked in",
   history: "History",
   all: "Everything",
@@ -80,7 +80,7 @@ type View = keyof typeof VIEWS;
 /*
   ACTIVE IS WHAT HAS LANDED AND IS NOT FINISHED WITH.
 
-  A box still on the water has no cargo to clear, no bill to chase and nothing
+  A box still on the water has no cargo to count, no bill to chase and nothing
   to check in — it is watched, not worked — so it lives under In transit alone
   and Active is the two states on the ground. A closed container is finished:
   nothing can be added to it and it is opened again only to be read.
@@ -89,7 +89,7 @@ type View = keyof typeof VIEWS;
   than a place a container is in, and it is reached from the band above the
   list, which appears only while there is something in it.
 */
-const CHIPS: View[] = ["active", "sea", "clearance", "checked", "history", "all"];
+const CHIPS: View[] = ["active", "sea", "checkin", "checked", "history", "all"];
 
 export default async function ArrivedContainersPage({
   searchParams,
@@ -112,7 +112,9 @@ export default async function ArrivedContainersPage({
   const showCosts = can(user.role, "expense.view");
 
   const query = q?.trim() ?? "";
-  const chosen: View = view && view in VIEWS ? (view as View) : "active";
+  /* An address saved before the port step was renamed still opens it. */
+  const asked = view === "clearance" ? "checkin" : view;
+  const chosen: View = asked && asked in VIEWS ? (asked as View) : "active";
 
   /* Everything that has sailed. A container still taking cargo in Foshan is
      not on this page at all — that is the loading table. */
@@ -256,7 +258,7 @@ export default async function ArrivedContainersPage({
         : checkedIn
           ? "checked"
           : container.status === "ARRIVED"
-            ? "clearance"
+            ? "checkin"
             : "sea";
 
     /* Every one of these landed in Dar es Salaam, so printing the destination
@@ -316,10 +318,10 @@ export default async function ArrivedContainersPage({
   const counts: Record<View, number> = {
     /* Landed and not yet closed. A box still on the water is not "active" work
        for anybody in Dar — it is a date — so it lives under In transit only. */
-    active: matched.filter((r) => r.state === "clearance" || r.state === "checked")
+    active: matched.filter((r) => r.state === "checkin" || r.state === "checked")
       .length,
     sea: matched.filter((r) => r.state === "sea").length,
-    clearance: matched.filter((r) => r.state === "clearance").length,
+    checkin: matched.filter((r) => r.state === "checkin").length,
     checked: matched.filter((r) => r.state === "checked").length,
     /* Counted at Dar with nothing billed yet — the containers Finance has to
        open and confirm prices on before anybody can be asked for money. */
@@ -333,7 +335,7 @@ export default async function ArrivedContainersPage({
   const shown = matched.filter((r) => {
     if (chosen === "all") return true;
     if (chosen === "active")
-      return r.state === "clearance" || r.state === "checked";
+      return r.state === "checkin" || r.state === "checked";
     if (chosen === "pricing") return r.toPrice > 0;
     return r.state === chosen;
   });
@@ -774,7 +776,7 @@ export default async function ArrivedContainersPage({
                           "h-8 w-1 rounded-full",
                           row.state === "checked"
                             ? "bg-emerald-500"
-                            : row.state === "clearance"
+                            : row.state === "checkin"
                               ? "bg-amber-500"
                               : row.state === "sea"
                                 ? "bg-brand"
@@ -798,7 +800,7 @@ export default async function ArrivedContainersPage({
                   <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                     {row.state === "checked"
                       ? t(locale, "Checked in")
-                      : row.state === "clearance"
+                      : row.state === "checkin"
                         ? `${t(locale, "Counting")} ${row.counted}/${row.cargo}`
                         : row.state === "sea"
                           ? t(locale, "In transit")

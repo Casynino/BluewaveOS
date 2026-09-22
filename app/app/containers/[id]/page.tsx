@@ -27,7 +27,6 @@ import { PackingListButton } from "@/components/app/packing-list-button";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ContainerMoney } from "@/components/app/container-money";
 import { PageHeader } from "@/components/app/page-header";
-import { ClearanceButton } from "@/components/app/clearance-button";
 import { UndoArrivalButton } from "@/components/app/undo-arrival-button";
 import { SectionLabel } from "@/components/app/section-label";
 import { Badge } from "@/components/ui/badge";
@@ -246,14 +245,14 @@ export default async function ContainerPage({
   );
   const waitingCustomers = new Set(waiting.map((w) => w.senderId)).size;
 
-  /* Landed and still with customs: what "Mark cleared" would clear. */
-  const inClearance = await prisma.cargo.count({
+  /* At the port and not yet confirmed on the Dar floor: still in transit to
+     the customer, and the check-in is what moves them on. */
+  const awaitingCheckIn = await prisma.cargo.count({
     where: {
       deletedAt: null,
-      clearedAt: null,
-      OR: [{ status: "ARRIVED_TANZANIA" }, { darReceiving: { isNot: null } }],
+      status: "ARRIVED_TANZANIA",
+      darReceiving: null,
       containerLines: { some: { containerId: container.id } },
-      status: { notIn: ["COLLECTED", "DELIVERED", "CANCELLED", "MISSING_AT_DAR"] },
     },
   });
 
@@ -264,7 +263,6 @@ export default async function ContainerPage({
         containerLines: { some: { containerId: container.id } },
         OR: [
           { darReceiving: { isNot: null } },
-          { clearedAt: { not: null } },
           { status: { notIn: ["ARRIVED_TANZANIA", "CANCELLED"] } },
         ],
       },
@@ -400,8 +398,12 @@ export default async function ContainerPage({
                 }
               />
             ) : null}
-            {can(user.role, "cargo.clear") && inClearance > 0 ? (
-              <ClearanceButton containerId={container.id} waiting={inClearance} />
+            {can(user.role, "receiving.dar") && awaitingCheckIn > 0 ? (
+              <Button asChild>
+                <Link href={`/app/receive/dar/${container.id}`}>
+                  {T("Check in at Dar")} ({awaitingCheckIn})
+                </Link>
+              </Button>
             ) : null}
             {can(user.role, "container.arrive") && container.status === "ARRIVED" && arrivalUndoable ? (
               <UndoArrivalButton containerId={container.id} reference={container.reference} />

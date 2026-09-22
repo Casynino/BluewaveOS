@@ -176,8 +176,10 @@ async function main() {
   check("one mark, one customer", markDupes, (m: (typeof markDupes)[number]) => `${m.mark} × ${m.n}`);
 
   console.log("\nRELEASE");
-  const notes = await prisma.pickupNote.findMany({ include: { cargo: true } });
-  check("pickup note on cargo that was never checked in at Dar", notes.filter((n) => !n.cargo.clearedAt && !n.onCredit), (n: (typeof notes)[number]) => n.noteNumber);
+  /* A note may be written while the ship is at sea; it may only be spent on
+     goods Dar has confirmed on its floor. */
+  const notes = await prisma.pickupNote.findMany({ where: { status: "USED" }, include: { cargo: { include: { darReceiving: { select: { id: true } } } } } });
+  check("pickup note used on cargo that was never checked in at Dar", notes.filter((n) => !n.cargo.darReceiving), (n: (typeof notes)[number]) => n.noteNumber);
 
   console.log(bad === 0 ? "\nEverything the screens assume holds.\n" : `\n${bad} row(s) to look at.\n`);
   await prisma.$disconnect();

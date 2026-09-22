@@ -485,12 +485,12 @@ model Cargo {
   operationalHoldReason String?
 
   /**
-   * CUSTOMS CLEARANCE, SEPARATE FROM BEING ON THE DAR FLOOR.
-   * Clearance starts the moment Dar books the boxes in (DarReceiving.receivedAt,
-   * which is also when the storage clock starts) and ends here, when somebody
-   * says it is cleared. Null on a consignment at Dar means clearance is still in
-   * progress, and the release check refuses it: arrived is not cleared, and
-   * cleared is not ready.
+   * RETIRED. BlueWave has no customs-clearance stage: the journey is received
+   * in China, stored in China, in transit, arrived in Dar, ready for pickup,
+   * collected. These two columns hold what the inherited clearance step
+   * recorded before it was removed, and are kept so that record survives.
+   * Nothing reads or writes them — not the release check, not the storage
+   * clock, not a message.
    */
   clearedAt       DateTime?
   clearedById     String?
@@ -983,6 +983,9 @@ model PackingList {
   createdAt DateTime @default(now())
 }
 
+/// CLEARANCE and CLEARED are never written: BlueWave has no clearance stage.
+/// They stay because removing a stored enum value is a migration that can
+/// only fail on a row somebody forgot.
 enum ShipmentStatus {
   PREPARING
   READY
@@ -1018,6 +1021,7 @@ model Shipment {
   /// The promise. Public tracking measures progress against it.
   eta           DateTime?
   actualArrival DateTime?
+  /// Retired with the clearance step; never written.
   clearedAt     DateTime?
 
   status ShipmentStatus @default(PREPARING)
@@ -2058,6 +2062,10 @@ model Notification {
   body  String?
   /// Where "open" goes. Null when there is nowhere to go.
   href  String?
+  /// "CARGO_IN_TRANSIT:<cargoId>" — one stage message per consignment per
+  /// reader, however many times the event is retried. Null for notices that
+  /// are not a stage of the journey.
+  eventKey String?
 
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -2067,6 +2075,7 @@ model Notification {
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([customerId, createdAt])
+  @@unique([customerId, eventKey])
 }
 
 // ---------------------------------------------------------------------------

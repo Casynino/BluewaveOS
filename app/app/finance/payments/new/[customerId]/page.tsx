@@ -64,7 +64,6 @@ export default async function MergePaymentForCustomer({
                 commodity: true,
                 packages: { where: { deletedAt: null }, select: { cargoType: true } },
                 darReceiving: { select: { receivedAt: true } },
-                clearedAt: true,
                 containerLines: {
                   take: 1,
                   orderBy: { createdAt: "desc" },
@@ -113,7 +112,7 @@ export default async function MergePaymentForCustomer({
        named on the row rather than folded in: folding it in would promise a
        total the payment would then be refused for. */
     const accrued = storagePosition({
-      receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
+      receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
       collectedAt: null,
       freeDays: settings?.freeStorageDays ?? 0,
       perDay: settings?.storagePerDay ?? 0,

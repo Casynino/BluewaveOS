@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { setCargoStatus } from "@/lib/cargo";
-import { announceIfReady } from "@/lib/clearance";
+import { announceCargoEvent, announceIfReady } from "@/lib/cargo-events";
 import { nextDeliveryReference, nextReleaseNumber } from "@/lib/ids";
 import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
@@ -140,6 +140,30 @@ export async function releaseCargo(
         `Handed to ${data.collectedByName}`
       );
 
+      /* Who took it, when, who handed it over, what was scanned and what the
+         check said — written with the handover, not after it. */
+      await recordAudit(
+        {
+          actor,
+          action: "cargo.release",
+          entity: "Cargo",
+          entityId: cargo.id,
+          summary: `Released ${cargo.reference} as ${ref} to ${data.collectedByName} (${data.packagesReleased} package(s))`,
+          metadata: {
+            method: data.method,
+            collectedBy: data.collectedByName,
+            idNumber: data.collectedByIdNo ?? null,
+            relationship: data.relationship ?? null,
+            releasedAt: new Date().toISOString(),
+            pickupNote: cargo.pickupNote?.noteNumber ?? null,
+            boxesScanned: boxes.length,
+            verification: "release check passed; pickup note spent; every box scanned out",
+          },
+        },
+        tx
+      );
+      await announceCargoEvent(tx, "CARGO_COLLECTED", cargo.id);
+
       return ref;
     });
   } catch (error) {
@@ -147,35 +171,6 @@ export async function releaseCargo(
       error: formMessage(error, "That did not work."),
     };
   }
-
-  const cargo = await prisma.cargo.findUnique({
-    where: { id: data.cargoId },
-    select: { reference: true, senderId: true, receiverId: true },
-  });
-
-  if (cargo) {
-    await notifyCustomer([cargo.senderId, cargo.receiverId], {
-      kind: "cargo.released",
-      title: `${cargo.reference} has been ${
-        data.method === "COLLECTION" ? "collected" : "delivered"
-      }`,
-      body: `Released to ${data.collectedByName}. Release note ${number}.`,
-      href: "/portal",
-    });
-  }
-
-  await recordAudit({
-    actor,
-    action: "cargo.release",
-    entity: "Cargo",
-    entityId: data.cargoId,
-    summary: `Released ${cargo?.reference} as ${number} to ${data.collectedByName} (${data.packagesReleased} package(s))`,
-    metadata: {
-      method: data.method,
-      collectedBy: data.collectedByName,
-      idNumber: data.collectedByIdNo ?? null,
-    },
-  });
 
   revalidatePath("/app/release");
   revalidatePath(`/app/cargo/${data.cargoId}`);
@@ -209,7 +204,7 @@ export async function markReadyForRelease(
     /* Told once, by the one function that tells it; a consignment whose
        customer already heard is only moved on the floor's list. */
     if (await announceIfReady(tx, cargoId, actor)) return true;
-    return setCargoStatus(tx, cargoId, "READY_FOR_RELEASE", actor, "Paid, verified and cleared");
+    return setCargoStatus(tx, cargoId, "READY_FOR_RELEASE", actor, "Arrived in Dar, paid and verified");
   });
 
   /* The status history carries the move; this carries the person and the

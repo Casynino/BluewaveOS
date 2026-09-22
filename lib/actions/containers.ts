@@ -8,7 +8,7 @@ import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { DateOutOfRange, formDate } from "@/lib/dates";
 import { issueFor as issuePackingListFor } from "@/lib/packing-list";
 import { setCargoStatus, setCargoStatusBulk } from "@/lib/cargo";
-import { announcePortArrival } from "@/lib/clearance";
+import { announceCargoEvent } from "@/lib/cargo-events";
 import { priceOnCheckIn } from "@/lib/price-confirmation";
 import { LOADABLE_CONTAINER_STATUSES } from "@/lib/constants";
 import {
@@ -17,7 +17,7 @@ import {
   nextPackingListNumber,
   nextShipmentReference,
 } from "@/lib/ids";
-import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
+import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { nextOpenSailing, publicSailings } from "@/lib/sailing-schedule";
 import { formMessage } from "@/lib/safe-error";
@@ -503,11 +503,10 @@ export async function loadCargo(
       },
     });
 
-    /* No message to the customer. Loading is ours, not a milestone they
-       follow (the owner's list): they are told when the goods are received,
-       when the box leaves China, when it lands, and when it is cleared. A
-       consignment loaded and taken off again the same afternoon would
-       otherwise have announced a container it never sailed in. */
+    /* No message to the customer here. Stored in China is a stage they can
+       see on tracking, and Support may send its message by hand; announcing it
+       from the loading press would tell a customer about a container their
+       goods are taken off again the same afternoon. */
 
     return cargo.length;
   });
@@ -1005,25 +1004,24 @@ const MILESTONES = {
     from: ["SEALED"] as ContainerStatus[],
     shipment: "IN_TRANSIT" as const,
     cargo: "IN_TRANSIT" as const,
-    title: "Your cargo has left China and is at sea",
-    body: (ref: string) => `Container ${ref} has departed Foshan and is on its way to Dar es Salaam.`,
   },
+  /*
+    AT THE PORT IS STILL IN TRANSIT.
+
+    The box is at Dar es Salaam port; our warehouse has not confirmed the
+    goods on its floor. The customer's stage does not move and nobody is told
+    anything here — "Arrived in Dar" is the check-in's to say, and the storage
+    clock starts there, never from the ship.
+  */
   ARRIVED: {
     from: ["DEPARTED", "IN_TRANSIT"] as ContainerStatus[],
     shipment: "ARRIVED_TANZANIA" as const,
     cargo: "ARRIVED_TANZANIA" as const,
-    /* Arrived at the port is not ready: customs has the goods now, and the
-       customer is told so — and that another message follows. */
-    title: "Your cargo has arrived at Dar es Salaam port — clearance in progress",
-    body: (ref: string) =>
-      `Container ${ref} is at Dar es Salaam port and your goods are going through customs clearance. They are not ready to collect yet — we will tell you when clearance is complete and they are at our warehouse.`,
   },
   CLOSED: {
     from: ["ARRIVED"] as ContainerStatus[],
     shipment: "COMPLETED" as const,
     cargo: null,
-    title: "",
-    body: () => "",
   },
 } satisfies Record<
   string,
@@ -1031,8 +1029,6 @@ const MILESTONES = {
     from: ContainerStatus[];
     shipment: "IN_TRANSIT" | "ARRIVED_TANZANIA" | "COMPLETED";
     cargo: "IN_TRANSIT" | "ARRIVED_TANZANIA" | null;
-    title: string;
-    body: (ref: string) => string;
   }
 >;
 
@@ -1079,7 +1075,10 @@ export async function advanceContainer(
 
   const container = await prisma.container.findFirst({
     where: { id: containerId, deletedAt: null },
-    include: { cargoLines: { select: { cargoId: true, cargo: { select: { senderId: true, receiverId: true } } } } },
+    include: {
+      cargoLines: { select: { cargoId: true, cargo: { select: { reference: true, senderId: true, receiverId: true } } } },
+      shipment: { select: { eta: true } },
+    },
   });
   if (!container) return { error: "That container no longer exists." };
 
@@ -1176,36 +1175,47 @@ export async function advanceContainer(
           `Container ${container.reference}`
         );
 
-        if (to === "ARRIVED") {
-          /* Each customer's own message, with their own bill in it. */
-          await announcePortArrival(tx, container.cargoLines.map((l) => l.cargoId));
-        } else {
-          await notifyCustomer(
-            container.cargoLines.flatMap((l) => [l.cargo.senderId, l.cargo.receiverId]),
-            {
-              kind: `container.${to.toLowerCase()}`,
-              title: step.title,
-              body: step.body(container.containerNumber ?? container.reference),
-              href: "/portal",
-            },
-            tx
-          );
+        if (to === "DEPARTED") {
+          /* Every consignment on the box is in transit now, and each customer
+             hears it once — with their own reference, the container and the
+             ETA when one is recorded. The key on each row stops a retried
+             departure from saying it twice. */
+          for (const line of container.cargoLines) {
+            await announceCargoEvent(tx, "CARGO_IN_TRANSIT", line.cargoId);
+          }
         }
       }
+
+      /* In the same transaction as the move it describes. */
+      await recordAudit(
+        {
+          actor,
+          action: `container.${to.toLowerCase()}`,
+          entity: "Container",
+          entityId: container.id,
+          summary: `${container.reference} → ${to.toLowerCase()} (${container.cargoLines.length} consignment(s))`,
+          metadata: {
+            container: container.reference,
+            containerNumber: container.containerNumber ?? null,
+            at: at.toISOString(),
+            ...(to === "DEPARTED"
+              ? {
+                  departureDate: at.toISOString(),
+                  eta: container.shipment?.eta?.toISOString() ?? null,
+                  cargoStatus: "IN_TRANSIT",
+                }
+              : {}),
+            cargo: container.cargoLines.map((l) => l.cargo.reference),
+          },
+        },
+        tx
+      );
     });
   } catch (error) {
     return {
       error: formMessage(error, "That did not work."),
     };
   }
-
-  await recordAudit({
-    actor,
-    action: `container.${to.toLowerCase()}`,
-    entity: "Container",
-    entityId: container.id,
-    summary: `${container.reference} → ${to.toLowerCase()} (${container.cargoLines.length} consignment(s))`,
-  });
 
   if (to === "ARRIVED") {
     /* Landed goods are collectable money: anything Finance has not priced yet
@@ -1741,12 +1751,13 @@ export async function putOnArrivedContainer(
  *
  * "Mark as arrived" pressed on the wrong container, or a day early. It is put
  * back to in transit — the container, the sailing and every consignment on it,
- * each with its own history line — and the customers who were told their goods
- * were at the port are told that was premature.
+ * each with its own history line. Customers were never told about the port
+ * (their stage is in transit until Dar checks the goods in), so there is
+ * nothing to take back from them.
  *
  * Only while nothing has happened since: once a consignment has been checked
- * in, reported missing or cleared, the arrival is a fact other records stand
- * on, and undoing it here would leave them describing goods at sea.
+ * in or reported missing, the arrival is a fact other records stand on, and
+ * undoing it here would leave them describing goods at sea.
  */
 export async function undoContainerArrival(
   _prev: ActionState,
@@ -1771,7 +1782,6 @@ export async function undoContainerArrival(
             select: {
               reference: true,
               status: true,
-              clearedAt: true,
               senderId: true,
               receiverId: true,
               darReceiving: { select: { id: true } },
@@ -1788,12 +1798,11 @@ export async function undoContainerArrival(
   const touched = container.cargoLines.find(
     (l) =>
       l.cargo.darReceiving ||
-      l.cargo.clearedAt ||
       !["ARRIVED_TANZANIA", "CANCELLED"].includes(l.cargo.status)
   );
   if (touched) {
     return {
-      error: `${touched.cargo.reference} has already been checked in, cleared or reported missing, so the arrival stands. Correct that consignment instead.`,
+      error: `${touched.cargo.reference} has already been checked in or reported missing, so the arrival stands. Correct that consignment instead.`,
     };
   }
 
@@ -1826,16 +1835,6 @@ export async function undoContainerArrival(
         "IN_TRANSIT",
         actor,
         `Arrival of ${container.reference} undone${reason ? ` — ${reason}` : ""}`
-      );
-      await notifyCustomer(
-        container.cargoLines.flatMap((l) => [l.cargo.senderId, l.cargo.receiverId]),
-        {
-          kind: "container.arrival_undone",
-          title: "Correction: your cargo is still on the way",
-          body: `Container ${container.containerNumber ?? container.reference} has not reached Dar es Salaam port yet — our earlier message was sent too soon. We will tell you when it arrives.`,
-          href: "/portal",
-        },
-        tx
       );
     });
   } catch (error) {

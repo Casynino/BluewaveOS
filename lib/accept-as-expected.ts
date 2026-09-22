@@ -3,7 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
-import { announceDarArrival } from "@/lib/clearance";
+import { announceDarArrival } from "@/lib/cargo-events";
 import { priceOnCheckIn } from "@/lib/price-confirmation";
 import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
@@ -14,11 +14,9 @@ type ActionState = { error?: string; ok?: string };
  * PRESENT AND CORRECT, IN ONE PRESS — the work behind it, for whichever
  * caller has already been authorised.
  *
- * Two callers: the Dar floor's own "accept as expected" (receiving.dar), and
- * clearance, which books in whatever the floor has not yet checked in as
- * China sent it (cargo.clear). Kept out of the "use server" file because an
- * export there is a public endpoint, and this one must only ever run behind
- * one of those two checks.
+ * Called by the Dar floor's own "accept as expected" (receiving.dar). Kept out
+ * of the "use server" file because an export there is a public endpoint, and
+ * this one must only ever run behind that check.
  */
 export async function acceptAsExpectedBy(
   actor: SessionUser,
@@ -111,9 +109,21 @@ export async function acceptAsExpectedBy(
         },
       });
 
+      await recordAudit(
+        {
+          actor,
+          action: "cargo.arrivedDar",
+          entity: "Cargo",
+          entityId: item.id,
+          summary: `${item.reference} arrived in Dar — checked in as sent, storage starts today`,
+          metadata: { oldValue: item.status, newValue: "RECEIVED_DAR", packages: china.packagesCount },
+        },
+        tx
+      );
+
       /* The same message the scales form sends, so a customer is told their
          goods reached Dar however the clerk checked them in. */
-      await announceDarArrival(tx, item, { arrivedAt: new Date(), actorId: actor.id });
+      await announceDarArrival(tx, item, { actorId: actor.id });
       return true;
     });
     if (took) {

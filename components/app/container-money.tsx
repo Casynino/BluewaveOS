@@ -26,7 +26,7 @@ import {
 import { formatCurrency, usdToTzs } from "@/lib/currency";
 import { formatCbm, formatDate, formatMoney } from "@/lib/format";
 import { bookCategories } from "@/lib/rate-categories";
-import { billLetter, composeMessage, messageStage, whatsappNumber } from "@/lib/messages";
+import { billLetter, composeMessage, whatsappNumber } from "@/lib/messages";
 import { outstandingOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
@@ -358,12 +358,7 @@ export async function ContainerMoney({
         if (!mayTellCustomers || !bill) return null;
         const phone = whatsappNumber(c.receiver.phone);
         if (!phone) return null;
-        const stage = messageStage({
-          status: c.status,
-          hasDarReceiving: c.darReceiving !== null,
-          clearedAt: c.clearedAt,
-        });
-        const kind = billLetter(stage, false);
+        const kind = billLetter(c.status, false);
         return {
           phone,
           kind,
@@ -373,20 +368,15 @@ export async function ContainerMoney({
             customerName: c.receiver.fullName,
             reference: c.reference,
             description: c.description,
+            invoiceId: bill.id,
             invoiceNumber: bill.number,
-            stage,
+            status: c.status,
             packages: measured?.packagesCount ?? null,
             cbm: bill.billableCbm
               ? Number(bill.billableCbm).toFixed(3)
               : measured?.cbm
                 ? Number(measured.cbm).toFixed(3)
                 : null,
-            ratePerCbm: bill.appliedRate
-              ? bill.appliedRate.toString()
-              : bill.standardRate
-                ? bill.standardRate.toString()
-                : null,
-            rateBasis: bill.rateBasis,
             /* Raw figures with separators, not formatCurrency: the template
                writes the currency word itself and would otherwise print two. */
             amount: Number(bill.total).toLocaleString("en-US", {
@@ -404,7 +394,7 @@ export async function ContainerMoney({
                 ? Number(settings.storagePerDay).toString()
                 : null,
             storageCurrency: settings?.storageCurrency ?? "USD",
-            storageFrom: storageStart(c.darReceiving?.receivedAt, c.clearedAt),
+            storageFrom: storageStart(c.darReceiving?.receivedAt),
           }),
         };
       })(),

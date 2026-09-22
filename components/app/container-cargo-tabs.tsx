@@ -495,7 +495,7 @@ function CargoTableRow({
                 phone={row.send.phone}
                 message={row.send.message}
                 kind={row.send.kind}
-                label={t(locale, row.send.kind === "cargo.arrived" ? "Tell them it is in clearance" : "Send the bill")}
+                label={t(locale, row.send.kind === "CARGO_READY_FOR_PICKUP" ? "Tell them it is ready" : "Send invoice notification")}
                 iconOnly
               />
             ) : null}

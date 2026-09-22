@@ -1,12 +1,12 @@
 /**
  * THE STORAGE CLOCK.
  *
- * It starts when Dar books the boxes in — the physical arrival, recorded on the
- * receiving row — and at nothing else: not the invoice, not the payment, not
- * the ship's arrival, not the end of clearance. It keeps running through
- * clearance. Days are counted on the Dar es Salaam calendar (UTC+3, no summer
- * time), so a consignment booked in at 01:00 local time is on its first day,
- * not the previous one's.
+ * It starts when Dar confirms the boxes on its floor — the physical arrival,
+ * recorded on the receiving row — and at nothing else: not receipt in China,
+ * not the departure, not the ship's arrival, not the ETA, not the invoice, not
+ * the price being confirmed. Days are counted on the Dar es Salaam calendar
+ * (UTC+3, no summer time), so a consignment booked in at 01:00 local time is on
+ * its first day, not the previous one's.
  *
  * Day 1 is the day it arrived. With seven free days, day 7 is the last free
  * one and day 8 is the first that may be charged.
@@ -75,21 +75,11 @@ export function storageState(input: {
 }
 
 /**
- * WHEN THE CLOCK STARTED: the goods in our warehouse AND cleared.
+ * WHEN THE CLOCK STARTED: the Dar check-in, and only that.
  *
- * The team may check boxes in at the port while customs still has them; those
- * boxes are not on our floor yet, and nobody pays for a shelf they have not
- * stood on. So the clock starts at whichever came last — booked in, or
- * cleared — and does not start at all while customs has them.
+ * Kept as a function rather than read inline so every screen asks the same
+ * question the same way; null while Dar has not confirmed the boxes.
  */
-export function storageStart(
-  receivedAt: Date | null | undefined,
-  clearedAt: Date | null | undefined
-): Date | null {
-  if (!receivedAt) return null;
-  /* Undefined: a caller that has not read clearance — the older shape, where
-     booking in was the start. Null: read, and not cleared. */
-  if (clearedAt === undefined) return receivedAt;
-  if (clearedAt === null) return null;
-  return receivedAt.getTime() > clearedAt.getTime() ? receivedAt : clearedAt;
+export function storageStart(receivedAt: Date | null | undefined): Date | null {
+  return receivedAt ?? null;
 }

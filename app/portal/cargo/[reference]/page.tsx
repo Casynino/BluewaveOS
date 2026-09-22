@@ -93,7 +93,7 @@ export default async function PortalCargoPage({
     select: { freeStorageDays: true, storagePerDay: true, storageCurrency: true },
   });
   /* The clock runs from the day Dar booked the boxes in, until they leave. */
-  const clockFrom = storageStart(cargo.darReceiving?.receivedAt, cargo.clearedAt);
+  const clockFrom = storageStart(cargo.darReceiving?.receivedAt);
   const storage =
     clockFrom && !["COLLECTED", "DELIVERED", "CANCELLED"].includes(cargo.status)
       ? storageState({
@@ -108,7 +108,9 @@ export default async function PortalCargoPage({
   const owed = owedAcross(invoices);
   const firstUnpaid = invoices.find((invoice) => owedAcross([invoice]).owes) ?? invoices[0];
   const ready = journey.ready;
-  const arrivedAt = journey.steps.find((s) => s.key === "CLEARANCE")?.at ?? null;
+  /* Arrived is the Dar warehouse's confirmation, never the ship's arrival. */
+  const arrivedAt = journey.steps.find((s) => s.key === "ARRIVED_IN_DAR")?.at ?? null;
+  const nextStep = journey.steps.find((s) => s.key === journey.next) ?? null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -138,13 +140,13 @@ export default async function PortalCargoPage({
       <CargoStatusStrip journey={journey} />
       {storage ? <StorageCard storage={storage} /> : null}
 
-      {journey.stage === "IN_CLEARANCE" || journey.stage === "WAREHOUSE_CLEARANCE" ? (
+      {journey.stage === "AT_DAR_PORT" ? (
         <Card className="border-brand/30 bg-brand/5 p-5">
           <p className="font-medium text-brand">{t(locale, journey.headline)}</p>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {t(
               locale,
-              "Your goods have arrived in Dar es Salaam and are going through customs clearance. They are not ready to collect yet — we will tell you as soon as clearance is complete."
+              "The container has reached Dar es Salaam port. Your cargo counts as arrived once our warehouse confirms it on the floor — we will tell you that day, and free storage starts then."
             )}
           </p>
         </Card>
@@ -167,7 +169,7 @@ export default async function PortalCargoPage({
           <p className="mt-1.5 text-sm text-muted-foreground">
             {t(
               locale,
-              "Cleared and paid. Bring your pickup note and ID to our Dar es Salaam warehouse, or ask us to deliver it below."
+              "Arrived and paid. Bring your pickup note and ID to our Dar es Salaam warehouse, or ask us to deliver it below."
             )}
           </p>
         </Card>
@@ -182,9 +184,9 @@ export default async function PortalCargoPage({
                 ) : null}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {!cargo.darReceiving || !cargo.clearedAt
-                  ? t(locale, "You can pay now. Your cargo is ready to collect once it has cleared customs and your payment is confirmed.")
-                  : t(locale, "Cleared — payment is required before pickup.")}
+                {!cargo.darReceiving
+                  ? t(locale, "You can pay now. Your cargo is ready for pickup once it has arrived at our Dar warehouse and your payment is confirmed.")
+                  : t(locale, "Arrived in Dar es Salaam — payment is required before pickup.")}
               </p>
             </div>
             <Link
@@ -238,6 +240,11 @@ export default async function PortalCargoPage({
               {t(locale, "Arrived in Dar es Salaam")} {formatDate(arrivedAt)}
             </p>
           ) : null}
+          {nextStep ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(locale, "Next")}: <span className="font-medium text-foreground">{t(locale, nextStep.label)}</span>
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           <ol>
@@ -284,7 +291,7 @@ export default async function PortalCargoPage({
                   {step.at ? (
                     <p className="tnum text-xs text-muted-foreground">
                       {t(locale, step.atLabel)}{" "}
-                      {step.key === "AT_SEA" ? formatDate(step.at) : formatDateTime(step.at)}
+                      {step.key === "IN_TRANSIT" ? formatDate(step.at) : formatDateTime(step.at)}
                     </p>
                   ) : null}
                   {step.detail ? (

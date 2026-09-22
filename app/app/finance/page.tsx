@@ -269,7 +269,7 @@ export default async function FinanceHubPage() {
       show: desk.unnotified > 0,
     },
     {
-      title: `${notesOut.length} ${L("cleared, not collected")}`,
+      title: `${notesOut.length} ${L("ready, not collected")}`,
       detail: L("Paid for and released — waiting on the customer to turn up"),
       tzs: notesTzs,
       href: "/app/finance/pickup-notes",

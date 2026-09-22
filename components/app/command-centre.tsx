@@ -654,7 +654,7 @@ export async function CommandCentre({ user }: { user: SessionUser }) {
                 { key: "china", label: t(locale, "In Foshan, waiting to ship"), count: position.inChina, tone: 2 },
                 { key: "sea", label: t(locale, "At sea"), count: position.atSea, tone: 1 },
                 { key: "floor", label: t(locale, "On the Dar floor"), count: position.onFloor, tone: 4 },
-                { key: "ready", label: t(locale, "Cleared, not collected"), count: position.ready, tone: 5 },
+                { key: "ready", label: t(locale, "Ready, not collected"), count: position.ready, tone: 5 },
                 { key: "flagged", label: t(locale, "Under investigation"), count: position.flagged, tone: 3 },
               ]}
             />

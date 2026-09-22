@@ -6,7 +6,8 @@ import { PrintButton } from "@/components/app/print-button";
 import { WhatsAppButton } from "@/components/app/whatsapp-button";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { composeMessage, messageStage, whatsappNumber } from "@/lib/messages";
+import { composeMessage, stageEvent, whatsappNumber } from "@/lib/messages";
+import { pickupAddress } from "@/lib/cargo-events";
 import { prisma } from "@/lib/prisma";
 import { qrDataUrl, qrPayload } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
@@ -91,6 +92,12 @@ export default async function PickupNotePage({
         : { text: "Withdrawn", tone: "border-red-600 text-red-600" };
 
   const label = "text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-500";
+  /* Where the goods are handed over: the Dar warehouse record, which is not
+     the office on the letterhead. */
+  const pickupAt = await pickupAddress(prisma);
+  /* Ready once the release check has said so; before that the note is sent
+     with the message for where the goods actually are. */
+  const letter = note.cargo.status === "READY_FOR_RELEASE" ? "CARGO_READY_FOR_PICKUP" : stageEvent(note.cargo.status);
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 print:max-w-none print:space-y-0">
@@ -109,12 +116,19 @@ export default async function PickupNotePage({
           <WhatsAppButton
             cargoId={note.cargoId}
             phone={whatsappNumber(note.customer.phone)}
-            kind="cargo.ready"
+            kind={letter}
             label="Send to customer"
-            message={composeMessage("cargo.ready", {
+            message={composeMessage(letter, {
+              status: note.cargo.status,
               customerName: note.customer.fullName,
               reference: note.cargo.reference,
-              stage: messageStage({ status: note.cargo.status, hasDarReceiving: note.cargo.darReceiving !== null, clearedAt: note.cargo.clearedAt }),
+              description: note.cargo.description,
+              packages: packages || null,
+              pickupAddress: pickupAt,
+              pickupNoteId: note.status === "ACTIVE" ? note.id : null,
+              pickupNoteNumber: note.status === "ACTIVE" ? note.noteNumber : null,
+              storageFrom: note.cargo.darReceiving?.receivedAt ?? null,
+              freeStorageDays: company?.freeStorageDays ?? null,
             })}
           />
           <PrintButton label="Print note" />
@@ -202,6 +216,13 @@ export default async function PickupNotePage({
               </div>
             ))}
           </section>
+
+          {pickupAt ? (
+            <section className="mt-3 rounded-2xl border border-[#d6e2ee] bg-white px-4 py-3">
+              <p className={label}>Collect from · Chukua mzigo</p>
+              <p className="mt-0.5 text-sm font-bold">{pickupAt}</p>
+            </section>
+          ) : null}
 
           {note.onCredit ? (
             <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-900">

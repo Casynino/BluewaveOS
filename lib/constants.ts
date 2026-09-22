@@ -112,13 +112,16 @@ export const CARGO_STATUS_META: Record<CargoStatus, StatusMeta> = {
     tone: "progress",
   },
   ARRIVED_TANZANIA: {
+    /* At the port, not yet confirmed on our floor: the customer's stage is
+       still in transit (lib/tracking-stage.ts). */
     label: "Ship at Dar port",
-    publicLabel: "Ship arrived at Dar port",
+    publicLabel: "In transit — at Dar port",
     where: "Dar es Salaam port",
     tone: "progress",
   },
   RECEIVED_DAR: {
-    /* Clearance and cleared are shown beside this, from clearedAt. */
+    /* The Dar check-in: the customer's "Arrived in Dar es Salaam", and the
+       first day of free storage. */
     label: "Arrived in Dar",
     publicLabel: "Arrived in Dar",
     where: "Dar es Salaam warehouse",
@@ -190,8 +193,9 @@ export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   DEPARTED_CHINA: "In transit",
   IN_TRANSIT: "In transit",
   ARRIVED_TANZANIA: "Arrived Tanzania",
-  CLEARANCE: "In clearance",
-  CLEARED: "Cleared",
+  /* Retired values, never written — BlueWave has no clearance stage. */
+  CLEARANCE: "Arrived Tanzania",
+  CLEARED: "Arrived Tanzania",
   DAR_WAREHOUSE: "At Dar warehouse",
   COMPLETED: "Completed",
 };

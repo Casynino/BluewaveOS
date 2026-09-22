@@ -16,7 +16,6 @@ import { PackageEditor } from "@/components/app/package-editor";
 import { BoxesCard } from "@/components/app/boxes-card";
 import { PageHeader } from "@/components/app/page-header";
 import { bookCategories, categoryOfCargo } from "@/lib/rate-categories";
-import { ClearanceButton } from "@/components/app/clearance-button";
 import { PhotoPanel } from "@/components/app/photo-upload";
 import { CargoStatusBadge } from "@/components/app/status-badge";
 import { NotifyCustomer, type MessageOption } from "@/components/app/notify-customer";
@@ -49,15 +48,19 @@ import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import {
   composeMessage,
+  contactKindLabel,
   CONTACT_KIND_LABELS,
   whatsappNumber,
   type ContactKind,
-  messageStage,
+  stageEvent,
   billLetter,
 } from "@/lib/messages";
 import { cargoTypeOptions, valueLines } from "@/lib/valuation";
 import { distinctMark } from "@/lib/customer-name";
 import { storageStart } from "@/lib/storage-clock";
+import { noticeSubject, pickupAddress, whatsappNotice } from "@/lib/cargo-events";
+import { CARGO_EVENT_ACTION, isCargoEvent } from "@/lib/cargo-notices";
+import { BLUEWAVE_STAGES, BLUEWAVE_STAGE_LABEL, bluewaveStageOf } from "@/lib/tracking-stage";
 
 import { P, primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
@@ -148,55 +151,36 @@ export default async function CargoDetailPage({
     ringing about last month's container still needs an answer.
   */
   const canNotify = can(user.role, "conversation.reply");
-  const messageContext = {
-    customerName: cargo.sender.fullName,
-    reference: cargo.reference,
-    description: cargo.description,
-    shippingMark: cargo.shippingMark,
-    packages:
-      cargo.darReceiving?.packagesCount ?? cargo.chinaReceiving?.packagesCount ?? null,
-    cbm: (cargo.darReceiving?.cbm ?? cargo.chinaReceiving?.cbm)?.toString() ?? null,
-    containerNumber: container?.containerNumber ?? container?.reference ?? null,
-    vessel: container?.shipment?.vessel ?? null,
-    eta: container?.shipment?.eta ?? null,
-    freeStorageDays: money?.freeStorageDays ?? 7,
-    storagePerDay: money?.storagePerDay?.toString() ?? null,
-    storageCurrency: money?.storageCurrency ?? "USD",
-    storageFrom: storageStart(cargo.darReceiving?.receivedAt, cargo.clearedAt),
-    stage: messageStage({
-      status: cargo.status,
-      hasDarReceiving: Boolean(cargo.darReceiving),
-      clearedAt: cargo.clearedAt,
-    }),
-    statusLine:
-      cargo.status === "READY_FOR_RELEASE"
-        ? "Ready for pickup"
-        : cargo.darReceiving || cargo.status === "ARRIVED_TANZANIA"
-          ? cargo.clearedAt
-            ? "Cleared"
-            : "Clearance in Progress"
-          : null,
-  };
+  /* A figure reaches a message only for a desk that may read the bill. */
+  const seesMoney = can(user.role, "finance.view");
+  const pickupAt = await pickupAddress(prisma);
+  const subject = canNotify ? await noticeSubject(prisma, cargo.id, { withMoney: seesMoney }) : null;
 
-  const suggestedKind: ContactKind =
-    cargo.status === "RECEIVED_CHINA"
-      ? "cargo.received_china"
-      : cargo.status === "ASSIGNED_TO_CONTAINER" || cargo.status === "CONTAINER_LOADED"
-        ? "cargo.loaded"
-        : cargo.status === "DEPARTED_CHINA" || cargo.status === "IN_TRANSIT"
-          ? "cargo.departed"
-          : cargo.status === "ARRIVED_TANZANIA"
-            ? cargo.clearedAt
-              ? "cargo.cleared_unpaid"
-              : "cargo.arrived"
-            : cargo.status === "RECEIVED_DAR"
-              ? cargo.clearedAt
-                ? "cargo.received_dar"
-                : "cargo.arrived"
-              : cargo.status === "READY_FOR_RELEASE"
-                ? "cargo.ready"
-                : "general";
+  /*
+    WHICH MESSAGES THIS CONSIGNMENT HAS EARNED.
 
+    Only stages it has actually reached: a consignment still on the Foshan
+    floor cannot be sent the in-transit message, and nobody is told their goods
+    arrived in Dar before Dar has confirmed them. The invoice message needs an
+    issued bill and a desk that may read it.
+  */
+  const reachedStage = bluewaveStageOf(cargo.status);
+  const stageOrder = BLUEWAVE_STAGES.map((s) => s.key);
+  const reachedIndex = reachedStage ? stageOrder.indexOf(reachedStage) : -1;
+  const liveBillHere = cargo.invoices.some((i) => i.status !== "DRAFT" && i.status !== "CANCELLED");
+  const eventOptions: ContactKind[] = [
+    ...(reachedIndex >= 0 ? (["CARGO_RECEIVED_CHINA"] as const) : []),
+    ...(reachedIndex >= 1 ? (["CARGO_STORED_CHINA"] as const) : []),
+    ...(reachedIndex >= 2 && cargo.status !== "MISSING_AT_DAR" ? (["CARGO_IN_TRANSIT"] as const) : []),
+    ...(seesMoney && liveBillHere ? (["PRICE_CONFIRMED"] as const) : []),
+    ...(cargo.darReceiving ? (["CARGO_ARRIVED_DAR"] as const) : []),
+    ...(reachedIndex >= 4 ? (["CARGO_READY_FOR_PICKUP"] as const) : []),
+    ...(reachedIndex >= 5 ? (["CARGO_COLLECTED"] as const) : []),
+    ...(seesMoney && liveBillHere ? (["payment.reminder"] as const) : []),
+    ...(cargo.darReceiving && reachedIndex < 5 ? (["storage.expired"] as const) : []),
+    "general",
+  ];
+  const suggestedKind: ContactKind = stageEvent(cargo.status);
   const lastContact = canNotify
     ? await prisma.customerContact.findFirst({
         where: { cargoId: cargo.id },
@@ -282,7 +266,7 @@ export default async function CargoDetailPage({
      two are deliberately different figures — a clerk who waived half of it last
      week needs to see both, or they will waive it again. */
   const storage = storagePosition({
-    receivedAt: storageStart(dar?.receivedAt, cargo.clearedAt),
+    receivedAt: storageStart(dar?.receivedAt),
     collectedAt: cargo.release?.releasedAt ?? null,
     freeDays: money?.freeStorageDays ?? 7,
     perDay: money?.storagePerDay ?? 0,
@@ -324,17 +308,7 @@ export default async function CargoDetailPage({
     (i) => i.status !== "DRAFT" && i.status !== "CANCELLED"
   );
   const owing = liveBills.reduce((sum, i) => sum + Number(outstandingOf(i)), 0);
-  const notifyKind: ContactKind =
-    messageContext.stage === "ready" && owing <= 0
-      ? "cargo.ready"
-      : billLetter(messageContext.stage, owing > 0);
-  /* The shilling balance, summed in shillings. One rate is named only when
-     every bill shares it. */
-  const owingTzs = liveBills.reduce(
-    (sum, i) => sum + (balanceOf(i).outstandingTzs?.toNumber() ?? 0),
-    0
-  );
-  const billRates = [...new Set(liveBills.map((i) => balanceOf(i).rate?.toString()).filter(Boolean))];
+  const notifyKind: ContactKind = billLetter(cargo.status, owing > 0);
 
   /*
     PAID OR NOT, WITHOUT SAYING HOW MUCH.
@@ -373,18 +347,17 @@ export default async function CargoDetailPage({
         actions={
           <>
             <CargoStatusBadge status={cargo.status} />
-            {/* Arrived is not cleared: said beside the status, never inside it. */}
-            {(dar || cargo.status === "ARRIVED_TANZANIA") &&
-            !["COLLECTED", "DELIVERED", "CANCELLED", "MISSING_AT_DAR"].includes(cargo.status) ? (
-              cargo.clearedAt ? (
-                <Badge tone="good">Cleared {formatDate(cargo.clearedAt)}</Badge>
+            {/* The BlueWave stage beside the status, so every desk reads the
+                customer's six stages the same way. */}
+            {reachedStage ? <Badge tone="neutral">{T(BLUEWAVE_STAGE_LABEL[reachedStage])}</Badge> : null}
+            {/* Whether the price is confirmed, for the desks that read bills:
+                a draft is waiting on the price list, an issued bill is not. */}
+            {seesMoney && cargo.invoices.some((i) => i.status !== "CANCELLED") ? (
+              liveBillHere ? (
+                <Badge tone="good">{T("Price confirmed")}</Badge>
               ) : (
-                <Badge tone="warn">In customs clearance</Badge>
+                <Badge tone="warn">{T("Price waiting for confirmation")}</Badge>
               )
-            ) : null}
-            {(dar || cargo.status === "ARRIVED_TANZANIA") && !cargo.clearedAt && can(user.role, "cargo.clear") &&
-            !["COLLECTED", "DELIVERED", "CANCELLED", "MISSING_AT_DAR"].includes(cargo.status) ? (
-              <ClearanceButton cargoId={cargo.id} waiting={1} />
             ) : null}
             {/* Printed at the counter while the boxes are still on the floor —
                 one sticker per carton, each with its own code. */}
@@ -906,31 +879,36 @@ export default async function CargoDetailPage({
                     invoiceId={billHere.id}
                     phone={whatsappNumber(cargo.receiver.phone)}
                     /* The same letter as every other Notify button: the
-                       clearance one at the port, the come-and-collect one in
-                       our warehouse, the bill's own before the ship is in. */
+                       bill's own while anything is owed, the ready one once
+                       the goods may go. */
                     kind={notifyKind}
                     label="Notify on WhatsApp"
                     message={composeMessage(notifyKind, {
-                      stage: messageContext.stage,
-                      storageFrom: messageContext.storageFrom,
+                      status: cargo.status,
                       customerName: cargo.receiver.fullName,
                       reference: cargo.reference,
                       description: cargo.description,
                       packages: dar?.packagesCount ?? china?.packagesCount ?? null,
+                      pieces: dar?.piecesCount ?? china?.piecesCount ?? null,
+                      invoiceId: billHere.id,
+                      invoiceNumber: billHere.number,
                       currency: billHere.currency,
                       amount: Number(outstandingOf(billHere)).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       }),
                       amountTzs: balanceOf(billHere).outstandingTzs?.toNumber().toLocaleString("en-US") ?? null,
+                      paid: owing <= 0,
                       cbm: billHere.billableCbm ? Number(billHere.billableCbm).toFixed(3) : null,
-                      ratePerCbm: billHere.appliedRate ? billHere.appliedRate.toString() : null,
-                      rateBasis: billHere.rateBasis,
                       fxRate: billHere.fxRate ? Number(billHere.fxRate).toLocaleString("en-US") : null,
+                      storageFrom: dar?.receivedAt ?? null,
                       freeStorageDays: money?.freeStorageDays ?? null,
                       storagePerDay:
                         money && Number(money.storagePerDay) > 0 ? Number(money.storagePerDay).toString() : null,
                       storageCurrency: money?.storageCurrency ?? "USD",
+                      pickupAddress: pickupAt,
+                      pickupNoteId: pickupNote?.status === "ACTIVE" ? pickupNote.id : null,
+                      pickupNoteNumber: pickupNote?.status === "ACTIVE" ? pickupNote.noteNumber : null,
                     })}
                   />
                 ) : null
@@ -1004,46 +982,58 @@ export default async function CargoDetailPage({
           {canNotify ? (
             <NotifyCustomer
               cargoId={cargo.id}
-              phone={whatsappNumber(cargo.sender.phone)}
-              customerName={cargo.sender.fullName}
+              phone={whatsappNumber(cargo.receiver.phone)}
+              customerName={cargo.receiver.fullName}
               lastContact={
                 lastContact
                   ? {
-                      label:
-                        CONTACT_KIND_LABELS[lastContact.kind as ContactKind] ??
-                        lastContact.kind,
+                      label: contactKindLabel(lastContact.kind),
                       when: formatDate(lastContact.createdAt),
                       by: lastContact.sentBy?.name ?? "somebody",
                     }
                   : null
               }
-              options={(
-                [
-                  "cargo.received_china",
-                  "cargo.loaded",
-                  "cargo.departed",
-                  "cargo.arrived",
-                  "cargo.received_dar",
-                  "cargo.cleared_unpaid",
-                  "cargo.ready",
-                  "payment.reminder",
-                  "storage.expired",
-                  "general",
-                ] as ContactKind[]
-              ).map(
-                (kind): MessageOption => ({
-                  kind,
-                  label: CONTACT_KIND_LABELS[kind],
-                  suggested: kind === suggestedKind,
-                  body: composeMessage(kind, {
-                    ...messageContext,
-                    amount: owing > 0 ? owing.toFixed(2) : null,
-                    currency: cargo.invoices[0]?.currency ?? "USD",
-                    amountTzs: owingTzs > 0 ? owingTzs.toLocaleString("en-US") : null,
-                    fxRate: billRates.length === 1 ? Number(billRates[0]).toLocaleString("en-US") : null,
-                  }),
-                })
-              )}
+              options={
+                subject
+                  ? eventOptions.map((kind): MessageOption => {
+                      const suggested = kind === suggestedKind;
+                      if (isCargoEvent(kind)) {
+                        const { notice, text } = whatsappNotice(kind, subject, cargo.receiver.fullName);
+                        return {
+                          kind,
+                          label: CONTACT_KIND_LABELS[kind],
+                          action: CARGO_EVENT_ACTION[kind],
+                          body: text,
+                          links: notice.links.map((l) => ({ label: l.label, href: l.href })),
+                          suggested,
+                        };
+                      }
+                      const f = subject.facts;
+                      return {
+                        kind,
+                        label: CONTACT_KIND_LABELS[kind],
+                        body: composeMessage(kind, {
+                          status: cargo.status,
+                          customerName: cargo.receiver.fullName,
+                          reference: cargo.reference,
+                          invoiceId: subject.invoiceId,
+                          invoiceNumber: f.invoiceNumber,
+                          amount: f.amountUsd,
+                          currency: f.amountUsd ? "USD" : "TZS",
+                          amountTzs: f.amountTzs,
+                          fxRate: f.fxRate,
+                          storageFrom: f.arrivedAt,
+                          freeStorageDays: f.freeDays,
+                          lastFreeDay: f.freeUntil,
+                          storagePerDay: f.storagePerDay,
+                          storageCurrency: f.storageCurrency,
+                          pickupAddress: f.pickupAddress,
+                        }),
+                        suggested,
+                      };
+                    })
+                  : []
+              }
             />
           ) : null}
 

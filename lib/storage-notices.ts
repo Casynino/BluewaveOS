@@ -28,16 +28,14 @@ export async function sendStorageNotices(now = new Date()) {
       deletedAt: null,
       storageNoticeAt: null,
       status: { notIn: ["COLLECTED", "DELIVERED", "CANCELLED", "MISSING_AT_DAR"] },
-      darReceiving: { isNot: null },
-      /* The clock starts once cleared into our warehouse. */
-      clearedAt: { lte: before },
+      /* The clock starts at the Dar check-in. */
+      darReceiving: { is: { receivedAt: { lte: before } } },
     },
     select: {
       id: true,
       reference: true,
       senderId: true,
       receiverId: true,
-      clearedAt: true,
       darReceiving: { select: { receivedAt: true } },
     },
     take: 500,
@@ -45,7 +43,7 @@ export async function sendStorageNotices(now = new Date()) {
 
   let told = 0;
   for (const cargo of candidates) {
-    const start = storageStart(cargo.darReceiving?.receivedAt, cargo.clearedAt);
+    const start = storageStart(cargo.darReceiving?.receivedAt);
     if (!start) continue;
     const clock = storageState({
       arrivedAt: start,

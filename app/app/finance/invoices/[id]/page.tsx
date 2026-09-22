@@ -31,7 +31,9 @@ import { INVOICE_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/constants";
 import { formatCbm, formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { ChangePriceButton } from "@/components/app/bill-dialogs";
 import { bookCategories, categoryOfCargo } from "@/lib/rate-categories";
-import { CONTACT_KIND_LABELS, composeMessage, messageStage, whatsappNumber, type ContactKind } from "@/lib/messages";
+import { CONTACT_KIND_LABELS, billLetter, composeMessage, composeNotice, whatsappNumber, type ContactKind, type MessageContext } from "@/lib/messages";
+import { pickupAddress } from "@/lib/cargo-events";
+import { CARGO_EVENT_ACTION, isCargoEvent } from "@/lib/cargo-notices";
 import { formatCurrency, formatRate, tzsToUsd } from "@/lib/currency";
 import { balanceOf, paymentTzs } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
@@ -102,7 +104,7 @@ export default async function InvoicePage({
     where: { id: "singleton" },
   });
   const storage = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
+    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
     collectedAt: null,
     freeDays: settings?.freeStorageDays ?? 7,
     perDay: settings?.storagePerDay ?? 0,
@@ -127,12 +129,40 @@ export default async function InvoicePage({
     select: { cargoType: true },
   });
 
-  /* Where the goods are, so a reminder never calls boxes at sea "ready". */
-  const stage = messageStage({
+  /* One set of facts for every letter this page can send: the stage line
+     comes from the cargo's own status, so a bill never calls boxes at sea
+     "arrived" or "ready". */
+  const activeNote = invoice.cargo.pickupNote?.status === "ACTIVE" ? invoice.cargo.pickupNote : null;
+  const letterContext: MessageContext = {
     status: invoice.cargo.status,
-    hasDarReceiving: Boolean(invoice.cargo.darReceiving),
-    clearedAt: invoice.cargo.clearedAt,
-  });
+    customerName: invoice.customer.fullName,
+    reference: invoice.cargo.reference,
+    description: invoice.cargo.description,
+    packages: invoice.cargo.darReceiving?.packagesCount ?? null,
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.number,
+    currency: invoice.currency,
+    amount: (Number(owing) > 0 ? owing : balance.total).toFixed(2),
+    amountTzs: (Number(owing) > 0 ? balance.outstandingTzs : balance.totalTzs)?.toNumber().toLocaleString("en-US") ?? null,
+    fxRate: balance.rate ? balance.rate.toNumber().toLocaleString("en-US") : null,
+    paid: Number(owing) <= 0,
+    cbm: invoice.billableCbm ? Number(invoice.billableCbm).toFixed(3) : null,
+    freeStorageDays: settings?.freeStorageDays ?? null,
+    storagePerDay: settings && Number(settings.storagePerDay) > 0 ? Number(settings.storagePerDay).toString() : null,
+    storageCurrency: settings?.storageCurrency ?? "USD",
+    storageFrom: storageStart(invoice.cargo.darReceiving?.receivedAt),
+    pickupAddress: await pickupAddress(prisma),
+    pickupNoteId: activeNote?.id ?? null,
+    pickupNoteNumber: activeNote?.noteNumber ?? null,
+  };
+  const notifyKind = billLetter(invoice.cargo.status, Number(owing) > 0);
+  const sendKinds: ContactKind[] = [
+    "PRICE_CONFIRMED",
+    ...(Number(owing) > 0 ? (["payment.reminder"] as const) : []),
+    ...(invoice.cargo.darReceiving ? (["CARGO_ARRIVED_DAR"] as const) : []),
+    ...(invoice.cargo.status === "READY_FOR_RELEASE" ? (["CARGO_READY_FOR_PICKUP"] as const) : []),
+    "general",
+  ];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -151,26 +181,9 @@ export default async function InvoicePage({
               cargoId={invoice.cargoId}
               invoiceId={invoice.id}
               phone={whatsappNumber(invoice.customer.phone)}
-              kind={stage === "clearance" ? "cargo.arrived" : Number(owing) > 0 ? "payment.reminder" : "cargo.ready"}
+              kind={notifyKind}
               label={T("Notify on WhatsApp")}
-              message={composeMessage(stage === "clearance" ? "cargo.arrived" : Number(owing) > 0 ? "payment.reminder" : "cargo.ready", {
-                customerName: invoice.customer.fullName,
-                reference: invoice.cargo.reference,
-                invoiceNumber: invoice.number,
-                currency: invoice.currency,
-                amount: owing.toFixed(2),
-                amountTzs: balance.outstandingTzs?.toNumber().toLocaleString("en-US") ?? null,
-                fxRate: balance.rate ? balance.rate.toNumber().toLocaleString("en-US") : null,
-                stage,
-                cbm: invoice.billableCbm ? Number(invoice.billableCbm).toFixed(3) : null,
-                ratePerCbm: invoice.appliedRate ? invoice.appliedRate.toString() : null,
-                rateBasis: invoice.rateBasis,
-                description: invoice.cargo.description,
-                freeStorageDays: settings?.freeStorageDays ?? null,
-                storagePerDay: settings && Number(settings.storagePerDay) > 0 ? Number(settings.storagePerDay).toString() : null,
-                storageCurrency: settings?.storageCurrency ?? "USD",
-                storageFrom: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
-              })}
+              message={composeMessage(notifyKind, letterContext)}
             />
           ) : null}
           {!isDraft ? (
@@ -279,31 +292,17 @@ export default async function InvoicePage({
           invoiceId={invoice.id}
           phone={whatsappNumber(invoice.customer.phone)}
           displayPhone={invoice.customer.phone}
-          options={(["cargo.arrived", "invoice.issued", "payment.reminder", "cargo.ready", "general"] as ContactKind[]).map(
-            (kind): MessageOption => ({
+          options={sendKinds.map((kind): MessageOption => {
+            const notice = isCargoEvent(kind) ? composeNotice(kind, letterContext) : null;
+            return {
               kind,
               label: CONTACT_KIND_LABELS[kind],
-              suggested: kind === (stage === "clearance" ? "cargo.arrived" : Number(owing) > 0 ? "invoice.issued" : "cargo.ready"),
-              body: composeMessage(kind, {
-                customerName: invoice.customer.fullName,
-                reference: invoice.cargo.reference,
-                invoiceNumber: invoice.number,
-                currency: invoice.currency,
-                amount: owing.toFixed(2),
-                amountTzs: balance.outstandingTzs?.toNumber().toLocaleString("en-US") ?? null,
-                cbm: invoice.billableCbm ? Number(invoice.billableCbm).toFixed(3) : null,
-                ratePerCbm: invoice.appliedRate ? invoice.appliedRate.toString() : null,
-                rateBasis: invoice.rateBasis,
-                fxRate: balance.rate ? balance.rate.toNumber().toLocaleString("en-US") : null,
-                freeStorageDays: settings?.freeStorageDays ?? null,
-                storagePerDay: settings && Number(settings.storagePerDay) > 0 ? Number(settings.storagePerDay).toString() : null,
-                storageCurrency: settings?.storageCurrency ?? "USD",
-                stage,
-                description: invoice.cargo.description,
-                storageFrom: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
-              }),
-            })
-          )}
+              action: isCargoEvent(kind) ? CARGO_EVENT_ACTION[kind] : undefined,
+              suggested: kind === (Number(owing) > 0 ? "PRICE_CONFIRMED" : notifyKind),
+              body: composeMessage(kind, letterContext),
+              links: notice?.links.map((l) => ({ label: l.label, href: l.href })),
+            };
+          })}
         />
       ) : null}
 

@@ -17,23 +17,53 @@ import { Tx } from "@/components/app/tx";
 export type MessageOption = {
   kind: string;
   label: string;
+  /** The button's words for a stage message: "Notify customer — Cargo in transit". */
+  action?: string;
   body: string;
+  /** The real addresses the message carries, listed under the preview. */
+  links?: { label: string; href: string }[];
   /** True for the stage this consignment is actually at. */
   suggested?: boolean;
 };
 
 /**
+ * The message as the customer will see it in WhatsApp: *bold* drawn bold and
+ * every address a link that opens, so staff can check each one before sending.
+ */
+export function MessagePreview({ body }: { body: string }) {
+  return (
+    <div className="rounded-lg border bg-emerald-50/60 p-4 text-sm leading-relaxed text-foreground dark:bg-emerald-950/20">
+      {body.split("\n").map((line, index) =>
+        line.trim() === "" ? (
+          <div key={index} className="h-2" />
+        ) : (
+          <p key={index} className="break-words">
+            {line.split(/(\*[^*]+\*|https?:\/\/\S+)/g).map((part, i) =>
+              /^\*[^*]+\*$/.test(part) ? (
+                <strong key={i}>{part.slice(1, -1)}</strong>
+              ) : /^https?:\/\//.test(part) ? (
+                <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-brand underline underline-offset-2">
+                  {part}
+                </a>
+              ) : (
+                <span key={i}>{part}</span>
+              )
+            )}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
+/**
  * THE BRIDGE TO THE CUSTOMER.
  *
- * Support is the desk that tells people what has happened to their goods, and
- * until now that meant retyping the same four sentences into WhatsApp forty
- * times a day, from a cargo record open on another screen, with the reference
- * copied by eye.
- *
- * So the wording is written here, filled in from the consignment in front of
- * them, and WhatsApp opens with it already typed. The message stays editable —
- * a customer who has already rung twice does not want the standard paragraph —
- * and whatever is in the box is what gets logged against the cargo.
+ * Support is the desk that tells people what has happened to their goods. The
+ * message for the stage the consignment has reached is written here from the
+ * record — its own template, never another stage's — and shown in full, links
+ * and all, before anything is sent. Staff read it, change a word if they must,
+ * and only then open WhatsApp.
  *
  * IT DOES NOT SEND ANYTHING. WhatsApp opens; a person presses send. Logging it
  * as "contacted" rather than "notified" is the difference between what this
@@ -65,10 +95,13 @@ export function NotifyCustomer({
   const [kind, setKind] = useState(suggested?.kind ?? "general");
   const [body, setBody] = useState(suggested?.body ?? "");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const chosen = options.find((o) => o.kind === kind);
 
   useEffect(() => {
     const next = options.find((o) => o.kind === kind);
     if (next) setBody(next.body);
+    setEditing(false);
   }, [kind, options]);
 
   const openWhatsApp = () => {
@@ -80,16 +113,25 @@ export function NotifyCustomer({
     );
   };
 
+  if (options.length === 0) return null;
+
   if (!open) {
     return (
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Tell {customerName}</p>
+            <p className="text-sm font-medium">
+              {tx("Tell")} {customerName}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {lastContact
-                ? `Last contacted about "$<Tx>{lastContact.label}</Tx>" on ${lastContact.when} by ${lastContact.by}.`
-                : "Nobody has messaged them about this consignment yet."}
+              {lastContact ? (
+                <>
+                  {tx("Last contacted about")} &ldquo;<Tx>{lastContact.label}</Tx>&rdquo; · {lastContact.when} ·{" "}
+                  {lastContact.by}
+                </>
+              ) : (
+                tx("Nobody has messaged them about this consignment yet.")
+              )}
             </p>
           </div>
           <Button
@@ -99,7 +141,7 @@ export function NotifyCustomer({
             disabled={!phone}
           >
             <MessageCircle />
-            {phone ? "Notify on WhatsApp" : "No phone number"}
+            {phone ? (suggested?.action ? tx(suggested.action) : tx("Notify on WhatsApp")) : tx("No phone number")}
           </Button>
         </CardContent>
       </Card>
@@ -111,7 +153,7 @@ export function NotifyCustomer({
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
         <CardTitle className="flex items-center gap-2 text-base">
           <MessageCircle className="size-4 text-brand" />
-          Notify {customerName}
+          {chosen?.action ? tx(chosen.action) : `${tx("Notify")} ${customerName}`}
         </CardTitle>
         <Button
           type="button"
@@ -133,6 +175,7 @@ export function NotifyCustomer({
           ) : null}
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="channel" value="WHATSAPP" />
+          <input type="hidden" name="body" value={body} />
 
           <div className="space-y-1.5">
             <Label htmlFor="messageKind">{tx("What are you telling them?")}</Label>
@@ -143,27 +186,48 @@ export function NotifyCustomer({
             >
               {options.map((option) => (
                 <option key={option.kind} value={option.kind}>
-                  <Tx>{option.label}</Tx>
-                  {option.suggested ? " — where it is now" : ""}
+                  {tx(option.label)}
+                  {option.suggested ? ` — ${tx("where it is now")}` : ""}
                 </option>
               ))}
             </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="messageBody">{tx("The message")}</Label>
-            <Textarea
-              id="messageBody"
-              name="body"
-              rows={10}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="font-sans text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              {tx("Swahili first, English underneath. Edit it freely — what is in this box is what gets logged.")}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="messageBody">{tx("Preview — exactly what they will receive")}</Label>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
+                {editing ? tx("Done editing") : tx("Edit wording")}
+              </Button>
+            </div>
+            {editing ? (
+              <Textarea
+                id="messageBody"
+                rows={16}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="font-sans text-sm"
+              />
+            ) : (
+              <MessagePreview body={body} />
+            )}
           </div>
+
+          {chosen?.links && chosen.links.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">{tx("Links in this message")}</p>
+              <ul className="space-y-1 text-xs">
+                {chosen.links.map((link) => (
+                  <li key={link.href} className="flex flex-wrap gap-x-2">
+                    <span className="font-medium">{tx(link.label)}</span>
+                    <a href={link.href} target="_blank" rel="noopener noreferrer" className="break-all text-brand underline underline-offset-2">
+                      {link.href}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <FormMessage error={state.error} ok={state.ok} />
 
@@ -220,15 +284,18 @@ export function SendInvoice({
   const [kind, setKind] = useState(suggested?.kind ?? "general");
   const [channel, setChannel] = useState<string>("WHATSAPP");
   const [body, setBody] = useState(suggested?.body ?? "");
+  const [editing, setEditing] = useState(false);
+  const chosen = options.find((o) => o.kind === kind);
 
   useEffect(() => {
     const next = options.find((o) => o.kind === kind);
     if (next) setBody(next.body);
+    setEditing(false);
   }, [kind, options]);
 
   return (
     <section className="rounded-xl border bg-card p-5 shadow-soft print:hidden">
-      <h2 className="font-semibold">{tx("Send this invoice")}</h2>
+      <h2 className="font-semibold">{tx("Send invoice notification")}</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">
         {tx("Open it in WhatsApp, then record it — recording marks the invoice as sent, which is what the follow-up list works from.")}
       </p>
@@ -242,7 +309,7 @@ export function SendInvoice({
             <NativeSelect id="send-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
               {options.map((option) => (
                 <option key={option.kind} value={option.kind}>
-                  <Tx>{option.label}</Tx>
+                  {tx(option.label)}
                 </option>
               ))}
             </NativeSelect>
@@ -259,9 +326,31 @@ export function SendInvoice({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="send-body">{tx("Wording — edit it freely")}</Label>
-          <Textarea id="send-body" name="body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} className="font-sans text-sm" />
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="send-body">{tx("Preview — exactly what they will receive")}</Label>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
+              {editing ? tx("Done editing") : tx("Edit wording")}
+            </Button>
+          </div>
+          <input type="hidden" name="body" value={body} />
+          {editing ? (
+            <Textarea id="send-body" rows={16} value={body} onChange={(e) => setBody(e.target.value)} className="font-sans text-sm" />
+          ) : (
+            <MessagePreview body={body} />
+          )}
         </div>
+        {chosen?.links && chosen.links.length > 0 ? (
+          <ul className="space-y-1 text-xs">
+            {chosen.links.map((link) => (
+              <li key={link.href} className="flex flex-wrap gap-x-2">
+                <span className="font-medium">{tx(link.label)}</span>
+                <a href={link.href} target="_blank" rel="noopener noreferrer" className="break-all text-brand underline underline-offset-2">
+                  {link.href}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <FormMessage error={state.error} ok={state.ok ? "Recorded as sent." : undefined} />
         <div className="flex flex-wrap items-center gap-2">
           {phone && channel === "WHATSAPP" ? (

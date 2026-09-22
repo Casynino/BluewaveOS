@@ -7,63 +7,101 @@ import type { CargoStatus, ContainerStatus } from "@prisma/client";
  * container did, whether the box has a frozen manifest, whether Dar has counted
  * it, whether a price is waiting or a bill has gone out, what has been paid and
  * whether the release check passes — into the stage a customer recognises. The
- * public tracking page and the portal both read it, so the two can never tell
- * the same person two different stories about the same boxes.
+ * public tracking page, the portal and the staff message composer all read it,
+ * so nobody is told two different stories about the same boxes.
  *
  * Pure on purpose: no database, no clock of its own. Everything it knows is
  * passed in, which is what lets the test in tests/tracking-stage.test.ts pin
  * each rule down without a fixture container.
  *
+ * THE BLUEWAVE JOURNEY — SIX STAGES, AND NO CLEARANCE.
+ *
+ *   Received in China → Stored in China → In transit → Arrived in Dar es
+ *   Salaam → Ready for pickup → Collected
+ *
+ * The statuses the data already uses map onto those six here and nowhere else
+ * (`bluewaveStageOf`). There is no customs-clearance stage: the step the
+ * inherited system had between the port and our warehouse is gone, and a box
+ * at the port is still in transit until Dar confirms it on the floor.
+ * "Arrived in Dar" is that confirmation — the Dar check-in — and nothing else:
+ * not the ship's arrival, not the ETA.
+ *
  * TWO GRAINS, AND WHY.
  *
- * `steps` is the spine — nine stations a box passes through, drawn as a line on
- * the page. `stage` is where it is standing RIGHT NOW, and it is finer than the
- * spine because the customer's question is not "which station" but "what is
- * happening to my goods today": waiting for a container, being packed, being
- * counted off the box in Dar, part paid. The headline is the stage's own words,
- * so nobody has to compose a sentence at the call site.
- *
- * WHAT THE DATA CANNOT SAY, AND IS THEREFORE NOT CLAIMED.
- *
- * "Received in China" and "stored in the China warehouse" are one event here:
- * the counter measures and puts the boxes down in the same breath, and there is
- * no put-away scan to make the second a separate fact. One stage carries both.
- *
- * "Price confirmed" and "invoice issued" are also one event — confirming a
- * waiting price issues the bill in the same transaction (lib/price-confirmation
- * .ts), so there is no moment at which a price is agreed and no bill exists.
- * What IS separate, and is shown, is the draft still waiting to be confirmed.
- *
- * Neither is invented. Both are reported to the owner as a missing event rather
- * than guessed at from a status that does not mean it.
+ * `steps` is the spine — the six stages, drawn as a line on the page. `stage`
+ * is finer, because the customer's question is not only "which stage" but
+ * "what is happening to my goods today": being packed, being counted off the
+ * box in Dar, part paid. The headline is the fine stage's own words, so nobody
+ * has to compose a sentence at the call site.
  *
  * It says nothing about money beyond "pending", "part paid", "being confirmed"
  * and "paid". The amounts belong behind a sign-in; see lib/tracking.ts for why.
  */
 
-/**
- * The nine stations the drawn line has.
- *
- * FROZEN. The public page keys an icon table and a place-name switch off this
- * union, so a tenth station is a change to that page and not to this file. The
- * finer detail the owner asked for lives in `StageCode`, which no exhaustive
- * switch depends on.
- */
-export type StageKey =
-  | "RECEIVED_CHINA"
-  | "LOADED"
-  | "DEPARTED"
-  | "AT_SEA"
-  | "ARRIVED_DAR"
-  | "RECEIVED_DAR"
-  | "CLEARANCE"
-  | "CLEARED"
-  | "INVOICED"
-  | "READY"
-  | "HANDED_OVER";
+/** The six stages, in order. The keys are the drawn line's keys. */
+export type BlueWaveStage =
+  | "RECEIVED_IN_CHINA"
+  | "STORED_IN_CHINA"
+  | "IN_TRANSIT"
+  | "ARRIVED_IN_DAR"
+  | "READY_FOR_PICKUP"
+  | "COLLECTED";
+
+export const BLUEWAVE_STAGES: { key: BlueWaveStage; label: string; sw: string }[] = [
+  { key: "RECEIVED_IN_CHINA", label: "Received in China", sw: "Umepokelewa China" },
+  { key: "STORED_IN_CHINA", label: "Stored in China", sw: "Umehifadhiwa China" },
+  { key: "IN_TRANSIT", label: "In transit", sw: "Uko safarini" },
+  { key: "ARRIVED_IN_DAR", label: "Arrived in Dar es Salaam", sw: "Umefika Dar es Salaam" },
+  { key: "READY_FOR_PICKUP", label: "Ready for pickup", sw: "Uko tayari kuchukuliwa" },
+  { key: "COLLECTED", label: "Collected", sw: "Umechukuliwa" },
+];
+
+export const BLUEWAVE_STAGE_LABEL = Object.fromEntries(
+  BLUEWAVE_STAGES.map((s) => [s.key, s.label])
+) as Record<BlueWaveStage, string>;
 
 /**
- * WHERE IT IS STANDING NOW — the owner's own list of stages.
+ * THE ONE PLACE A STORED STATUS BECOMES A BLUEWAVE STAGE.
+ *
+ * Null for a consignment that has not reached the Foshan counter, and for the
+ * exits (cancelled). Missing at Dar keeps the stage it last truly reached —
+ * the box arrived at the port, the consignment did not come off it — so it
+ * reads as in transit with a notice, never as arrived.
+ *
+ * READY_FOR_RELEASE is the status the release check's first yes writes; see
+ * lib/cargo-events.ts. A screen that needs the live answer runs the check.
+ */
+export function bluewaveStageOf(status: CargoStatus): BlueWaveStage | null {
+  switch (status) {
+    case "REGISTERED":
+    case "CANCELLED":
+      return null;
+    case "RECEIVED_CHINA":
+      return "RECEIVED_IN_CHINA";
+    case "ASSIGNED_TO_CONTAINER":
+    case "CONTAINER_LOADED":
+      return "STORED_IN_CHINA";
+    case "DEPARTED_CHINA":
+    case "IN_TRANSIT":
+    /* At the port, not yet confirmed on our floor. */
+    case "ARRIVED_TANZANIA":
+    case "MISSING_AT_DAR":
+      return "IN_TRANSIT";
+    case "RECEIVED_DAR":
+      return "ARRIVED_IN_DAR";
+    case "READY_FOR_RELEASE":
+      return "READY_FOR_PICKUP";
+    case "COLLECTED":
+    case "DELIVERED":
+      return "COLLECTED";
+  }
+}
+
+/** The drawn line's keys are the six stages. */
+export type StageKey = BlueWaveStage;
+
+/**
+ * WHERE IT IS STANDING NOW, at the finer grain.
  *
  * Every one of these is read off a fact somebody recorded: a status, a
  * container's status, a frozen packing list, a receiving row, a draft, an
@@ -81,16 +119,11 @@ export type StageCode =
   /** The box has left Foshan. */
   | "SHIPPED"
   | "AT_SEA"
-  /** The vessel is in and the box discharged; this consignment is not off it yet. */
-  | "ARRIVED_DAR"
+  /** The vessel is in and the box discharged; our warehouse has not confirmed
+      this consignment on its floor. Still in transit. */
+  | "AT_DAR_PORT"
   /** Dar has it on the floor and has not signed the count off. */
   | "DAR_VERIFICATION"
-  /** The ship is in and customs has the goods, at the port. Not ready, whatever is paid. */
-  | "IN_CLEARANCE"
-  /** Customs is done; the goods are on their way from the port to our warehouse. */
-  | "CLEARED_TO_WAREHOUSE"
-  /** Booked in at our warehouse before customs signed off. Still not ready. */
-  | "WAREHOUSE_CLEARANCE"
   /** Counted in at Dar. Nothing priced yet. */
   | "RECEIVED_DAR"
   /** A price has been worked out and is waiting on the price list. */
@@ -106,6 +139,31 @@ export type StageCode =
   | "COLLECTED"
   | "DELIVERED"
   | "CANCELLED";
+
+/** Which of the six stages a fine stage belongs to. */
+export function bluewaveStageOfCode(stage: StageCode): BlueWaveStage | null {
+  switch (stage) {
+    case "AWAITING_CHINA":
+    case "CANCELLED":
+      return null;
+    case "RECEIVED_CHINA":
+      return "RECEIVED_IN_CHINA";
+    case "ASSIGNED":
+    case "PACKED":
+      return "STORED_IN_CHINA";
+    case "SHIPPED":
+    case "AT_SEA":
+    case "AT_DAR_PORT":
+      return "IN_TRANSIT";
+    case "READY":
+      return "READY_FOR_PICKUP";
+    case "COLLECTED":
+    case "DELIVERED":
+      return "COLLECTED";
+    default:
+      return "ARRIVED_IN_DAR";
+  }
+}
 
 /**
  * SOMETHING IS WRONG WITH THESE BOXES, SAID IN WORDS A CUSTOMER MAY READ.
@@ -143,8 +201,8 @@ export type JourneyStep = {
   detail: string | null;
   at: Date | null;
   /**
-   * What `at` is the date OF — "Arrived", "Cleared". A bare date under
-   * "Arrived in Dar — clearance in progress" read as the day it was cleared.
+   * What `at` is the date OF — "Left China", "Arrived". A bare date under
+   * "In transit" reads as the day it arrived.
    */
   atLabel: string;
   state: "done" | "current" | "upcoming";
@@ -157,6 +215,10 @@ export type Journey = {
   headline: string;
   tone: "neutral" | "progress" | "good" | "warn" | "bad";
   steps: JourneyStep[];
+  /** Which of the six stages it is at. Null before Foshan and once cancelled. */
+  current: BlueWaveStage | null;
+  /** The stage expected next. Null once collected or cancelled. */
+  next: BlueWaveStage | null;
   payment: PaymentState;
   /** Null while nothing is wrong. Never carries a case reference or a note. */
   issue: IssueCode | null;
@@ -204,12 +266,10 @@ export type JourneyInput = {
   /** Dar has a receiving row for this consignment. */
   receivedAtDar: boolean;
   /**
-   * Customs clearance, at the port. It starts when the ship is in and the
-   * box discharged, and clearedAt is when it finished — before the goods are
-   * brought to our warehouse. Left out, the consignment is treated as cleared — the
-   * shape records had before clearance was its own step.
+   * When Dar confirmed the boxes on its floor — the receiving row's own time.
+   * This is "Arrived in Dar", and the day the storage clock starts.
    */
-  clearance?: { clearedAt: Date | null };
+  darReceivedAt?: Date | null;
   /** Dar has a receiving row and has not signed the count off. */
   awaitingDarVerification: boolean;
   /** Dar booked the boxes in damaged, part damaged or wet. Repacked is not damage. */
@@ -279,16 +339,13 @@ export function paymentState(billing: JourneyInput["billing"]): PaymentState {
 /** What each stage is called on a customer's screen. English is the key. */
 const STAGE_LABEL: Record<StageCode, string> = {
   AWAITING_CHINA: "Waiting for your goods in Foshan",
-  RECEIVED_CHINA: "Received and stored in our Foshan warehouse",
+  RECEIVED_CHINA: "Received at our Foshan warehouse",
   ASSIGNED: "Assigned to a container in Foshan",
   PACKED: "Container packed and sealed in Foshan",
   SHIPPED: "Shipped from China",
   AT_SEA: "At sea",
-  ARRIVED_DAR: "Arrived in Dar es Salaam",
+  AT_DAR_PORT: "At Dar es Salaam port — on its way to our warehouse",
   DAR_VERIFICATION: "Arrived in Dar — being checked in",
-  IN_CLEARANCE: "At Dar port — clearance in progress",
-  CLEARED_TO_WAREHOUSE: "Cleared — on the way to our Dar warehouse",
-  WAREHOUSE_CLEARANCE: "At our Dar warehouse — clearance in progress",
   RECEIVED_DAR: "At our Dar warehouse — invoice being prepared",
   PRICING: "At our Dar warehouse — price being confirmed",
   PAYMENT_PENDING: "At our Dar warehouse — payment required before pickup",
@@ -308,11 +365,8 @@ const STAGE_TONE: Record<StageCode, Journey["tone"]> = {
   PACKED: "progress",
   SHIPPED: "progress",
   AT_SEA: "progress",
-  ARRIVED_DAR: "progress",
+  AT_DAR_PORT: "progress",
   DAR_VERIFICATION: "progress",
-  IN_CLEARANCE: "progress",
-  CLEARED_TO_WAREHOUSE: "progress",
-  WAREHOUSE_CLEARANCE: "progress",
   RECEIVED_DAR: "progress",
   PRICING: "progress",
   PAYMENT_PENDING: "warn",
@@ -385,9 +439,6 @@ function stageOf(
     /* Booked in, not signed off. The clerk has the boxes and is still counting
        them against the sheet. */
     if (input.awaitingDarVerification) return "DAR_VERIFICATION";
-    /* Booked in before customs signed off (it happens): still not ready, and
-       money does not speak while customs has the goods. */
-    if (input.clearance && !input.clearance.clearedAt) return "WAREHOUSE_CLEARANCE";
     /* A bill can go out while the container is still at sea, but a customer
        watching a ship does not want "part paid" as the answer to where their
        goods are. Money speaks only once the boxes are on the Dar floor. */
@@ -405,14 +456,10 @@ function stageOf(
     }
   }
 
-  /* Off the vessel and not yet booked in: somewhere between the quay and the
-     counter, which is also where a consignment nobody can find sits. */
-  /* The ship is in and the goods are not on our floor yet: they are with
-     customs at the port, or cleared and being brought over. */
-  if (rank >= 5 && input.clearance && input.status !== "MISSING_AT_DAR") {
-    return input.clearance.clearedAt ? "CLEARED_TO_WAREHOUSE" : "IN_CLEARANCE";
-  }
-  if (rank >= 5) return "ARRIVED_DAR";
+  /* Off the vessel and not yet confirmed on our floor: still travelling, the
+     last leg from the quay to our warehouse — which is also where a
+     consignment nobody can find sits. */
+  if (rank >= 5) return "AT_DAR_PORT";
   if (rank >= 4) return "AT_SEA";
   if (rank >= 3) return "SHIPPED";
   if (rank >= 2) {
@@ -459,105 +506,93 @@ export function publicJourney(input: JourneyInput): Journey {
   if (status === "MISSING_AT_DAR") rank = Math.min(rank, 5);
 
   const payment = paymentState(billing);
-  const invoiced = payment !== "NOT_BILLED";
   const ready = !cancelled && (input.releasable || handedOver);
   const stage = stageOf(input, rank, payment, ready);
   const issue = cancelled ? null : issueOf(input);
 
-  const arrivedAt =
-    container?.arrivedAt ?? stamps.ARRIVED_TANZANIA ?? null;
   const departedAt =
     container?.departedAt ?? stamps.DEPARTED_CHINA ?? null;
+  /* Arrived in Dar is the floor's confirmation, never the ship's arrival. */
+  const arrivedAtDar = input.darReceivedAt ?? stamps.RECEIVED_DAR ?? null;
+  const atPort = rank >= 5 && !(rank >= 6);
 
   const reached: Record<StageKey, boolean> = {
-    RECEIVED_CHINA: rank >= 1 || ready,
-    LOADED: rank >= 2 || ready,
-    DEPARTED: rank >= 3 || ready,
-    AT_SEA: rank >= 3 || ready,
-    ARRIVED_DAR: rank >= 5 || ready,
-    /* Customs happens at the port, before our warehouse. A record from before
-       clearance was a step (no clearance given) passes through it as done. */
-    CLEARANCE: (rank >= 5 && status !== "MISSING_AT_DAR") || ready,
-    CLEARED:
-      ready ||
-      (input.clearance
-        ? input.clearance.clearedAt !== null
-        : rank >= 6 && input.receivedAtDar),
-    RECEIVED_DAR: rank >= 6 || ready,
-    /* A release needs a bill, so ready implies invoiced. Invoicing does not
-       imply any physical step — a bill can go out while the box is at sea. */
-    INVOICED: invoiced || ready,
-    READY: ready,
-    HANDED_OVER: handedOver,
+    RECEIVED_IN_CHINA: rank >= 1 || ready,
+    STORED_IN_CHINA: rank >= 2 || ready,
+    IN_TRANSIT: rank >= 3 || ready,
+    ARRIVED_IN_DAR: rank >= 6 || ready,
+    READY_FOR_PICKUP: ready,
+    COLLECTED: handedOver,
   };
 
-  const paymentDetail: Record<PaymentState, string | null> = {
-    NOT_BILLED: null,
-    PENDING: "Payment pending",
-    PART_PAID: "Part paid — a balance is still due",
-    CONFIRMING: "We are confirming your payment",
-    PAID: "Paid",
-  };
+  const etaOpen = container?.eta && !reached.ARRIVED_IN_DAR && !atPort ? container.eta : null;
 
-  const etaOpen = container?.eta && !reached.ARRIVED_DAR ? container.eta : null;
+  const arrivedDetail: Partial<Record<StageCode, string>> = {
+    DAR_VERIFICATION: "Being checked in",
+    PRICING: "Price being confirmed",
+    RECEIVED_DAR: "Invoice being prepared",
+    PAYMENT_PENDING: "Pay first, then collect",
+    PART_PAID: "Balance due before pickup",
+    CONFIRMING_PAYMENT: "Confirming your payment",
+    PAID: "Paid — pickup note being prepared",
+  };
 
   /*
-    THE FIVE STEPS A CUSTOMER FOLLOWS — the owner's list.
+    THE SIX STAGES A CUSTOMER FOLLOWS — the owner's list.
 
-    Received in Foshan, in transit, arrived in Dar and in clearance,
-    cleared and ready for pickup, collected. What happens inside our walls
-    between them — loading onto a container, sealing it, booking it into the
-    Dar warehouse — is ours, not a milestone for the customer: it said the same
-    thing twice ("Departed China", then "At sea") and left a customer reading
-    ten stations for a journey of five. The facts behind every step are the
-    same records as before; only fewer are shown.
+    What happens inside our walls between them — sealing the box, the quay,
+    counting it against the sheet — is said in a few words under the stage it
+    belongs to, never as a stage of its own.
   */
   const draft: Omit<JourneyStep, "state">[] = [
     {
-      key: "RECEIVED_CHINA",
-      label: "Received in Foshan",
+      key: "RECEIVED_IN_CHINA",
+      label: "Received in China",
       detail: null,
       at: stamps.RECEIVED_CHINA ?? null,
       atLabel: "Received",
     },
     {
-      key: "AT_SEA",
+      key: "STORED_IN_CHINA",
+      label: "Stored in China",
+      detail:
+        stage === "PACKED"
+          ? "Container packed and sealed"
+          : stage === "ASSIGNED"
+            ? "Assigned to a container"
+            : null,
+      at: stamps.ASSIGNED_TO_CONTAINER ?? stamps.CONTAINER_LOADED ?? null,
+      atLabel: "Into a container",
+    },
+    {
+      key: "IN_TRANSIT",
       label: "In transit",
       /* The expected day is printed by the page beside this step; only a date
-         that has already gone by needs words. */
-      detail:
-        !reached.ARRIVED_DAR && etaOpen && etaOpen.getTime() < now.getTime()
+         that has already gone by, or the last leg, needs words. */
+      detail: atPort && status !== "MISSING_AT_DAR"
+        ? "At Dar es Salaam port — on its way to our warehouse"
+        : etaOpen && etaOpen.getTime() < now.getTime()
           ? "Running later than planned"
           : null,
       at: departedAt,
       atLabel: "Left China",
     },
     {
-      key: "CLEARANCE",
-      label: "Arrived in Dar — clearance in progress",
-      detail: null,
-      at: arrivedAt,
+      key: "ARRIVED_IN_DAR",
+      label: "Arrived in Dar es Salaam",
+      detail: !ready && reached.ARRIVED_IN_DAR ? (arrivedDetail[stage] ?? null) : null,
+      at: arrivedAtDar,
       atLabel: "Arrived",
     },
-    /* Cleared and ready are one step to the customer (the owner's word): once
-       customs lets the goods go they are there to collect. Release is still
-       computed — an unpaid bill keeps them — so the step says, in a few words,
-       what is left to do. */
     {
-      key: "CLEARED",
-      label: "Cleared — ready for pickup",
-      detail: ready
-        ? "Bring your ID to collect"
-        : stage === "CLEARED_TO_WAREHOUSE" || stage === "DAR_VERIFICATION"
-          ? "Being checked in"
-          : reached.CLEARED && !handedOver
-            ? "Pay first, then collect"
-            : null,
-      at: input.clearance?.clearedAt ?? stamps.READY_FOR_RELEASE ?? null,
-      atLabel: "Cleared",
+      key: "READY_FOR_PICKUP",
+      label: "Ready for pickup",
+      detail: ready && !handedOver ? "Bring your ID and pickup note" : null,
+      at: stamps.READY_FOR_RELEASE ?? null,
+      atLabel: "Ready",
     },
     {
-      key: "HANDED_OVER",
+      key: "COLLECTED",
       label: status === "DELIVERED" ? "Delivered" : "Collected",
       detail: null,
       at: stamps.DELIVERED ?? stamps.COLLECTED ?? null,
@@ -568,13 +603,10 @@ export function publicJourney(input: JourneyInput): Journey {
   /* The line is the goods' physical journey. Money is not a place — a bill
      can go out while the ship is at sea — so it is reported beside the line
      (payment), never as a station on it. */
-  /* Booked into our warehouse before customs signed off: the goods are on
-     our floor, but clearance is what they are waiting on, so that is where
-     the marker stands. */
-  const lastReached =
-    stage === "WAREHOUSE_CLEARANCE"
-      ? draft.findIndex((step) => step.key === "CLEARANCE")
-      : draft.reduce((last, step, index) => (reached[step.key] ? index : last), -1);
+  const lastReached = draft.reduce(
+    (last, step, index) => (reached[step.key] ? index : last),
+    -1
+  );
 
   const steps: JourneyStep[] = draft.map((step, index) => ({
     ...step,
@@ -585,13 +617,25 @@ export function publicJourney(input: JourneyInput): Journey {
       : "upcoming",
   }));
 
+  const current = cancelled
+    ? null
+    : handedOver
+      ? "COLLECTED"
+      : lastReached >= 0
+        ? draft[lastReached].key
+        : null;
+  const next =
+    cancelled || handedOver
+      ? null
+      : (draft[lastReached + 1]?.key ?? null);
+
   /*
     WHAT THE BADGE SAYS.
 
     The stage, unless something is wrong AND the wrong thing still stands
     between the customer and their goods. Damage recorded on boxes the release
-    check has already cleared is a conversation, not a barrier: that customer
-    reads "Ready for collection" with the damage in the notice under it, rather
+    check has already passed is a conversation, not a barrier: that customer
+    reads "Ready for pickup" with the damage in the notice under it, rather
     than being sent away by a badge.
   */
   const blocking = issue !== null && !ready && !handedOver;
@@ -606,6 +650,8 @@ export function publicJourney(input: JourneyInput): Journey {
   return {
     stage,
     headline,
+    current,
+    next,
     tone: cancelled
       ? "bad"
       : issue !== null && !handedOver

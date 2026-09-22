@@ -1,6 +1,6 @@
 import "server-only";
 
-import { announceIfReady } from "@/lib/clearance";
+import { announceIfReady } from "@/lib/cargo-events";
 
 import { nextExceptionReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";

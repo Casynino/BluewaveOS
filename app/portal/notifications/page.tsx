@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { EmptyState } from "@/components/app/empty-state";
 import { MarkAllRead } from "@/components/app/mark-all-read";
 import { Card } from "@/components/ui/card";
-import { formatRelative } from "@/lib/format";
+import { formatDateTime, formatRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requireCustomer } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,8 @@ export const metadata: Metadata = { title: "Notifications" };
 const FILTERS = {
   all: { label: "All", kinds: null },
   unread: { label: "Unread", kinds: null },
-  cargo: { label: "Cargo", kinds: ["cargo.", "container.", "shipment.", "exception."] },
-  money: { label: "Money", kinds: ["invoice.", "payment.", "receipt.", "pickup.", "storage."] },
+  cargo: { label: "Cargo", kinds: ["CARGO_", "cargo.", "container.", "shipment.", "exception."] },
+  money: { label: "Money", kinds: ["PRICE_CONFIRMED", "invoice.", "payment.", "receipt.", "pickup.", "storage."] },
   requests: { label: "Requests", kinds: ["request.", "delivery."] },
 } as const;
 type Filter = keyof typeof FILTERS;
@@ -97,12 +97,15 @@ export default async function PortalNotificationsPage({
                       {n.title}
                     </p>
                     {n.body ? (
-                      <p className="mt-0.5 text-sm text-muted-foreground">
+                      <p className="mt-0.5 whitespace-pre-line text-sm text-muted-foreground">
                         {n.body}
                       </p>
                     ) : null}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatRelative(n.createdAt)}
+                      <time dateTime={n.createdAt.toISOString()} title={formatDateTime(n.createdAt)}>
+                        {formatRelative(n.createdAt)} · {formatDateTime(n.createdAt)}
+                      </time>
+                      {n.readAt ? null : <span className="ml-2 font-medium text-signal">Unread</span>}
                     </p>
                   </div>
                 </div>

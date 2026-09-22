@@ -79,13 +79,14 @@ describe("public journey", () => {
       input({ status: "RECEIVED_CHINA", stamps: { RECEIVED_CHINA: day(-3) } })
     );
     assert.equal(j.stage, "RECEIVED_CHINA");
-    assert.equal(j.headline, "Received and stored in our Foshan warehouse");
-    assert.equal(state(j, "RECEIVED_CHINA"), "current");
-    assert.equal(state(j, "AT_SEA"), "upcoming");
+    assert.equal(j.headline, "Received at our Foshan warehouse");
+    assert.equal(state(j, "RECEIVED_IN_CHINA"), "current");
+    assert.equal(state(j, "STORED_IN_CHINA"), "upcoming");
+    assert.equal(state(j, "IN_TRANSIT"), "upcoming");
     assert.deepEqual(j.steps[0].at, day(-3));
-    /* Receiving and storing are one act at the counter, so the second is said
-       under the first rather than claimed as a step of its own. */
-    assert.equal(detail(j, "RECEIVED_CHINA"), null, "the date says it; no sentence");
+    assert.equal(j.current, "RECEIVED_IN_CHINA");
+    assert.equal(j.next, "STORED_IN_CHINA");
+    assert.equal(detail(j, "RECEIVED_IN_CHINA"), null, "the date says it; no sentence");
   });
 
   test("on a manifest with the box still open: assigned, being packed", () => {
@@ -98,10 +99,11 @@ describe("public journey", () => {
     );
     assert.equal(j.stage, "ASSIGNED");
     assert.equal(j.headline, "Assigned to a container in Foshan");
-    /* Loading is ours, not a customer's milestone: the goods are still in
-       Foshan waiting to sail, and the badge says they are assigned. */
-    assert.equal(state(j, "RECEIVED_CHINA"), "current");
-    assert.ok(!j.steps.some((s) => (s.key as string) === "LOADED"), "no loading step");
+    /* In a container in Foshan is the second BlueWave stage: stored in China. */
+    assert.equal(state(j, "RECEIVED_IN_CHINA"), "done");
+    assert.equal(state(j, "STORED_IN_CHINA"), "current");
+    assert.equal(detail(j, "STORED_IN_CHINA"), "Assigned to a container");
+    assert.deepEqual(j.steps[1].at, day(-2));
   });
 
   test("a frozen packing list means the box is shut", () => {
@@ -116,7 +118,8 @@ describe("public journey", () => {
     );
     assert.equal(j.stage, "PACKED");
     assert.equal(j.headline, "Container packed and sealed in Foshan");
-    assert.equal(state(j, "RECEIVED_CHINA"), "current", "sealed is still in Foshan");
+    assert.equal(state(j, "STORED_IN_CHINA"), "current", "sealed is still in Foshan");
+    assert.equal(state(j, "IN_TRANSIT"), "upcoming");
   });
 
   test("sealed with no list yet is still packed, by the cargo's own status", () => {
@@ -139,8 +142,8 @@ describe("public journey", () => {
     assert.equal(j.stage, "SHIPPED");
     assert.equal(j.headline, "Shipped from China");
     /* Departing is going to sea: one step, "In transit". */
-    assert.equal(state(j, "AT_SEA"), "current");
-    assert.deepEqual(j.steps.find((s) => s.key === "AT_SEA")!.at, day(-1), "the day it left");
+    assert.equal(state(j, "IN_TRANSIT"), "current");
+    assert.deepEqual(j.steps.find((s) => s.key === "IN_TRANSIT")!.at, day(-1), "the day it left");
   });
 
   test("at sea shows the ETA and not an arrival", () => {
@@ -152,12 +155,14 @@ describe("public journey", () => {
     );
     assert.equal(j.stage, "AT_SEA");
     assert.equal(j.headline, "At sea");
-    assert.equal(state(j, "AT_SEA"), "current");
-    assert.equal(state(j, "CLEARANCE"), "upcoming");
+    assert.equal(state(j, "IN_TRANSIT"), "current");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "upcoming");
+    assert.equal(j.next, "ARRIVED_IN_DAR");
     assert.deepEqual(j.eta, day(18));
     assert.equal(j.etaPassed, false);
-    /* Received is implied even with no history row for it. */
-    assert.equal(state(j, "RECEIVED_CHINA"), "done");
+    /* Received and stored are implied even with no history row for them. */
+    assert.equal(state(j, "RECEIVED_IN_CHINA"), "done");
+    assert.equal(state(j, "STORED_IN_CHINA"), "done");
   });
 
   test("a passed ETA is admitted rather than shown as a date in the past", () => {
@@ -168,7 +173,7 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.etaPassed, true);
-    assert.match(detail(j, "AT_SEA") ?? "", /later than planned/);
+    assert.match(detail(j, "IN_TRANSIT") ?? "", /later than planned/);
   });
 
   test("the container moving ahead of the cargo row still moves the customer's view", () => {
@@ -181,7 +186,7 @@ describe("public journey", () => {
     assert.equal(j.stage, "SHIPPED");
   });
 
-  test("a container that arrived does not make the consignment received", () => {
+  test("a container at the port is still in transit — arrived is the warehouse's word", () => {
     const j = publicJourney(
       input({
         status: "ARRIVED_TANZANIA",
@@ -193,11 +198,13 @@ describe("public journey", () => {
         }),
       })
     );
-    assert.equal(j.stage, "ARRIVED_DAR");
-    assert.equal(j.headline, "Arrived in Dar es Salaam");
-    assert.equal(state(j, "CLEARANCE"), "current");
-    assert.equal(state(j, "CLEARED"), "upcoming");
-    assert.equal(j.eta, null, "no ETA once arrived");
+    assert.equal(j.stage, "AT_DAR_PORT");
+    assert.equal(j.headline, "At Dar es Salaam port — on its way to our warehouse");
+    assert.equal(j.current, "IN_TRANSIT");
+    assert.equal(state(j, "IN_TRANSIT"), "current");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "upcoming");
+    assert.match(detail(j, "IN_TRANSIT") ?? "", /port/);
+    assert.equal(j.eta, null, "no ETA once the ship is in");
   });
 
   test("booked in but not signed off is under verification, not received", () => {
@@ -211,8 +218,8 @@ describe("public journey", () => {
     );
     assert.equal(j.stage, "DAR_VERIFICATION");
     assert.equal(j.headline, "Arrived in Dar — being checked in");
-    /* Our warehouse is not a customer step; the badge above says it. */
-    assert.ok(!j.steps.some((s) => (s.key as string) === "RECEIVED_DAR"));
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
+    assert.equal(detail(j, "ARRIVED_IN_DAR"), "Being checked in");
   });
 
   test("a price waiting on the list is not a bill", () => {
@@ -290,7 +297,7 @@ describe("public journey", () => {
     assert.notEqual(j.headline, "Ready for pickup");
   });
 
-  test("paid but not yet cleared to go is paid, not ready", () => {
+  test("paid but not yet released is paid, not ready", () => {
     const j = publicJourney(
       input({
         status: "RECEIVED_DAR",
@@ -307,57 +314,44 @@ describe("public journey", () => {
     assert.equal(j.stage, "PAID");
     assert.equal(j.payment, "PAID");
     assert.equal(j.ready, false);
-    assert.equal(state(j, "HANDED_OVER"), "upcoming");
+    assert.equal(state(j, "COLLECTED"), "upcoming");
+    assert.equal(state(j, "READY_FOR_PICKUP"), "upcoming", "paid is not ready");
   });
 
-  test("booked in at Dar and not cleared is in clearance, whatever is paid", () => {
-    const j = publicJourney(
-      input({
-        status: "RECEIVED_DAR",
-        stamps: { RECEIVED_DAR: day(-1) },
-        receivedAtDar: true,
-        clearance: { clearedAt: null },
-        billing: { issuedAt: day(-9), owes: false, pendingClaim: false, paidSome: true, drafted: false },
-      })
-    );
-    assert.equal(j.stage, "WAREHOUSE_CLEARANCE");
-    assert.equal(j.headline, "At our Dar warehouse — clearance in progress");
-    assert.equal(state(j, "CLEARANCE"), "current");
-    assert.equal(state(j, "CLEARED"), "upcoming");
-  });
-
-  test("cleared with the bill unpaid says payment is required before pickup", () => {
+  test("arrived with the bill unpaid says pay first, then collect", () => {
     const j = publicJourney(
       input({
         status: "RECEIVED_DAR",
         receivedAtDar: true,
-        clearance: { clearedAt: day(0) },
+        darReceivedAt: day(-1),
         billing: { issuedAt: day(-9), owes: true, pendingClaim: false, paidSome: false, drafted: false },
       })
     );
     assert.equal(j.stage, "PAYMENT_PENDING");
     assert.equal(j.headline, "At our Dar warehouse — payment required before pickup");
-    /* Cleared and ready are one step: reached, and saying what is left. */
-    assert.equal(state(j, "CLEARED"), "current");
-    assert.equal(detail(j, "CLEARED"), "Pay first, then collect");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
+    assert.equal(detail(j, "ARRIVED_IN_DAR"), "Pay first, then collect");
+    assert.deepEqual(j.steps.find((s) => s.key === "ARRIVED_IN_DAR")!.at, day(-1), "the check-in is the arrival");
+    assert.equal(j.next, "READY_FOR_PICKUP");
   });
 
-  test("at the port, customs has it; cleared, it is on the way to our warehouse", () => {
-    const port = publicJourney(
-      input({ status: "ARRIVED_TANZANIA", clearance: { clearedAt: null } })
-    );
-    assert.equal(port.stage, "IN_CLEARANCE");
-    assert.equal(port.headline, "At Dar port — clearance in progress");
-    assert.equal(state(port, "CLEARANCE"), "current");
-    assert.equal(state(port, "CLEARED"), "upcoming");
-
-    const cleared = publicJourney(
-      input({ status: "ARRIVED_TANZANIA", clearance: { clearedAt: day(0) } })
-    );
-    assert.equal(cleared.stage, "CLEARED_TO_WAREHOUSE");
-    assert.equal(state(cleared, "CLEARED"), "current");
-    assert.equal(detail(cleared, "CLEARED"), "Being checked in");
-    assert.equal(cleared.ready, false);
+  test("no step, label or detail anywhere speaks of clearance", () => {
+    const statuses = [
+      "REGISTERED", "RECEIVED_CHINA", "ASSIGNED_TO_CONTAINER", "CONTAINER_LOADED", "DEPARTED_CHINA",
+      "IN_TRANSIT", "ARRIVED_TANZANIA", "RECEIVED_DAR", "READY_FOR_RELEASE", "COLLECTED",
+      "DELIVERED", "MISSING_AT_DAR", "CANCELLED",
+    ] as const;
+    for (const status of statuses) {
+      for (const releasable of [false, true]) {
+        const j = publicJourney(input({ status, releasable }));
+        const text = [j.headline, j.notice, ...j.steps.flatMap((s) => [s.label, s.detail, s.atLabel])].join(" ");
+        assert.ok(!/clear|customs/i.test(text), `${status}: ${text}`);
+        assert.deepEqual(
+          j.steps.map((s) => s.key),
+          ["RECEIVED_IN_CHINA", "STORED_IN_CHINA", "IN_TRANSIT", "ARRIVED_IN_DAR", "READY_FOR_PICKUP", "COLLECTED"]
+        );
+      }
+    }
   });
 
   test("received and not yet billed", () => {
@@ -384,7 +378,7 @@ describe("public journey", () => {
     );
     assert.equal(j.stage, "AT_SEA");
     assert.equal(j.payment, "PENDING", "the bill is still reported, just not as a place");
-    assert.equal(state(j, "AT_SEA"), "current");
+    assert.equal(state(j, "IN_TRANSIT"), "current");
   });
 
   test("checked in at Dar with no container on record", () => {
@@ -394,12 +388,13 @@ describe("public journey", () => {
     const j = publicJourney(
       input({ status: "RECEIVED_DAR", stamps: { RECEIVED_DAR: day(-1) } })
     );
-    for (const key of ["RECEIVED_CHINA", "AT_SEA", "CLEARANCE"] as StageKey[]) {
+    for (const key of ["RECEIVED_IN_CHINA", "STORED_IN_CHINA", "IN_TRANSIT"] as StageKey[]) {
       assert.equal(state(j, key), "done", key);
       assert.equal(j.steps.find((s) => s.key === key)!.at, null, key);
     }
-    assert.equal(state(j, "CLEARED"), "current", "a record from before clearance was a step reads as cleared");
-    assert.equal(state(j, "HANDED_OVER"), "upcoming");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
+    assert.deepEqual(j.steps.find((s) => s.key === "ARRIVED_IN_DAR")!.at, day(-1));
+    assert.equal(state(j, "COLLECTED"), "upcoming");
     assert.equal(j.eta, null);
   });
 
@@ -419,7 +414,7 @@ describe("public journey", () => {
     );
     assert.notEqual(paidButNotReleasable.headline, "Ready for pickup");
     assert.equal(paidButNotReleasable.ready, false);
-    assert.notEqual(detail(paidButNotReleasable, "CLEARED"), "Bring your ID to collect");
+    assert.equal(state(paidButNotReleasable, "READY_FOR_PICKUP"), "upcoming");
 
     const releasable = publicJourney(
       input({
@@ -437,8 +432,9 @@ describe("public journey", () => {
     assert.equal(releasable.stage, "READY");
     assert.equal(releasable.headline, "Ready for pickup");
     assert.equal(releasable.ready, true);
-    assert.equal(state(releasable, "CLEARED"), "current");
-    assert.equal(detail(releasable, "CLEARED"), "Bring your ID to collect");
+    assert.equal(state(releasable, "READY_FOR_PICKUP"), "current");
+    assert.equal(state(releasable, "ARRIVED_IN_DAR"), "done");
+    assert.equal(detail(releasable, "READY_FOR_PICKUP"), "Bring your ID and pickup note");
   });
 
   test("a hold outranks progress and never says why", () => {
@@ -502,7 +498,7 @@ describe("public journey", () => {
     }
   });
 
-  test("damage on boxes already cleared to go does not send the customer away", () => {
+  test("damage on boxes already ready to go does not send the customer away", () => {
     const j = publicJourney(
       input({
         status: "RECEIVED_DAR",
@@ -537,12 +533,12 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.issue, "MISSING");
-    assert.equal(j.stage, "ARRIVED_DAR");
+    assert.equal(j.stage, "AT_DAR_PORT");
     assert.equal(j.headline, "Being located");
     /* The box landed; these goods were not on it. The step saying they arrived
        is not claimed — the marker stays on the last thing that is true. */
-    assert.equal(state(j, "AT_SEA"), "current");
-    assert.equal(state(j, "CLEARANCE"), "upcoming");
+    assert.equal(state(j, "IN_TRANSIT"), "current");
+    assert.equal(state(j, "ARRIVED_IN_DAR"), "upcoming");
   });
 
   test("collected and delivered close every step", () => {
@@ -587,8 +583,10 @@ describe("public journey", () => {
     assert.equal(j.headline, "Cancelled");
     assert.equal(j.tone, "bad");
     assert.equal(j.issue, null, "a cancelled consignment is not also a case");
-    assert.equal(state(j, "RECEIVED_CHINA"), "done");
-    assert.equal(state(j, "AT_SEA"), "upcoming");
+    assert.equal(state(j, "RECEIVED_IN_CHINA"), "done");
+    assert.equal(state(j, "IN_TRANSIT"), "upcoming");
     assert.ok(!j.steps.some((s) => s.state === "current"));
+    assert.equal(j.current, null);
+    assert.equal(j.next, null);
   });
 });

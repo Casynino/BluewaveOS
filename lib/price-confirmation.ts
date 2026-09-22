@@ -8,7 +8,7 @@ import { nextInvoiceNumber } from "@/lib/ids";
 import { paymentSnapshotNow } from "@/lib/invoice-accounts";
 import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
 import { repriceDraftInvoices } from "@/lib/invoice-reprice";
-import { notifyCustomer } from "@/lib/notify";
+import { announceCargoEvent } from "@/lib/cargo-events";
 import { applyVat, companySettings, currentExchangeRate } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
@@ -369,16 +369,9 @@ export async function confirmCargoPrice(
     if (claim.count === 0) continue;
 
     const due = `${formatCurrency(totalTzs, "TZS")} (${formatCurrency(invoice.total, "USD")} at ${formatRate(ctx.fx.rate)})`;
-    await notifyCustomer(
-      [invoice.customerId],
-      {
-        kind: "invoice.issued",
-        title: `Invoice ${invoice.number}`,
-        body: `${due} is due for ${invoice.cargo.reference}.`,
-        href: "/portal/invoices",
-      },
-      client
-    );
+    /* The invoice message, with the bill's own link: once per bill however
+       often the list is confirmed again. */
+    await announceCargoEvent(client, "PRICE_CONFIRMED", cargoId, { invoiceId: invoice.id });
     await recordAudit(
       {
         actor,

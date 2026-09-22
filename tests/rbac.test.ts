@@ -148,21 +148,19 @@ describe("the support desk explains; it does not do", () => {
   });
 
   test("the port steps belong to every desk in Dar that may hear first", () => {
-    /* By the owner's decision, arrival and clearance are marked by whichever
-       of these desks learns of it — the floor, Finance with the bill of
-       lading, Support with the clearing agent on the phone, the manager, the
-       owner. Clearing has a permission of its own so that holding it carries
-       no authority over what the boxes are. Foshan holds neither. */
+    /* By the owner's decision, the port arrival is marked by whichever of
+       these desks learns of it — the floor, Finance with the bill of lading,
+       Support with the shipping line on the phone, the manager, the owner.
+       Foshan does not. There is no clearance step to mark. */
     for (const role of ["DAR_WAREHOUSE", "FINANCE", "CUSTOMER_SUPPORT", "MANAGER", "ADMIN"] as Role[]) {
       assert.ok(can(role, "container.arrive"), `${role} marks arrival`);
-      assert.ok(can(role, "cargo.clear"), `${role} marks clearance`);
     }
     assert.equal(can("CHINA_WAREHOUSE", "container.arrive"), false);
-    assert.equal(can("CHINA_WAREHOUSE", "cargo.clear"), false);
     assert.equal(can("CUSTOMER_SUPPORT", "receiving.dar"), false);
 
-    /* Clearing is a paper step. It carries no authority over what the boxes
-       actually are: Finance still cannot write a receiving count. */
+    /* Marking the port arrival carries no authority over what the boxes
+       actually are: Finance still cannot write a receiving count — only the
+       Dar check-in says "Arrived in Dar". */
     assert.equal(can("FINANCE", "receiving.dar"), false);
     assert.equal(can("FINANCE", "receiving.verify"), false);
     assert.equal(can("FINANCE", "cbm.override"), false);

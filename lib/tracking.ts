@@ -7,11 +7,12 @@ import { usdToTzs } from "@/lib/currency";
 import { CUSTOMER_PHOTO_KINDS } from "@/lib/file-access";
 import { accountsForInvoice, type InvoiceAccount } from "@/lib/invoice-accounts";
 import { balanceOf } from "@/lib/invoice-balance";
+import { pickupAddress } from "@/lib/cargo-events";
 import { prisma } from "@/lib/prisma";
 import { checkRelease, RELEASE_INCLUDE } from "@/lib/release";
 import { storagePosition } from "@/lib/storage-fee";
 import { publicJourney, type Journey } from "@/lib/tracking-stage";
-import { storageStart } from "@/lib/storage-clock";
+import { storageStart, storageState } from "@/lib/storage-clock";
 
 /**
  * PUBLIC TRACKING.
@@ -80,7 +81,10 @@ export type PublicCharge = {
 };
 
 export type PublicStorage = {
+  /** When Dar confirmed the boxes on its floor: day one of storage. */
   arrivedAt: string;
+  /** The last free day, on the Dar calendar. */
+  freeUntil: string;
   daysInWarehouse: number;
   freeDays: number;
   freeDaysRemaining: number;
@@ -130,6 +134,8 @@ export type PublicTracking = {
   /** The same number as it is printed for people to read. */
   whatsappLabel: string | null;
   officeAddress: string | null;
+  /** Where the goods are handed over: the Dar warehouse record. */
+  pickupAddress: string | null;
   note: PublicNote;
   journey: Omit<Journey, "steps" | "eta"> & {
     eta: string | null;
@@ -301,7 +307,7 @@ export function journeyOf(cargo: JourneyCargo, now = new Date()): Journey {
       (e) => e.status !== "RESOLVED" && e.status !== "CLOSED"
     ),
     receivedAtDar: dar !== null,
-    clearance: { clearedAt: cargo.clearedAt },
+    darReceivedAt: dar?.receivedAt ?? null,
     awaitingDarVerification: dar !== null && !dar.verified,
     /* Repacked is not damage — the floor put a burst carton back together,
        which is a kindness and not something to alarm a customer with. */
@@ -327,8 +333,6 @@ export type TrackingSource = {
   reference: string;
   service: ServiceType;
   status: CargoStatus;
-  /** Storage starts once cleared into our warehouse. Absent on older fixtures. */
-  clearedAt?: Date | null;
   description: string;
   sender: { fullName: string };
   chinaReceiving: {
@@ -389,6 +393,8 @@ export type TrackingSettings = {
   whatsapp: string | null;
   phone: string | null;
   darAddress: string | null;
+  /** The Dar warehouse customers collect from — not the office. */
+  pickupAddress?: string | null;
 };
 
 const dec = (value: Prisma.Decimal | number | string) => new Prisma.Decimal(value);
@@ -419,10 +425,10 @@ function locationOf(journey: Journey, status: CargoStatus): string {
   if (status === "DELIVERED") return "Delivered to the address";
   if (status === "COLLECTED") return `Collected from our ${ROUTE.destinationCity} warehouse`;
   if (status === "MISSING_AT_DAR") return "Being located";
-  if (reachedIn(journey, "RECEIVED_DAR")) return `${ROUTE.destinationCity} warehouse`;
-  if (reachedIn(journey, "ARRIVED_DAR")) return `${ROUTE.destinationCity} port`;
-  if (reachedIn(journey, "DEPARTED")) return "At sea";
-  if (reachedIn(journey, "RECEIVED_CHINA")) return `${ROUTE.originCity} warehouse`;
+  if (reachedIn(journey, "ARRIVED_IN_DAR")) return `${ROUTE.destinationCity} warehouse`;
+  if (journey.stage === "AT_DAR_PORT") return `${ROUTE.destinationCity} port`;
+  if (reachedIn(journey, "IN_TRANSIT")) return "At sea";
+  if (reachedIn(journey, "RECEIVED_IN_CHINA")) return `${ROUTE.originCity} warehouse`;
   return `Awaiting arrival in ${ROUTE.originCity}`;
 }
 
@@ -474,37 +480,37 @@ function noteFor(input: {
         `signed for. Karibu tena.`,
     };
   }
-  if (journey.headline === "Ready for collection") {
+  if (journey.stage === "READY") {
     return {
       sw: "Uko tayari kuchukuliwa.",
       en:
-        `Cleared for collection. Bring your reference to our ${ROUTE.destinationCity} ` +
-        `warehouse — storage is free for ${input.freeDays} days from the day it landed.`,
+        `Ready for pickup at our ${ROUTE.destinationCity} warehouse. Bring your ID and ` +
+        `pickup note — storage is free for ${input.freeDays} days from the day it arrived.`,
     };
   }
-  if (reachedIn(journey, "RECEIVED_DAR")) {
+  if (reachedIn(journey, "ARRIVED_IN_DAR")) {
     return {
       sw: "Umefika Dar es Salaam salama.",
       en:
-        `Landed on ${dayMonthYear(input.receivedDarAt ?? input.arrivedAt)} and counted ` +
-        `in at our ${ROUTE.destinationCity} warehouse` +
+        `Arrived at our ${ROUTE.destinationCity} warehouse on ${dayMonthYear(input.receivedDarAt)}` +
         (input.darPackages !== null
           ? `, ${input.darPackages} ${input.darPackages === 1 ? "package" : "packages"} counted`
           : "") +
-        (input.owes ? ". Settle the balance and we will release it the same day." : "."),
+        `. Free storage runs ${input.freeDays} days from that day.` +
+        (input.owes ? " Settle the balance and it is ready for pickup." : ""),
     };
   }
-  if (reachedIn(journey, "ARRIVED_DAR")) {
+  if (journey.stage === "AT_DAR_PORT") {
     return {
-      sw: "Meli imefika bandarini.",
+      sw: "Kontena limefika bandarini Dar es Salaam.",
       en:
-        `The container arrived on ${dayMonthYear(input.arrivedAt)}. We book each ` +
-        `consignment in at our ${ROUTE.destinationCity} warehouse as it comes off the box.`,
+        `The container reached ${ROUTE.destinationCity} port on ${dayMonthYear(input.arrivedAt)}. ` +
+        `Your cargo counts as arrived once our warehouse confirms it on the floor — we will tell you that day.`,
     };
   }
-  if (reachedIn(journey, "DEPARTED")) {
+  if (reachedIn(journey, "IN_TRANSIT")) {
     return {
-      sw: "Mzigo wako uko baharini.",
+      sw: "Mzigo wako uko safarini.",
       en:
         `It left ${ROUTE.originCity} on ${dayMonthYear(input.departedAt)}` +
         (input.eta
@@ -513,13 +519,13 @@ function noteFor(input: {
         `. The crossing takes ${ROUTE.transitDaysMin}–${ROUTE.transitDaysMax} days.`,
     };
   }
-  if (reachedIn(journey, "LOADED")) {
+  if (reachedIn(journey, "STORED_IN_CHINA")) {
     return {
-      sw: "Umepakiwa kwenye kontena.",
-      en: `Loaded into a container in ${ROUTE.originCity}. We will tell you the day it sails.`,
+      sw: "Umehifadhiwa China, umepangiwa kontena.",
+      en: `Stored at our ${ROUTE.originCity} warehouse and assigned to a container. We will tell you the day it sails.`,
     };
   }
-  if (reachedIn(journey, "RECEIVED_CHINA")) {
+  if (reachedIn(journey, "RECEIVED_IN_CHINA")) {
     return {
       sw: "Umepokelewa Foshan.",
       en:
@@ -622,7 +628,10 @@ export function publicTracking(input: {
      bill is priced from. China's stands until then. */
   const cbm = cargo.darReceiving?.cbm ?? cargo.chinaReceiving?.cbm ?? null;
 
-  const arrivedInDar = journey.steps.find((s) => s.key === "ARRIVED_DAR")?.at ?? null;
+  /* Arrived in Dar is the warehouse's confirmation — the receiving row — and
+     never the ship reaching the port. */
+  const arrivedInDar = journey.steps.find((s) => s.key === "ARRIVED_IN_DAR")?.at ?? null;
+  const atPortSince = stamps.ARRIVED_TANZANIA ?? null;
   const handedOverAt = stamps.DELIVERED ?? stamps.COLLECTED ?? null;
   const counted = countedAs(packages, pieces);
   const charge = invoice ? chargeFrom(invoice) : null;
@@ -632,7 +641,7 @@ export function publicTracking(input: {
   let storage: PublicStorage | null = null;
   if (cargo.darReceiving && settings) {
     const position = storagePosition({
-      receivedAt: storageStart(cargo.darReceiving.receivedAt, cargo.clearedAt),
+      receivedAt: storageStart(cargo.darReceiving.receivedAt),
       collectedAt: handedOverAt,
       freeDays: settings.freeStorageDays,
       perDay: dec(settings.storagePerDay),
@@ -640,8 +649,16 @@ export function publicTracking(input: {
     });
     /* Today's rate, not a bill's: nothing has been billed for this yet, so there
        is no pinned rate to honour and no older bill to contradict. */
+    const clock = storageState({
+      arrivedAt: cargo.darReceiving.receivedAt,
+      freeDays: settings.freeStorageDays,
+      perDay: null,
+      currency: settings.storageCurrency,
+      now: cargo.darReceiving.receivedAt,
+    });
     storage = {
       arrivedAt: cargo.darReceiving.receivedAt.toISOString(),
+      freeUntil: clock.lastFreeDay.toISOString(),
       daysInWarehouse: position.daysHeld,
       freeDays: position.freeDays,
       /* Today counts: on the last free day this reads one, never zero above a
@@ -692,14 +709,15 @@ export function publicTracking(input: {
     whatsapp: settings?.whatsapp ?? null,
     whatsappLabel: settings?.phone ?? settings?.whatsapp ?? null,
     officeAddress: settings?.darAddress ?? null,
+    pickupAddress: settings?.pickupAddress ?? null,
     note: noteFor({
       journey,
       status: cargo.status,
       countedAs: counted,
       darPackages: cargo.darReceiving?.packagesCount ?? null,
       receivedChinaAt: cargo.chinaReceiving?.receivedAt ?? stamps.RECEIVED_CHINA ?? null,
-      departedAt: journey.steps.find((s) => s.key === "DEPARTED")?.at ?? null,
-      arrivedAt: arrivedInDar,
+      departedAt: journey.steps.find((s) => s.key === "IN_TRANSIT")?.at ?? null,
+      arrivedAt: atPortSince,
       receivedDarAt: cargo.darReceiving?.receivedAt ?? null,
       handedOverAt,
       eta: journey.eta,
@@ -834,7 +852,7 @@ export async function trackByReference(raw: string): Promise<PublicTracking | nu
     journey: journeyOf(cargo),
     invoice,
     accounts,
-    settings,
+    settings: settings ? { ...settings, pickupAddress: await pickupAddress(prisma) } : null,
     liveRate: liveRate?.rate ?? null,
   });
 }

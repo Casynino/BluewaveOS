@@ -18,6 +18,7 @@ import {
   packageReference,
   shippingMarkFor,
 } from "@/lib/ids";
+import { announceCargoEvent } from "@/lib/cargo-events";
 import { notifyCustomer } from "@/lib/notify";
 import { normaliseTzPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -184,27 +185,24 @@ export async function receiveInChina(
       "Received at the Foshan warehouse"
     );
 
-    if (moved) {
-      await notifyCustomer(
-        [cargo.senderId],
-        {
-          kind: "cargo.received_china",
-          title: `${cargo.reference} received in China`,
-          body: `We have received ${data.packagesCount} package(s) at our Foshan warehouse.`,
-          href: `/portal/cargo/${cargo.reference}`,
-        },
-        tx
-      );
-    }
-  });
+    await recordAudit(
+      {
+        actor,
+        action: "cargo.receive.china",
+        entity: "Cargo",
+        entityId: cargo.id,
+        summary: `${cargo.reference} received in China — ${data.packagesCount} package(s)`,
+        metadata: { packages: data.packagesCount, weightKg: data.weightKg ?? null, moved },
+      },
+      tx
+    );
 
-  await recordAudit({
-    actor,
-    action: "cargo.receive.china",
-    entity: "Cargo",
-    entityId: cargo.id,
-    summary: `${cargo.reference} received in China — ${data.packagesCount} package(s)`,
-    metadata: { packages: data.packagesCount, weightKg: data.weightKg ?? null },
+    /* The customer's first message: received in China, and nothing about
+       sailing — that is the in-transit message's to say. No price in it; the
+       Foshan floor never handles one. */
+    if (moved) {
+      await announceCargoEvent(tx, "CARGO_RECEIVED_CHINA", cargo.id, { recipients: "sender" });
+    }
   });
 
   revalidatePath("/app/inventory");
@@ -1331,16 +1329,7 @@ export async function receiveNewCargo(
       });
 
       // --- tell the customer ----------------------------------------------
-      await notifyCustomer(
-        [customer.id],
-        {
-          kind: "cargo.received_china",
-          title: `${reference} received at our China warehouse`,
-          body: `${totalPackages} package(s) received in Foshan. It will wait here until it is loaded into a container — we will tell you when it sails.`,
-          href: `/portal/cargo/${reference}`,
-        },
-        tx
-      );
+      await announceCargoEvent(tx, "CARGO_RECEIVED_CHINA", cargo.id, { recipients: "sender" });
 
       return { reference, noteNumber, id: cargo.id };
     });

@@ -115,7 +115,7 @@ async function chinaWarehouse(): Promise<ActionCard[]> {
           href: "/app/inventory?state=hold",
           icon: "TriangleAlert",
           urgent: held > 0,
-          hint: "Cannot be loaded until cleared",
+          hint: "Cannot be loaded until the hold is lifted",
         },
   ];
 }
@@ -1271,33 +1271,40 @@ async function deskRows(role: Role): Promise<AttentionRow[]> {
      three-day rule; a second count of the same shelf would only argue with it. */
 
   if (can(role, "receiving.dar")) {
-    const [clearing, ready] = await Promise.all([
+    const [atPort, arrived, ready] = await Promise.all([
       prisma.cargo.count({
-        where: {
-          deletedAt: null,
-          clearedAt: null,
-          status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR"] },
-        },
+        where: { deletedAt: null, status: "ARRIVED_TANZANIA", darReceiving: null },
       }),
+      prisma.cargo.count({ where: { deletedAt: null, status: "RECEIVED_DAR" } }),
       prisma.cargo.count({ where: { deletedAt: null, status: "READY_FOR_RELEASE" } }),
     ]);
     rows.push(
       {
-        id: "desk-clearance",
+        id: "desk-check-in",
         group: "Dar floor",
-        count: clearing,
-        title: `${clearing} ${plural(clearing, "consignment", "consignments")} in customs clearance`,
-        detail: "Landed at the port. Mark them cleared when customs is done.",
+        count: atPort,
+        title: `${atPort} ${plural(atPort, "consignment", "consignments")} at the port to check in`,
+        detail: "Still in transit to the customer. Checking them in is \"Arrived in Dar\" and starts free storage.",
         href: "/app/receive/dar",
         tone: "neutral",
         meta: "at the port",
+      },
+      {
+        id: "desk-arrived",
+        group: "Dar floor",
+        count: arrived,
+        title: `${arrived} arrived in Dar, not ready yet`,
+        detail: "On our floor, waiting on payment, a pickup note or a signed-off count.",
+        href: "/app/release",
+        tone: "neutral",
+        meta: "awaiting payment",
       },
       {
         id: "desk-ready",
         group: "Dar floor",
         count: ready,
         title: `${ready} ready for pickup`,
-        detail: "Cleared and paid — waiting for the customer to collect.",
+        detail: "Arrived and paid — waiting for the customer to collect.",
         href: "/app/release",
         tone: "neutral",
         meta: "to collect",

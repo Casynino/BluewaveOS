@@ -47,12 +47,6 @@ export type Permission =
   | "cargo.hold"
   | "cargo.photo"
   | "cargo.scan"
-  /// Customs is done and the goods are ours to store. Split off `receiving.dar`
-  /// because clearing is a paper step on a bill, not a count on a scale:
-  /// Finance pays the duty and files the entry, so Finance says when it is
-  /// through, and holding it no longer implies the authority to write what
-  /// physically came off the container.
-  | "cargo.clear"
 
   // --- Warehouse -----------------------------------------------------------
   | "receiving.china"
@@ -303,7 +297,6 @@ const DAR_WAREHOUSE: Permission[] = [
   "cargo.scan",
   "receiving.dar",
   "receiving.verify",
-  "cargo.clear",
   "deliveryNote.view",
   "inventory.view",
   "warehouse.reports",
@@ -353,12 +346,11 @@ const CUSTOMER_SUPPORT: Permission[] = [
   */
   "deliveryNote.view",
   "container.view",
-  /* By the owner's decision the port steps are anybody's who hears first: the
-     customer's clearing agent often rings this desk to say the box is in, or
-     that the entry is through. Marking it is one press on a record that says
-     who pressed it; what came off the container is still the floor's to count. */
+  /* By the owner's decision the port arrival is anybody's who hears first:
+     the shipping line often rings this desk to say the box is in. Marking it
+     is one press on a record that says who pressed it; what came off the
+     container is still the floor's to count. */
   "container.arrive",
-  "cargo.clear",
   /* The customer rings to say their goods were not on the sailing they were
      told about. The counter that takes the call is the counter that can put it
      right, rather than passing it to the floor and back. */
@@ -412,14 +404,12 @@ const FINANCE: Permission[] = [
   "cargo.viewInternal",
   "deliveryNote.view",
   /* Finance carries the container through the port, by the owner's decision:
-     it is the desk holding the bill of lading and paying the duty, so it is
-     the desk that knows the box has landed and that the entry is through.
-     `container.arrive` marks the landing (and undoes it while nothing stands
-     on it); `cargo.clear` says customs is finished. Neither writes a
-     measurement — what came off the container is still the floor's word. */
+     it is the desk holding the bill of lading, so it is the desk that knows
+     the box has landed. `container.arrive` marks the landing (and undoes it
+     while nothing stands on it). It writes no measurement — what came off the
+     container is still the floor's word. */
   "container.view",
   "container.arrive",
-  "cargo.clear",
   /* Finance is the other desk that notices: a container whose price list does
      not add up to the cargo standing in the warehouse. */
   "container.amendArrived",

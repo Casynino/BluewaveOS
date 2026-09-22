@@ -35,8 +35,6 @@ type CargoForRelease = {
   status: string;
   operationalHold: boolean;
   operationalHoldReason: string | null;
-  /** Customs clearance finished. Null while it is still in clearance. */
-  clearedAt: Date | null;
   /** Finance's written permission to collect. See prisma PickupNote. */
   pickupNote: { status: string; onCredit: boolean } | null;
   darReceiving: { verified: boolean; discrepancy: boolean } | null;
@@ -98,6 +96,17 @@ export function checkRelease(cargo: CargoForRelease): ReleaseCheck {
       detail: handedOver ? "These goods have already left the warehouse." : undefined,
     },
     {
+      label: "Not missing or cancelled",
+      passed: cargo.status !== "MISSING_AT_DAR" && cargo.status !== "CANCELLED",
+      detail:
+        cargo.status === "MISSING_AT_DAR"
+          ? "Reported missing at Dar."
+          : cargo.status === "CANCELLED"
+            ? "This consignment was cancelled."
+            : undefined,
+    },
+    {
+      /* Arrived is the Dar floor's confirmation. Never the ship, never an ETA. */
       label: "Received at the Dar warehouse",
       passed: cargo.darReceiving !== null,
       detail:
@@ -111,16 +120,6 @@ export function checkRelease(cargo: CargoForRelease): ReleaseCheck {
       detail:
         cargo.darReceiving && !cargo.darReceiving.verified
           ? "Dar has received it but not signed off the count."
-          : undefined,
-    },
-    {
-      /* Booked in is not cleared: goods in customs are not ours to hand over,
-         whatever has been paid. */
-      label: "Cleared customs",
-      passed: cargo.clearedAt !== null,
-      detail:
-        cargo.darReceiving !== null && cargo.clearedAt === null
-          ? "Still in customs clearance."
           : undefined,
     },
     {

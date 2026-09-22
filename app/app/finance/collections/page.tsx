@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatMoney } from "@/lib/format";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
-import { billLetter, composeMessage, messageStage, whatsappNumber } from "@/lib/messages";
+import { billLetter, composeMessage, whatsappNumber } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -162,7 +162,6 @@ export default async function CollectionsPage({
           reference: true,
           description: true,
           status: true,
-          clearedAt: true,
           commodity: true,
           chinaReceiving: { select: { cbm: true } },
           packages: { where: { deletedAt: null }, select: { id: true, cargoType: true } },
@@ -282,7 +281,7 @@ export default async function CollectionsPage({
         rate: rateOf(invoice.fxRate),
         storage: Number(
           storagePosition({
-            receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
+            receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
             collectedAt: null,
             freeDays: settings?.freeStorageDays ?? 0,
             perDay: settings?.storagePerDay ?? 0,
@@ -647,36 +646,19 @@ export default async function CollectionsPage({
                         cargoId={row.invoice.cargo.id}
                         invoiceId={row.invoice.id}
                         phone={whatsappNumber(row.invoice.customer.phone)}
-                        kind={billLetter(
-                          messageStage({
-                            status: row.invoice.cargo.status,
-                            hasDarReceiving: row.invoice.cargo.darReceiving !== null,
-                            clearedAt: row.invoice.cargo.clearedAt,
-                          }),
-                          true
-                        )}
+                        kind={billLetter(row.invoice.cargo.status, true)}
                         label={
                           row.lastContact
                             ? `Chase ${row.invoice.customer.fullName}`
                             : `Tell ${row.invoice.customer.fullName}`
                         }
-                        message={composeMessage(billLetter(
-                          messageStage({
-                            status: row.invoice.cargo.status,
-                            hasDarReceiving: row.invoice.cargo.darReceiving !== null,
-                            clearedAt: row.invoice.cargo.clearedAt,
-                          }),
-                          true
-                        ), {
+                        message={composeMessage(billLetter(row.invoice.cargo.status, true), {
+                          status: row.invoice.cargo.status,
                           customerName: row.invoice.customer.fullName,
                           reference: row.invoice.cargo.reference,
                           description: row.invoice.cargo.description,
+                          invoiceId: row.invoice.id,
                           invoiceNumber: row.invoice.number,
-                          stage: messageStage({
-                            status: row.invoice.cargo.status,
-                            hasDarReceiving: row.invoice.cargo.darReceiving !== null,
-                            clearedAt: row.invoice.cargo.clearedAt,
-                          }),
                           /* Raw figures, not formatted ones: the template adds
                              the currency word itself, and formatMoney would put
                              a second symbol in beside it. */
@@ -691,23 +673,9 @@ export default async function CollectionsPage({
                           cbm: row.invoice.billableCbm
                             ? Number(row.invoice.billableCbm).toFixed(3)
                             : null,
-                          ratePerCbm: row.invoice.appliedRate
-                            ? row.invoice.appliedRate.toString()
-                            : null,
-                          rateBasis: row.invoice.rateBasis,
                           fxRate: row.invoice.fxRate
                             ? Number(row.invoice.fxRate).toLocaleString("en-US")
                             : null,
-                          freeStorageDays: settings?.freeStorageDays ?? null,
-                          storagePerDay:
-                            settings && Number(settings.storagePerDay) > 0
-                              ? Number(settings.storagePerDay).toString()
-                              : null,
-                          storageCurrency: settings?.storageCurrency ?? "USD",
-                          storageFrom: storageStart(
-                            row.invoice.cargo.darReceiving?.receivedAt,
-                            row.invoice.cargo.clearedAt
-                          ),
                         })}
                       />
                       {mayReprice ? (

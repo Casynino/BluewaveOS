@@ -267,7 +267,7 @@ describe("confirming prices a list at a time", () => {
       assert.ok(bill.issuedAt && bill.dueAt);
       assert.equal(
         await tx.notification.count({
-          where: { customerId: good.customer.id, kind: "invoice.issued" },
+          where: { customerId: good.customer.id, kind: "PRICE_CONFIRMED" },
         }),
         1,
         "the customer is told"

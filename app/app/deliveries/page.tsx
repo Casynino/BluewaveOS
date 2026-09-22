@@ -56,7 +56,7 @@ export default async function DeliveriesPage() {
           <EmptyState
             icon="Truck"
             title={T("No deliveries to arrange")}
-            description={T("Customers request delivery from their own portal once their cargo clears.")}
+            description={T("Customers request delivery from their own portal once their cargo is ready for pickup.")}
           />
         </Card>
       ) : (

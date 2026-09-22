@@ -19,7 +19,8 @@ import {
 import { formatCurrency } from "@/lib/currency";
 import { formatDate } from "@/lib/format";
 import { t, type Locale } from "@/lib/i18n";
-import { composeMessage, messageStage, whatsappNumber } from "@/lib/messages";
+import { composeMessage, stageEvent, whatsappNumber } from "@/lib/messages";
+import { pickupAddress } from "@/lib/cargo-events";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -46,7 +47,7 @@ const PILL = {
 } as const;
 
 /**
- * The register of cargo cleared to leave.
+ * The register of cargo released to leave.
  *
  * An ACTIVE note is not an archive entry — it is a customer who has paid and
  * whose boxes are still on our floor, accruing storage and taking space. So the
@@ -107,12 +108,13 @@ export default async function PickupNotesPage({
       take: PAGE_SIZE,
       include: {
         customer: { select: { fullName: true, businessName: true, phone: true } },
-        cargo: { select: { id: true, reference: true, description: true, status: true, clearedAt: true, darReceiving: { select: { id: true } } } },
+        cargo: { select: { id: true, reference: true, description: true, status: true, darReceiving: { select: { id: true, receivedAt: true } } } },
         issuedBy: { select: { name: true } },
       },
     }),
     prisma.pickupNote.groupBy({ by: ["status"], _count: true }),
   ]);
+  const pickupAt = await pickupAddress(prisma);
 
   /* A pill keeps the search and the search keeps the pill — either one dropping
      the other silently is how a clerk ends up reading a list they did not ask
@@ -348,13 +350,21 @@ export default async function PickupNotesPage({
                             iconOnly
                             cargoId={note.cargo.id}
                             phone={phone}
-                            kind="cargo.ready"
+                            kind={note.cargo.status === "READY_FOR_RELEASE" ? "CARGO_READY_FOR_PICKUP" : stageEvent(note.cargo.status)}
                             label={t(locale, "Notify on WhatsApp")}
-                            message={composeMessage("cargo.ready", {
-                              customerName: name,
-                              reference: note.cargo.reference,
-                              stage: messageStage({ status: note.cargo.status, hasDarReceiving: note.cargo.darReceiving !== null, clearedAt: note.cargo.clearedAt }),
-                            })}
+                            message={composeMessage(
+                              note.cargo.status === "READY_FOR_RELEASE" ? "CARGO_READY_FOR_PICKUP" : stageEvent(note.cargo.status),
+                              {
+                                status: note.cargo.status,
+                                customerName: name,
+                                reference: note.cargo.reference,
+                                description: note.cargo.description,
+                                pickupAddress: pickupAt,
+                                pickupNoteId: note.status === "ACTIVE" ? note.id : null,
+                                pickupNoteNumber: note.status === "ACTIVE" ? note.noteNumber : null,
+                                storageFrom: note.cargo.darReceiving?.receivedAt ?? null,
+                              }
+                            )}
                           />
                         </span>
                       ) : (

@@ -38,7 +38,6 @@ const customerActions = load("@/lib/actions/customers") as typeof import("@/lib/
 const cargoActions = load("@/lib/actions/cargo") as typeof import("@/lib/actions/cargo");
 const containerActions = load("@/lib/actions/containers") as typeof import("@/lib/actions/containers");
 const darActions = load("@/lib/actions/dar") as typeof import("@/lib/actions/dar");
-const clearanceActions = load("@/lib/actions/clearance") as typeof import("@/lib/actions/clearance");
 const priceActions = load("@/lib/actions/price-list") as typeof import("@/lib/actions/price-list");
 const paymentActions = load("@/lib/actions/payments") as typeof import("@/lib/actions/payments");
 const pickupActions = load("@/lib/actions/pickup-notes") as typeof import("@/lib/actions/pickup-notes");
@@ -248,6 +247,15 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     const again = (await intake(s.customerA, `e2e-${RUN}-A`, `E2E${RUN}A`)) as { id?: string };
     assert.equal(again.id, s.cargoA, "an intake retry does not duplicate the cargo");
 
+    /* Received in China is said once, however many times the press lands. */
+    const told = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "CARGO_RECEIVED_CHINA" },
+    });
+    assert.equal(told.length, 1, "one received-in-China notice");
+    assert.equal(told[0].eventKey, `CARGO_RECEIVED_CHINA:${s.cargoA}`);
+    assert.match(told[0].title, /^BLUEWAVE CARGO — Cargo Received in China$/);
+    assert.doesNotMatch(`${told[0].title} ${told[0].body}`, /in transit|umeanza safari|clear|USD|TZS/i, "China wording only, no money");
+
     /* The second customer's own consignment, which stays in Foshan. */
     const resB = (await intake(s.customerB, `e2e-${RUN}-B`, `E2E${RUN}B`)) as { ok?: string; error?: string; id?: string };
     assert.ok(resB.ok, resB.error);
@@ -332,6 +340,29 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     /* There is no separate "in transit" milestone to press. */
     const noSuchStep = await containerActions.advanceContainer({}, form({ containerId: s.containerId, to: "IN_TRANSIT" }));
     assert.equal(noSuchStep.error, "That is not a milestone.");
+
+    /* Every customer on the box is told once, with the container; pressing
+       depart again moves nothing and tells nobody twice. */
+    const transit = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "CARGO_IN_TRANSIT" },
+    });
+    assert.equal(transit.length, 1);
+    assert.match(transit[0].body ?? "", new RegExp(s.containerRef));
+    assert.doesNotMatch(transit[0].body ?? "", /clear|customs/i);
+    const again = await containerActions.advanceContainer({}, form({ containerId: s.containerId, to: "DEPARTED" }));
+    assert.ok(again.error, "departing twice is refused");
+    assert.equal(await prisma.notification.count({ where: { customerId: s.customerA, kind: "CARGO_IN_TRANSIT" } }), 1);
+    assert.equal(
+      await prisma.cargoStatusHistory.count({ where: { cargoId: s.cargoA, to: "IN_TRANSIT" } }),
+      1,
+      "no second IN_TRANSIT history row"
+    );
+    const departAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "container.departed", entityId: s.containerId },
+    });
+    const meta = departAudit.metadata as { cargo: string[]; departureDate: string };
+    assert.ok(meta.cargo.includes(s.referenceA), "the audit names the consignments that moved");
+    assert.ok(meta.departureDate);
   });
 
   test("5. The port desks may mark it ARRIVED; Foshan may not", async () => {
@@ -359,6 +390,9 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     assert.equal(box.shipment?.status, "ARRIVED_TANZANIA");
     assert.ok(box.shipment?.actualArrival);
     assert.equal(await cargoStatus(s.cargoA), "ARRIVED_TANZANIA");
+    /* At the port is still in transit for the customer: nothing is said, and
+       the storage clock has not started. */
+    assert.equal(await prisma.notification.count({ where: { customerId: s.customerA, kind: "CARGO_ARRIVED_DAR" } }), 0);
 
     /* Support and Finance get past the permission check — they are refused only
        because the step has already been taken. */
@@ -414,22 +448,29 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     assert.equal(cargo.darReceiving.containerId, s.containerId);
   });
 
-  test("7. Clearance: customs is marked done", async () => {
-    as("finance");
-    const res = await clearanceActions.markCargoCleared({}, form({ cargoId: s.cargoA, note: "E2E entry passed" }));
-    assert.ok(res.ok, res.error);
-    const cargo = await prisma.cargo.findUniqueOrThrow({ where: { id: s.cargoA } });
-    assert.ok(cargo.clearedAt, "clearedAt stamped");
-    assert.equal(cargo.clearedById, desks.finance.id);
+  test("7. Arrived in Dar: the check-in is the arrival, storage starts, no clearance step", async () => {
+    const cargo = await prisma.cargo.findUniqueOrThrow({
+      where: { id: s.cargoA },
+      include: { darReceiving: true },
+    });
+    assert.ok(cargo.darReceiving?.receivedAt, "the arrival time is the receiving row's own");
+    assert.equal(cargo.clearedAt, null, "nothing writes the retired clearance column");
 
-    const again = await clearanceActions.markCargoCleared({}, form({ cargoId: s.cargoA }));
-    assert.ok(again.error, "clearing twice is refused");
+    const arrived = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "CARGO_ARRIVED_DAR" },
+    });
+    assert.equal(arrived.length, 1, "arrived in Dar is said once");
+    assert.match(arrived[0].title, /Arrived in Dar es Salaam/);
+    assert.doesNotMatch(`${arrived[0].title} ${arrived[0].body}`, /clear|customs/i);
+    assert.match(arrived[0].body ?? "", /Tabata Matumbi/, "the pickup warehouse, from its warehouse row");
 
-    as("china");
-    await assert.rejects(
-      clearanceActions.markCargoCleared({}, form({ cargoId: s.cargoA })),
-      /permission/,
-      "Foshan cannot clear"
+    const check = await releaseLib.releaseCheckFor(s.cargoA);
+    assert.ok(check && !check.conditions.some((c) => /clear|customs/i.test(c.label)), "no clearance condition");
+    assert.equal(check?.ok, false, "arrived is not ready");
+    assert.equal(await cargoStatus(s.cargoA), "RECEIVED_DAR");
+    assert.ok(
+      await prisma.auditLog.findFirst({ where: { action: "cargo.arrivedDar", entityId: s.cargoA } }),
+      "the arrival is audited"
     );
   });
 
@@ -508,10 +549,19 @@ describe("BlueWave lifecycle, end to end, committed", () => {
       "TIGO LIPA|9608058|TZS",
     ]);
 
+    /* The invoice message carries the real PDF route for this bill. */
+    const invoiceNotice = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "PRICE_CONFIRMED" },
+    });
+    assert.equal(invoiceNotice.length, 1);
+    assert.equal(invoiceNotice[0].href, `/portal/invoices/${s.invoiceId}/pdf`);
+    assert.match(invoiceNotice[0].body ?? "", /TZS 1,080,000/);
+
     /* A second confirm issues nothing new. */
     const twice = await priceActions.confirmPrices({}, form({ containerId: s.containerId, cargoIds: [s.cargoA] }));
     assert.match(twice.ok ?? "", /already been confirmed/);
     assert.equal(await prisma.invoice.count({ where: { cargoId: s.cargoA, status: { not: "CANCELLED" } } }), 1);
+    assert.equal(await prisma.notification.count({ where: { customerId: s.customerA, kind: "PRICE_CONFIRMED" } }), 1);
   });
 
   test("9. The release gate holds while the bill is unpaid", async () => {
@@ -524,7 +574,6 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     const passed = Object.fromEntries(check.conditions.map((c) => [c.label, c.passed]));
     assert.equal(passed["Received at the Dar warehouse"], true);
     assert.equal(passed["Counted and verified"], true);
-    assert.equal(passed["Cleared customs"], true);
     assert.equal(passed["Invoiced"], true);
     assert.equal(passed["Paid in full"], false);
     assert.equal(passed["Pickup note issued"], false);
@@ -624,6 +673,14 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     assert.equal(gate?.ok, true, `releasable once paid (${gate?.blockedBy})`);
     assert.equal(gate?.outstanding.toString(), "0");
 
+    /* Arrived, paid and noted: ready for pickup, said once. */
+    assert.equal(await cargoStatus(s.cargoA), "READY_FOR_RELEASE");
+    const ready = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "CARGO_READY_FOR_PICKUP" },
+    });
+    assert.equal(ready.length, 1);
+    assert.equal(ready[0].href, `/portal/pickups/${note.id}`);
+
     as("dar");
     /* (a) Another customer's box presented against this customer's pickup. */
     const wrongBox = await boxActions.scanBoxForRelease(
@@ -677,6 +734,17 @@ describe("BlueWave lifecycle, end to end, committed", () => {
     assert.equal(release.releasedById, desks.dar.id);
     assert.equal(release.packagesReleased, 2);
     assert.equal((await prisma.pickupNote.findUniqueOrThrow({ where: { id: note.id } })).status, "USED");
+    const collected = await prisma.notification.findMany({
+      where: { customerId: s.customerA, kind: "CARGO_COLLECTED" },
+    });
+    assert.equal(collected.length, 1, "collected is said once");
+    const releaseAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "cargo.release", entityId: s.cargoA },
+    });
+    const releaseMeta = releaseAudit.metadata as { collectedBy: string; boxesScanned: number; pickupNote: string };
+    assert.equal(releaseMeta.collectedBy, "E2E Amina");
+    assert.equal(releaseMeta.boxesScanned, 2);
+    assert.equal(releaseMeta.pickupNote, note.noteNumber);
 
     /* (b) Second release / collection of the same cargo. */
     const twice = await releaseActions.releaseCargo(
@@ -754,6 +822,7 @@ describe("BlueWave lifecycle, end to end, committed", () => {
       "IN_TRANSIT",
       "ARRIVED_TANZANIA",
       "RECEIVED_DAR",
+      "READY_FOR_RELEASE",
       "COLLECTED",
     ]) {
       assert.ok(path.includes(step as never), `status history carries ${step} (got ${path.join(" > ")})`);
@@ -793,7 +862,8 @@ describe("BlueWave lifecycle, end to end, committed", () => {
       "container.arrived",
       "cargo.receive.dar",
       "cargo.verify",
-      "cargo.clear",
+      "cargo.arrivedDar",
+      "cargo.readyForPickup",
       "invoice.create",
       "invoice.issue",
       "payment.record",

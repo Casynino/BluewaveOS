@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Camera, Clock, Download, FileText, MessageCircle } from "lucide-react";
 
-import { JourneyGroups, PHASE_COPY, RouteStage, WhatNext, phaseOf } from "@/components/bw/track-journey";
+import { JourneyGroups, RouteStage, WhatNext, phaseOf, stageCopy } from "@/components/bw/track-journey";
 import { TrackField } from "@/components/bw/track-field";
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { CargoPhotos } from "@/components/site/cargo-photos";
@@ -185,7 +185,7 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
   /* Opens with the greeting already in the box. See lib/site-contact.ts. */
   const wa = whatsappLink(result.whatsapp, WHATSAPP_OPENER);
   const phase = phaseOf(journey.stage);
-  const copy = PHASE_COPY[phase];
+  const copy = stageCopy(journey.stage);
   const settled = charge?.status === "PAID";
   const latest = [...journey.steps].reverse().find((step) => step.at);
   const eta = journey.eta;
@@ -224,11 +224,18 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
               <Stat label="Counted as" value={result.countedAs} />
               <Stat label="Volume" value={result.cbm ? `${result.cbm} CBM` : "—"} mono />
               <Stat label="Container" value={result.containerReference ?? "Not yet loaded"} mono />
-              <Stat
-                label={phase === "SEA" || phase === "CHINA" ? "Expected in Dar" : "Latest update"}
-                value={phase === "SEA" || phase === "CHINA" ? (eta ? dayMonthYear(eta) : "Once it sails") : latest?.label ?? "—"}
-                sub={phase === "SEA" || phase === "CHINA" ? null : latest?.at ? formatDateTime(latest.at) : null}
-              />
+              {result.arrivedInDarAt ? (
+                <Stat label="Arrived in Dar" value={dayMonthYear(result.arrivedInDarAt)} />
+              ) : phase === "SEA" || phase === "CHINA" ? (
+                /* Only a recorded ETA is printed; nothing is estimated here. */
+                <Stat label="Expected in Dar" value={eta ? dayMonthYear(eta) : phase === "SEA" ? "Not yet confirmed" : "Once it sails"} />
+              ) : (
+                <Stat
+                  label="Latest update"
+                  value={latest?.label ?? "—"}
+                  sub={latest?.at ? formatDateTime(latest.at) : null}
+                />
+              )}
               <Stat label="Shipper" value={result.shipperInitials} />
             </dl>
           </div>
@@ -328,6 +335,8 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
               <Panel title="At our Dar warehouse">
                 <dl className="grid grid-cols-2 gap-px bg-bw-line">
                   <Cell label="Arrived" value={dayMonthYear(storage.arrivedAt)} />
+                  <Cell label="Free storage" value={`${storage.freeDays} ${storage.freeDays === 1 ? "day" : "days"}`} />
+                  <Cell label="Free until" value={dayMonthYear(storage.freeUntil)} />
                   {storage.collected ? (
                     <Cell label="Status" value="Collected" />
                   ) : storage.chargeableDays > 0 ? (
@@ -343,9 +352,10 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
                     />
                   ) : null}
                 </dl>
-                {!storage.collected && storage.charged ? (
+                {!storage.collected ? (
                   <p className="border-t border-bw-line bg-bw-panel px-4 py-3 text-sm text-bw-muted">
-                    The first {storage.freeDays} days are free. Collecting sooner costs less.
+                    Free storage is counted from the day our Dar warehouse confirmed your cargo.
+                    {storage.charged ? ` After ${storage.freeDays} days storage is charged — collecting sooner costs less.` : ""}
                   </p>
                 ) : null}
               </Panel>
@@ -355,14 +365,16 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
               <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/60">Pickup</p>
               <p className="mt-2">
                 {phase === "READY"
-                  ? "Everything is settled. Bring your ID and this reference to our Dar es Salaam warehouse."
+                  ? "Everything is settled. Bring your ID and your pickup note to our Dar es Salaam warehouse."
                   : phase === "DONE"
                     ? "Handed over. Thank you for shipping with BlueWave."
                     : charge && !settled
                       ? "We release cargo once payment is confirmed. Your pickup note follows the payment."
                       : "When your cargo is ready we will tell you, and your pickup note will be in your account."}
               </p>
-              {result.officeAddress ? <p className="mt-2 text-sm text-white/65">{result.officeAddress}</p> : null}
+              {result.pickupAddress ?? result.officeAddress ? (
+                <p className="mt-2 text-sm text-white/65">{result.pickupAddress ?? result.officeAddress}</p>
+              ) : null}
             </div>
 
             {wa ? (

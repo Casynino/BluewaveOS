@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Pickup list" };
 /**
  * THE COUNTER, AND ONLY WHAT MAY LEAVE IT.
  *
- * Cleared consignments only. The page once listed the blocked ones too, with a
+ * Ready consignments only. The page once listed the blocked ones too, with a
  * checklist of what each was missing — which meant the floor read five reasons
  * for every one thing it could actually hand over, and the money owed was
  * printed on a screen the warehouse is deliberately kept away from.
@@ -34,8 +34,8 @@ export const metadata: Metadata = { title: "Pickup list" };
  * in the words lib/release.ts uses, which carry no figure. The alternative is a
  * clerk ringing Finance, or releasing on a customer's word.
  *
- * Clearance is computed on every read — verified, invoiced, paid, no case, no
- * hold. Nothing on this screen can grant it.
+ * Readiness is computed on every read — arrived in Dar, verified, invoiced,
+ * paid, no case, no hold. Nothing on this screen can grant it.
  */
 export default async function ReleasePage({
   searchParams,
@@ -79,7 +79,7 @@ export default async function ReleasePage({
 
   const checked = cargo.map((item) => ({ item, check: checkRelease(item) }));
 
-  /* How far each cleared consignment's boxes have been scanned out. */
+  /* How far each ready consignment's boxes have been scanned out. */
   const boxRows = await prisma.cargoBox.groupBy({
     by: ["cargoId"],
     where: { cargoId: { in: cargo.map((c) => c.id) }, voidedAt: null },
@@ -100,11 +100,11 @@ export default async function ReleasePage({
 
         What may go is computed, never asserted — verified, invoiced, paid, no
         case and no hold. Nobody here can overrule it; settling what is missing
-        is what clears it.
+        is what makes it ready.
       */}
       <PageHeader
         title={T("Pickup list")}
-        description={T("Customers who have paid and whose cargo is cleared to collect. Open a row to hand it over.")}
+        description={T("Customers whose cargo has arrived in Dar, is paid and is ready for pickup. Open a row to hand it over.")}
       />
       <SectionTabs />
 
@@ -162,7 +162,7 @@ export default async function ReleasePage({
                       {item.pickupNote.noteNumber}
                     </span>
                   ) : null}
-                  <Badge tone="good">cleared</Badge>
+                  <Badge tone="good">{T("ready")}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -188,7 +188,7 @@ export default async function ReleasePage({
       {held.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Found, but not cleared ({held.length})
+            {T("Found, but not ready")} ({held.length})
           </h2>
           <Card>
             <CardContent className="space-y-2 pt-6">
@@ -210,7 +210,7 @@ export default async function ReleasePage({
                       {check.blockedBy}
                     </p>
                   </div>
-                  <Badge tone="warn">not cleared</Badge>
+                  <Badge tone="warn">{T("not ready")}</Badge>
                 </div>
               ))}
             </CardContent>

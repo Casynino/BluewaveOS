@@ -1,12 +1,25 @@
 import "server-only";
 
-import { COMPANY, ROUTE } from "@/lib/constants";
-import { SLASH_UNIT, displayRate } from "@/lib/rate-basis";
-import { normalSiteUrl } from "@/lib/site-url";
-import { trackKey } from "@/lib/track-key";
+import type { CargoStatus } from "@prisma/client";
+
+import { messageLinks, trackLink, trackUrl } from "@/lib/cargo-links";
+import {
+  CARGO_EVENT_LABEL,
+  buildCargoNotice,
+  isCargoEvent,
+  noticeWhatsApp,
+  type CargoEvent,
+  type CargoNotice,
+  type NoticeFacts,
+} from "@/lib/cargo-notices";
+import { COMPANY } from "@/lib/constants";
+import { storageState } from "@/lib/storage-clock";
+import { BLUEWAVE_STAGE_LABEL, bluewaveStageOf } from "@/lib/tracking-stage";
+
+export { trackUrl };
 
 /**
- * WHAT WE SAY TO CUSTOMERS, AND WHEN.
+ * WHAT WE SAY TO CUSTOMERS ON WHATSAPP, AND WHEN.
  *
  * Two honest constraints shaped this file:
  *
@@ -15,39 +28,40 @@ import { trackKey } from "@/lib/track-key";
  *     "we contacted them", never "the system notified them".
  *
  *  2. Swahili first. These go to traders in Dar es Salaam and Swahili is what
- *     they read. English follows for the ones who prefer it, in the same
- *     message, because splitting them means guessing which one to send.
+ *     they read.
  *
- * Sea freight, not air: nothing here mentions flights, airway bills or next-day
- * anything. A container is four weeks on the water and the wording says so.
+ * The seven stage messages are the templates in lib/cargo-notices.ts — the
+ * same ones the portal notification is written from. What is left here is the
+ * payment reminder, the storage notice and a blank letter.
  */
 
-export type ContactKind =
-  | "cargo.received_china"
-  | "cargo.loaded"
-  | "cargo.departed"
-  | "cargo.arrived"
-  | "cargo.received_dar"
-  | "cargo.cleared_unpaid"
-  | "invoice.issued"
-  | "payment.reminder"
-  | "cargo.ready"
-  | "storage.expired"
-  | "general";
+export type ContactKind = CargoEvent | "payment.reminder" | "storage.expired" | "general";
 
 export const CONTACT_KIND_LABELS: Record<ContactKind, string> = {
-  "cargo.received_china": "Received in China",
-  "cargo.loaded": "Loaded into a container",
-  "cargo.departed": "Departed China",
-  "cargo.arrived": "At Dar port — clearance in progress",
-  "cargo.received_dar": "At our Dar warehouse",
-  "cargo.cleared_unpaid": "Cleared — payment required",
-  "invoice.issued": "Invoice issued",
+  ...CARGO_EVENT_LABEL,
   "payment.reminder": "Payment reminder",
-  "cargo.ready": "Ready for pickup",
   "storage.expired": "Free storage ended",
   general: "Something else",
 };
+
+/**
+ * What a message logged before the stages were rewritten was about. The log
+ * keeps the kind it was written with; this only names it on a screen.
+ */
+const EARLIER_KINDS: Record<string, string> = {
+  "cargo.received_china": "Received in China",
+  "cargo.loaded": "Loaded into a container",
+  "cargo.departed": "Departed China",
+  "cargo.arrived": "Container at Dar port",
+  "cargo.received_dar": "At our Dar warehouse",
+  "cargo.cleared_unpaid": "Payment required",
+  "invoice.issued": "Invoice issued",
+  "cargo.ready": "Ready for pickup",
+};
+
+export function contactKindLabel(kind: string): string {
+  return (CONTACT_KIND_LABELS as Record<string, string>)[kind] ?? EARLIER_KINDS[kind] ?? kind;
+}
 
 export const CONTACT_CHANNELS = [
   ["WHATSAPP", "WhatsApp"],
@@ -57,24 +71,22 @@ export const CONTACT_CHANNELS = [
   ["IN_PERSON", "In person"],
 ] as const;
 
-/**
- * Where customers collect, and from when, in the owner's words. On the letter
- * rather than on the warehouse record because it is wording they chose — the
- * godown's everyday name, not its postal address.
- */
-const PICKUP_PLACE = "warehouse (godown) yetu Sinza Mapambano";
-const PICKUP_FROM = "kuanzia kesho saa 9:30 asubuhi";
-
 export type MessageContext = {
   customerName: string;
   reference?: string | null;
+  /** Where the consignment stands, for the stage line on a bill. */
+  status?: CargoStatus | null;
   description?: string | null;
   shippingMark?: string | null;
+  receiptNo?: string | null;
   packages?: number | null;
+  pieces?: number | null;
   cbm?: string | null;
   containerNumber?: string | null;
-  vessel?: string | null;
+  departedAt?: Date | null;
   eta?: Date | null;
+  /** The live bill. A draft is nobody's bill and gets no link. */
+  invoiceId?: string | null;
   invoiceNumber?: string | null;
   amount?: string | null;
   currency?: string | null;
@@ -84,362 +96,181 @@ export type MessageContext = {
    * quoted at 2,650 who reads 2,720 next month believes the bill changed.
    */
   fxRate?: string | null;
-  /** The rate this cargo was charged at, as the bill stores it. */
-  ratePerCbm?: string | null;
-  /** What that rate is per. Absent reads as per CBM, as every bill once was;
-      a per-kg rate is written per tonne, the way the company quotes it. */
-  rateBasis?: string | null;
+  /** Nothing is owed on the live bills. */
+  paid?: boolean;
   /** Free days on the Dar floor, and what a day costs after that. */
   freeStorageDays?: number | null;
   storagePerDay?: string | null;
   storageCurrency?: string | null;
-  /**
-   * Where the boxes physically are, so a bill or a reminder never says "arrived
-   * and ready" about goods still at sea or still in clearance.
-   */
-  stage?: "china" | "transit" | "clearance" | "cleared" | "ready" | null;
-  /** A status line for the details block. */
-  statusLine?: string | null;
+  /** When Dar confirmed the boxes on its floor: the first day of storage. */
+  storageFrom?: Date | null;
   /** The last free day on the Dar floor, once the clock has started. */
   lastFreeDay?: Date | null;
-  /** The day the storage clock started (cleared into our warehouse). */
-  storageFrom?: Date | null;
-  trackUrl?: string;
+  /** The Dar pickup warehouse, from its warehouse record. */
+  pickupAddress?: string | null;
+  pickupNoteId?: string | null;
+  pickupNoteNumber?: string | null;
+  collectedAt?: Date | null;
+  collectedBy?: string | null;
 };
 
 /**
- * THE MESSAGE THE CUSTOMER ACTUALLY GETS.
- *
- * One shape for every consignment, in Swahili, with the company name at the top
- * and the tracking link at the bottom. Swahili first because it is the language
- * the customer reads; the figures are the ones on their bill, not today's.
- *
- * WhatsApp renders *asterisks* as bold and • as a bullet, which is why they are
- * written literally — the message has to look right in the app, not in a
- * terminal.
+ * The stage message a consignment's status calls for — what Support would
+ * send today. A status with no stage of its own gets the blank letter.
  */
-function cargoBlock(context: MessageContext): string {
-  if (!context.statusLine && context.stage === "clearance") {
-    context = { ...context, statusLine: "Clearance in Progress" };
+export function stageEvent(status: CargoStatus): ContactKind {
+  switch (bluewaveStageOf(status)) {
+    case "RECEIVED_IN_CHINA":
+      return "CARGO_RECEIVED_CHINA";
+    case "STORED_IN_CHINA":
+      return "CARGO_STORED_CHINA";
+    case "IN_TRANSIT":
+      return status === "MISSING_AT_DAR" ? "general" : "CARGO_IN_TRANSIT";
+    case "ARRIVED_IN_DAR":
+      return "CARGO_ARRIVED_DAR";
+    case "READY_FOR_PICKUP":
+      return "CARGO_READY_FOR_PICKUP";
+    case "COLLECTED":
+      return "CARGO_COLLECTED";
+    default:
+      return "general";
   }
-  const lines: string[] = ["*MAELEZO YA MZIGO*"];
-  if (context.reference) lines.push(`• Tracking: ${context.reference}`);
-  if (context.invoiceNumber) lines.push(`• Invoice: ${context.invoiceNumber}`);
-  if (context.description) lines.push(`• Bidhaa: ${context.description}`);
-  if (context.cbm) lines.push(`• Ujazo: ${context.cbm} CBM`);
-  if (context.ratePerCbm) {
-    const basis = context.rateBasis ?? "PER_CBM";
-    const figure = Number(displayRate(context.ratePerCbm, basis)).toFixed(2);
-    const per = basis === "FLAT" ? "" : `/${SLASH_UNIT[basis as keyof typeof SLASH_UNIT] ?? "CBM"}`;
-    lines.push(`• Rate: ${context.currency ?? "USD"} ${figure}${per}`);
-  }
-  /* Shillings first: it is the figure they will hand over. The dollar figure
-     and the rate the bill was issued at sit under it, so nobody reads a
-     dollar number as the amount due. */
-  if (context.amountTzs) {
-    lines.push(`• *Kiasi cha kulipa: TZS ${context.amountTzs}*`);
-    if (context.amount) lines.push(`• Sawa na: ${context.currency ?? "USD"} ${context.amount}`);
-    if (context.fxRate) lines.push(`• Exchange Rate: 1 USD = ${context.fxRate} TZS`);
-  } else if (context.amount) {
-    lines.push(`• Kiasi cha kulipa: ${context.currency ?? "USD"} ${context.amount}`);
-  }
-  if (context.statusLine) lines.push(`• Status: ${context.statusLine}`);
-  return lines.join("\n");
 }
 
 /**
- * The storage terms as they stand at Dar arrival: the free days counted from
- * the day the boxes were confirmed here, and the fee only when one is set —
- * a rate nobody configured is never quoted to a customer.
+ * Which letter a bill goes out in: the invoice letter while anything is owed
+ * or the goods are not yet ready; the ready letter once they are.
  */
-function arrivalStorageBlock(context: MessageContext): string {
-  const days = context.freeStorageDays ?? 7;
-  const fee =
-    context.storagePerDay && Number(context.storagePerDay) > 0
-      ? ` Baada ya siku ${days}, storage fee ya ${context.storageCurrency ?? "USD"} ${context.storagePerDay} kwa siku itatozwa hadi mzigo utakapochukuliwa.`
-      : "";
-  return (
-    `\n\n*STORAGE:* Siku ${days} bure kuanzia siku mzigo unapothibitishwa kufika ` +
-    `${ROUTE.destinationCity}.${fee}`
-  );
+export function billLetter(status: CargoStatus, owing: boolean): ContactKind {
+  if (status === "READY_FOR_RELEASE" && !owing) return "CARGO_READY_FOR_PICKUP";
+  return owing ? "payment.reminder" : "PRICE_CONFIRMED";
 }
 
-function storageBlock(context: MessageContext): string {
-  if (!context.storagePerDay || Number(context.storagePerDay) <= 0) return "";
-  return (
-    `\n\n*STORAGE:* Siku ${context.freeStorageDays ?? 7} bure, baada ya hapo ` +
-    `${context.storageCurrency ?? "USD"} ${context.storagePerDay}/siku hadi mzigo uchukuliwe.`
+function factsOf(context: MessageContext, lastFreeDay: Date | null): NoticeFacts {
+  const stage = context.status ? bluewaveStageOf(context.status) : null;
+  return {
+    customerName: context.customerName,
+    reference: context.reference ?? "",
+    description: context.description,
+    cbm: context.cbm,
+    packages: context.packages,
+    pieces: context.pieces,
+    shippingMark: context.shippingMark,
+    receiptNo: context.receiptNo,
+    containerRef: context.containerNumber,
+    departedAt: context.departedAt,
+    eta: context.eta,
+    invoiceNumber: context.invoiceNumber,
+    amountTzs: context.amountTzs,
+    amountUsd: context.currency === "TZS" ? null : context.amount,
+    fxRate: context.fxRate,
+    paid: context.paid,
+    stageLabel: stage ? BLUEWAVE_STAGE_LABEL[stage] : null,
+    arrivedAt: context.storageFrom,
+    freeDays: context.freeStorageDays,
+    freeUntil: lastFreeDay,
+    storagePerDay: context.storagePerDay,
+    storageCurrency: context.storageCurrency,
+    pickupAddress: context.pickupAddress,
+    pickupNoteNumber: context.pickupNoteNumber,
+    collectedAt: context.collectedAt,
+    collectedBy: context.collectedBy,
+  };
+}
+
+/** The last free day from the first one, on the Dar calendar. */
+function lastFreeDayOf(context: MessageContext): Date | null {
+  if (context.lastFreeDay) return context.lastFreeDay;
+  if (!context.storageFrom) return null;
+  return storageState({
+    arrivedAt: context.storageFrom,
+    freeDays: context.freeStorageDays ?? 7,
+    perDay: null,
+    currency: context.storageCurrency ?? "USD",
+    now: context.storageFrom,
+  }).lastFreeDay;
+}
+
+/** The stage message, with its links, for a staff preview. */
+export function composeNotice(event: CargoEvent, context: MessageContext): CargoNotice {
+  const ref = context.reference ?? "";
+  return buildCargoNotice(
+    event,
+    factsOf(context, lastFreeDayOf(context)),
+    ref
+      ? messageLinks({ reference: ref, invoiceId: context.invoiceId, pickupNoteId: context.pickupNoteId })
+      : {}
   );
 }
 
 const day = (date: Date | null | undefined) =>
   date
     ? new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Dar_es_Salaam",
         day: "numeric",
         month: "short",
         year: "numeric",
       }).format(date)
     : null;
 
-/**
- * The tracking address a customer is given.
- *
- * A localhost value is refused rather than sent: anybody composing a message on
- * a dev machine would otherwise put a link in a customer's WhatsApp that
- * resolves to the customer's own phone.
- */
-/**
- * WHATSAPP REMEMBERS A LINK'S CARD FOREVER.
- *
- * Its servers fetch the preview once per exact address and keep it, so a link
- * already sent keeps showing the card it had that day — the old wording, the
- * old picture. Bumping this tag changes the address enough for a fresh fetch
- * while the page it opens is the same one.
- */
-const SHARE_TAG = "s=2";
+export function composeMessage(kind: ContactKind, context: MessageContext): string {
+  if (isCargoEvent(kind)) return noticeWhatsApp(composeNotice(kind, context));
 
-/**
- * Where a consignment physically is, in the grain the letters need. Ready is
- * the release check's answer, passed in; everything else is read off the
- * record.
- */
-export function messageStage(cargo: {
-  status: string;
-  hasDarReceiving: boolean;
-  clearedAt: Date | null;
-  ready?: boolean;
-}): NonNullable<MessageContext["stage"]> {
-  if (cargo.ready || cargo.status === "READY_FOR_RELEASE") return "ready";
-  if (cargo.hasDarReceiving || cargo.status === "ARRIVED_TANZANIA") {
-    return cargo.clearedAt ? "cleared" : "clearance";
-  }
-  if (["REGISTERED", "RECEIVED_CHINA", "ASSIGNED_TO_CONTAINER", "CONTAINER_LOADED"].includes(cargo.status)) {
-    return "china";
-  }
-  return "transit";
-}
-
-/**
- * Which letter a bill goes out in. At the port, in clearance, it is the
- * arrival letter with the bill inside it; everywhere else, the bill's own.
- */
-export function billLetter(
-  stage: MessageContext["stage"],
-  owing: boolean
-): ContactKind {
-  if (stage === "clearance") return "cargo.arrived";
-  return owing ? "payment.reminder" : "invoice.issued";
-}
-
-export function trackUrl(): string {
-  const configured = normalSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
-  return configured ? `${configured}/track` : "https://www.bluewavecargo.co.tz/track";
-}
-
-export function composeMessage(
-  kind: ContactKind,
-  context: MessageContext
-): string {
-  const name = context.customerName.split(" ")[0] ?? context.customerName;
+  const name = context.customerName.split(" ")[0] || context.customerName;
   const ref = context.reference ?? "";
-  const track = context.trackUrl ?? trackUrl();
-  /* The key lets the page offer this customer's invoice as a PDF. */
-  const link = ref ? `${track}/${ref}?${SHARE_TAG}&k=${trackKey(ref)}` : track;
-
-  /**
-   * ONE LETTER, WHATEVER THE DESK.
-   *
-   * Company name, a greeting on its own line, one sentence saying where the
-   * cargo is, the details as bullets, the storage terms, then the link. Support,
-   * Finance and the owner all send this shape, so a customer who gets two
-   * messages in a week reads the same thing twice rather than two inventions.
-   */
-  const letter = (
-    sentence: string,
-    options: {
-      details?: boolean;
-      storage?: boolean;
-      linkLabel?: string;
-      /** Replaces the usual storage terms. */
-      storageText?: string;
-      /** The details block from a different view of the context. */
-      detailsContext?: MessageContext;
-      closing?: string;
-    } = {}
-  ) => {
-    const { details = true, storage = true, linkLabel, storageText, closing, detailsContext } = options;
-    return (
-      `*${COMPANY.name.toUpperCase()}*\n\n` +
-      `Habari ${name} !\n\n` +
-      `${sentence}` +
-      (details ? `\n\n${cargoBlock(detailsContext ?? context)}` : "") +
-      (storageText ?? (storage ? storageBlock(context) : "")) +
-      `\n\n*${linkLabel ?? "Fuatilia mzigo wako:"}*\n${link}` +
-      (closing ? `\n\n${closing}` : "")
-    );
-  };
-
-  /*
-    CLEARED AND IN OUR GODOWN: COME AND COLLECT.
-
-    The owner's letter for goods out of clearance and on our floor. It says
-    where and from when, that payment must be complete before coming, what is
-    owed (nothing, once paid), and that the free storage runs from the day the
-    goods came in — "leo" only when that is today.
-  */
-  const warehouseLetter = () => {
-    const days = context.freeStorageDays ?? 7;
-    const from = context.storageFrom;
-    const today = new Date();
-    const sameDay =
-      from &&
-      from.toLocaleDateString("en-GB", { timeZone: "Africa/Dar_es_Salaam" }) ===
-        today.toLocaleDateString("en-GB", { timeZone: "Africa/Dar_es_Salaam" });
-    const start = !from || sameDay ? "kuanzia leo" : `kuanzia ${day(from)}`;
-    const fee =
-      context.storagePerDay && Number(context.storagePerDay) > 0
-        ? ` Baada ya hapo, storage fee ya ${context.storageCurrency ?? "USD"} ${context.storagePerDay} kwa siku itatozwa hadi mzigo utakapochukuliwa.`
-        : "";
-    const billed = Boolean(context.amountTzs || context.amount);
-    return letter(
-      `Tunakukaribisha kuja kuchukua mzigo wako kwenye ${PICKUP_PLACE}, ${PICKUP_FROM}. ` +
-        `Tafadhali hakikisha malipo yamekamilika kabla ya kuja.`,
-      {
-        storageText: `\n\n*STORAGE:* Siku ${days} bure ${start}.${fee}`,
-        linkLabel: billed ? "Angalia invoice na njia za malipo:" : "Angalia taarifa za mzigo wako:",
-        detailsContext: {
-          ...context,
-          invoiceNumber: null,
-          statusLine: "Cleared — Ready for Pickup",
-        },
-      }
-    );
-  };
+  const title = (heading: string) => `*${COMPANY.name.toUpperCase()} — ${heading}*`;
+  const details = (rows: [string, string | null | undefined][]) =>
+    ["*Cargo details*", ...rows.filter(([, v]) => v).map(([l, v]) => `• ${l}: ${v}`)].join("\n");
+  const links = messageLinks({ reference: ref || "-", invoiceId: context.invoiceId, pickupNoteId: context.pickupNoteId });
 
   switch (kind) {
-    case "cargo.received_china":
-      return letter(
-        `Mzigo wako umepokelewa katika ghala letu ${ROUTE.originCity}, China, ` +
-          `na unasubiri kupakiwa kwenye kontena.`,
-        { storage: false }
-      );
+    case "payment.reminder":
+      return [
+        title("Payment Reminder"),
+        `Habari ${name},`,
+        "Tunakukumbusha kuhusu malipo ya invoice ya mzigo wako. Mzigo hukabidhiwa baada ya malipo kuthibitishwa.",
+        details([
+          ["Cargo ref", ref],
+          ["Invoice", context.invoiceNumber],
+          ["Amount due", context.amountTzs ? `TZS ${context.amountTzs}` : context.amount ? `${context.currency ?? "USD"} ${context.amount}` : null],
+          ["USD equivalent", context.amountTzs && context.amount && context.currency !== "TZS" ? `USD ${context.amount}` : null],
+          ["Exchange rate", context.fxRate ? `1 USD = ${context.fxRate} TZS` : null],
+          ["Status", context.status ? BLUEWAVE_STAGE_LABEL[bluewaveStageOf(context.status) ?? "IN_TRANSIT"] : null],
+        ]),
+        ...(context.invoiceId
+          ? [`*Download invoice:*\n${links.invoice}`, `*Pay now:*\n${links.payNow}`]
+          : ref
+            ? [`*Track cargo:*\n${trackLink(ref)}`]
+            : []),
+      ].join("\n\n");
 
-    case "cargo.loaded":
-      return letter(
-        `Mzigo wako umepakiwa kwenye kontena` +
-          (context.containerNumber ? ` ${context.containerNumber}` : "") +
-          ` tayari kwa safari kuelekea ${ROUTE.destinationCity}.`,
-        { storage: false }
-      );
-
-    case "cargo.departed":
-      return letter(
-        `Mzigo wako umeondoka ${ROUTE.originCity}` +
-          (context.vessel ? ` kwa meli ${context.vessel}` : "") +
-          ` kuelekea ${ROUTE.destinationCity}. Safari ya baharini huchukua siku ` +
-          `${ROUTE.transitDaysMin}–${ROUTE.transitDaysMax}` +
-          (context.eta ? `, tunatarajia kufika ${day(context.eta)}` : "") +
-          `.`,
-        { storage: false }
-      );
-
-    /*
-      ARRIVED IS NOT READY.
-
-      The first message from Dar — the ship is in and customs has the goods —
-      says they are here and in clearance, that another message will follow,
-      and what storage costs once they reach our warehouse. It never tells the
-      customer to come, and never says ready: a customer who travels to the
-      warehouse for goods still in customs has been lied to by us.
-    */
-    case "cargo.arrived": {
-      /* Short, in the owner's words. With a bill out, the amount is in it and
-         the customer is told they can pay now; the invoice number itself is
-         left to the page the link opens. */
-      const billed = Boolean(context.amountTzs || context.amount);
-      const days = context.freeStorageDays ?? 7;
-      const fee =
-        context.storagePerDay && Number(context.storagePerDay) > 0
-          ? ` Baada ya siku ${days}, storage fee ya ${context.storageCurrency ?? "USD"} ${context.storagePerDay}/siku itatozwa hadi mzigo utakapochukuliwa.`
-          : "";
-      return letter(
-        `Mzigo wako umefika salama ${ROUTE.destinationCity} na kwa sasa uko kwenye ` +
-          `customs clearance. ` +
-          (billed
-            ? `Unaweza kulipa sasa ili uwe tayari kuchukuliwa mara clearance itakapokamilika.`
-            : `Tutakujulisha mara tu utakapokuwa tayari kuchukuliwa.`),
-        {
-          /* The clock starts when the goods leave clearance for our warehouse,
-             so that is what the customer is told. */
-          storageText:
-            `\n\n*STORAGE:* Baada ya mzigo wako kutoka kwenye clearance, utapata siku ` +
-            `${days} bure za kuhifadhiwa kwenye warehouse yetu ${ROUTE.destinationCity}.${fee}`,
-          linkLabel: billed ? "Angalia invoice na njia za malipo:" : "Fuatilia mzigo wako:",
-          detailsContext: { ...context, invoiceNumber: null, statusLine: "Clearance in Progress" },
-        }
-      );
+    case "storage.expired": {
+      const last = lastFreeDayOf(context);
+      return [
+        title("Free Storage Has Ended"),
+        `Habari ${name},`,
+        `Siku ${context.freeStorageDays ?? 7} za storage bure kwa mzigo wako zimekwisha` +
+          (last ? ` (siku ya mwisho ilikuwa ${day(last)})` : "") +
+          ". " +
+          (context.storagePerDay && Number(context.storagePerDay) > 0
+            ? `Storage fee ya ${context.storageCurrency ?? "USD"} ${context.storagePerDay} kwa siku inatozwa hadi mzigo utakapochukuliwa.`
+            : "Gharama za storage zinaweza kuanza kutozwa."),
+        details([
+          ["Cargo ref", ref],
+          ["Arrived", day(context.storageFrom)],
+          ["Pickup location", context.pickupAddress],
+        ]),
+        ...(ref ? [`*View cargo:*\n${links.viewCargo}`, `*Warehouse information:*\n${links.warehouse}`] : []),
+      ].join("\n\n");
     }
 
-    case "cargo.received_dar":
-      return warehouseLetter();
-
-    case "cargo.cleared_unpaid":
-      return warehouseLetter();
-
-    case "invoice.issued":
-    case "payment.reminder":
-      /* The bill can go out while the ship is at sea; the sentence says where
-         the goods actually are, and only says ready when they are. */
-      if (context.stage === "ready" || context.stage === "cleared") {
-        return warehouseLetter();
-      }
-      if (context.stage === "clearance") {
-        return letter(
-          `Mzigo wako umefika ${ROUTE.destinationCity} na uko kwenye customs ` +
-            `clearance. Invoice yako iko tayari — unaweza kulipa sasa ili mzigo ` +
-            `uwe tayari kuchukuliwa mara clearance itakapokamilika.`,
-          { linkLabel: "Angalia invoice yako kamili na njia za malipo:" }
-        );
-      }
-      return letter(
-        `Invoice ya mzigo wako iko tayari. Unaweza kulipa sasa, hata kama mzigo ` +
-          `bado uko njiani. Tutakujulisha mzigo ukifika ${ROUTE.destinationCity} ` +
-          `na ukiwa tayari kuchukuliwa.`,
-        { storage: false, linkLabel: "Angalia invoice yako kamili na njia za malipo:" }
-      );
-
-    case "cargo.ready":
-      if (!context.stage || context.stage === "ready" || context.stage === "cleared") {
-        return warehouseLetter();
-      }
-      /* Paid is not ready. A pickup note can be written while the ship is at
-         sea; the letter says so rather than sending somebody to the gate. */
-      return letter(
-        `Malipo yako yamethibitishwa, asante. ` +
-          (context.stage === "clearance"
-            ? `Mzigo wako umefika ${ROUTE.destinationCity} na bado uko kwenye customs clearance.`
-            : `Mzigo wako bado uko njiani kuelekea ${ROUTE.destinationCity}.`) +
-          ` Tutakujulisha mara tu utakapokuwa tayari kuchukuliwa.`,
-        { storage: false }
-      );
-
-    case "storage.expired":
-      return letter(
-        `Siku ${context.freeStorageDays ?? 7} za storage bure kwa mzigo wako ` +
-          `zimekwisha` +
-          (context.lastFreeDay ? ` (siku ya mwisho ilikuwa ${day(context.lastFreeDay)})` : "") +
-          `. ` +
-          (context.storagePerDay && Number(context.storagePerDay) > 0
-            ? `Storage fee ya ${context.storageCurrency ?? "USD"} ${context.storagePerDay} kwa siku inaweza kutozwa hadi mzigo utakapochukuliwa.`
-            : `Gharama za storage zinaweza kuanza kutozwa.`),
-        { storage: false }
-      );
-
     default:
-      return letter(
-        `Tunakuandikia kuhusu mzigo wako.`,
-        { details: !!ref, storage: false }
-      );
+      return [
+        title(ref ? `Kuhusu ${ref}` : "Ujumbe"),
+        `Habari ${name},`,
+        "Tunakuandikia kuhusu mzigo wako.",
+        ...(ref ? [`*Track cargo:*\n${trackLink(ref)}`] : []),
+      ].join("\n\n");
   }
 }
 

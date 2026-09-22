@@ -515,7 +515,6 @@ export async function runManagementReport(
           select: {
             reference: true,
             receiver: { select: { fullName: true, businessName: true } },
-            clearedAt: true,
             darReceiving: { select: { receivedAt: true, container: { select: { reference: true } } } },
             invoices: {
               where: { status: { not: "CANCELLED" } },
@@ -528,7 +527,7 @@ export async function runManagementReport(
       const rows = cargo
         .map((c) => {
           const position = storagePosition({
-            receivedAt: storageStart(c.darReceiving?.receivedAt, c.clearedAt),
+            receivedAt: storageStart(c.darReceiving?.receivedAt),
             collectedAt: null,
             freeDays: company?.freeStorageDays ?? 7,
             perDay: company?.storagePerDay ?? 0,

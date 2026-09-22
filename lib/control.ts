@@ -137,13 +137,13 @@ async function storageNotBilled(now: Date) {
         none: { status: { not: "CANCELLED" }, items: { some: { category: "Storage" } } },
       },
     },
-    select: { clearedAt: true, darReceiving: { select: { receivedAt: true } } },
+    select: { darReceiving: { select: { receivedAt: true } } },
   });
 
   const late = cargo
     .map((c) =>
       storagePosition({
-        receivedAt: storageStart(c.darReceiving?.receivedAt, c.clearedAt),
+        receivedAt: storageStart(c.darReceiving?.receivedAt),
         collectedAt: null,
         freeDays,
         perDay,

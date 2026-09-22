@@ -316,7 +316,7 @@ const NEXT_STEP: Record<string, Step | null> = {
   DEPARTED: {
     to: "ARRIVED",
     heading: "At sea — on the way to Dar es Salaam",
-    body: "Press when the container is at Dar es Salaam port. Customers are told it has arrived and that customs clearance has started.",
+    body: "Press when the container is at Dar es Salaam port. The goods stay in transit for the customer until Dar checks each consignment in — that is their \"Arrived in Dar\" and the first day of free storage.",
     button: "The container has arrived in Dar",
     icon: <Anchor />,
     waiting: "Dar, Finance or Support records the arrival.",
@@ -324,7 +324,7 @@ const NEXT_STEP: Record<string, Step | null> = {
   IN_TRANSIT: {
     to: "ARRIVED",
     heading: "At sea — on the way to Dar es Salaam",
-    body: "Press when the container is at Dar es Salaam port. Customers are told it has arrived and that customs clearance has started.",
+    body: "Press when the container is at Dar es Salaam port. The goods stay in transit for the customer until Dar checks each consignment in — that is their \"Arrived in Dar\" and the first day of free storage.",
     button: "The container has arrived in Dar",
     icon: <Anchor />,
     waiting: "Dar, Finance or Support records the arrival.",

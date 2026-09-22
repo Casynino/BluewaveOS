@@ -10,7 +10,8 @@ import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { nextInvoiceNumber, reserveInvoiceNumbers } from "@/lib/ids";
 import { impliedStatus, outstandingOf } from "@/lib/invoice-balance";
 import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
-import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
+import { announceCargoEvent } from "@/lib/cargo-events";
+import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
 import { storagePosition } from "@/lib/storage-fee";
 import {
@@ -384,25 +385,19 @@ export async function issueInvoice(
     });
     if (claim.count === 0) throw new Error("Somebody else issued it first.");
 
-    await notifyCustomer(
-      [invoice.customerId],
+    await recordAudit(
       {
-        kind: "invoice.issued",
-        title: `Invoice ${invoice.number}`,
-        body: `${amountDueLine(invoice.total, snapshot.fxRate)} is due for ${invoice.cargo.reference}.`,
-        href: "/portal/invoices",
+        actor,
+        action: "invoice.issue",
+        entity: "Invoice",
+        entityId: invoice.id,
+        summary: `Issued ${invoice.number} — ${amountDueLine(invoice.total, snapshot.fxRate)}`,
+        metadata: { exchangeRateId: snapshot.exchangeRateId, fxRate: snapshot.fxRate.toString(), totalTzs: snapshot.totalTzs.toString() },
       },
       tx
     );
-  });
-
-  await recordAudit({
-    actor,
-    action: "invoice.issue",
-    entity: "Invoice",
-    entityId: invoice.id,
-    summary: `Issued ${invoice.number} — ${amountDueLine(invoice.total, snapshot.fxRate)}`,
-    metadata: { exchangeRateId: snapshot.exchangeRateId, fxRate: snapshot.fxRate.toString(), totalTzs: snapshot.totalTzs.toString() },
+    /* The invoice message, with the bill's own download link. */
+    await announceCargoEvent(tx, "PRICE_CONFIRMED", invoice.cargoId, { invoiceId: invoice.id });
   });
 
   revalidatePath("/app/finance/invoices");
@@ -1106,7 +1101,7 @@ export async function chargeStorage(
 
   const settings = await companySettings();
   const position = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.clearedAt),
+    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt),
     collectedAt: invoice.cargo.release?.releasedAt ?? null,
     freeDays: settings?.freeStorageDays ?? 7,
     perDay: settings?.storagePerDay ?? 0,

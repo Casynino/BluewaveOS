@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { generateQrToken, nextPickupNoteNumber } from "@/lib/ids";
 import { balanceOf, outstandingOf, owedAcross } from "@/lib/invoice-balance";
-import { announceIfReady } from "@/lib/clearance";
+import { announceIfReady } from "@/lib/cargo-events";
 import { notifyCustomer } from "@/lib/notify";
 import type { TxClient } from "@/lib/prisma";
 
@@ -91,9 +91,9 @@ export async function writePickupNote(
     A PICKUP NOTE IS NOT "COME AND COLLECT".
 
     Finance writes it the moment the money is settled, which can be while the
-    ship is still at sea or the boxes are in customs. The customer is told the
-    goods are ready only when they are — cleared as well as paid — and that is
-    announceIfReady's call, made here and again when clearance completes.
+    ship is still at sea. The customer is told the goods are ready only when
+    they are — arrived in Dar as well as paid — and that is announceIfReady's
+    call, made here and again when Dar checks the goods in.
   */
   const announced = await announceIfReady(tx, cargo.id, { id: input.actorId });
   if (!announced) {
@@ -103,8 +103,8 @@ export async function writePickupNote(
         kind: "pickup.issued",
         title: `Pickup note ${noteNumber} issued for ${cargo.reference}`,
         body: onCredit
-          ? `Released on credit; ${owed.primary} is still owing. We will tell you as soon as it has arrived and cleared in Dar and is ready to collect.`
-          : "Payment complete. We will tell you as soon as it has arrived and cleared in Dar and is ready to collect.",
+          ? `Released on credit; ${owed.primary} is still owing. We will tell you as soon as it has arrived at our Dar warehouse and is ready for pickup.`
+          : "Payment complete. We will tell you as soon as it has arrived at our Dar warehouse and is ready for pickup.",
         href: `/portal/cargo/${encodeURIComponent(cargo.reference)}`,
       },
       tx
@@ -162,7 +162,7 @@ export async function issuePickupNoteIfSettled(
  * Called when a verified payment is taken back. A pickup note written because
  * the bills were paid says the customer may collect; once the money is gone
  * that is no longer true, and a note left active is a printout that still reads
- * "paid and cleared" at the counter. A note on credit stays — it never rested on
+ * "paid" at the counter. A note on credit stays — it never rested on
  * the payment. A note already used is history: the goods have gone and the debt
  * is chased, not un-released.
  */

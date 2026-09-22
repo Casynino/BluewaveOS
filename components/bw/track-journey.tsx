@@ -1,64 +1,72 @@
 import { Anchor, Check, PackageCheck, Ship, Warehouse } from "lucide-react";
 
 import type { PublicTracking } from "@/lib/tracking";
-import type { StageCode, StageKey } from "@/lib/tracking-stage";
+import { bluewaveStageOfCode, type BlueWaveStage, type StageCode, type StageKey } from "@/lib/tracking-stage";
 import { cn } from "@/lib/utils";
 
 /*
   THE JOURNEY, THE WAY A PASSENGER READS A TRIP.
 
-  Three places the cargo can be — our China warehouse, the sea, Dar es Salaam —
-  then ready, then home. Everything here is read off the stage lib/tracking-stage
-  already worked out from recorded facts. There is no live vessel feed, so the
-  route shows the STAGE the cargo has reached, never a position on the water.
+  The six BlueWave stages — received in China, stored in China, in transit,
+  arrived in Dar es Salaam, ready for pickup, collected — drawn over three
+  places: our China warehouse, the sea, Dar es Salaam. Everything here is read
+  off the stage lib/tracking-stage already worked out from recorded facts.
+  There is no live vessel feed, so the route shows the STAGE the cargo has
+  reached, never a position on the water. There is no clearance stage.
 */
 
 export type Phase = "CHINA" | "SEA" | "DAR" | "READY" | "DONE" | "CANCELLED";
 
 export function phaseOf(stage: StageCode): Phase {
-  switch (stage) {
-    case "AWAITING_CHINA":
-    case "RECEIVED_CHINA":
-    case "ASSIGNED":
-    case "PACKED":
-      return "CHINA";
-    case "SHIPPED":
-    case "AT_SEA":
+  if (stage === "CANCELLED") return "CANCELLED";
+  switch (bluewaveStageOfCode(stage)) {
+    case "IN_TRANSIT":
       return "SEA";
-    case "READY":
+    case "ARRIVED_IN_DAR":
+      return "DAR";
+    case "READY_FOR_PICKUP":
       return "READY";
     case "COLLECTED":
-    case "DELIVERED":
       return "DONE";
-    case "CANCELLED":
-      return "CANCELLED";
     default:
-      return "DAR";
+      return "CHINA";
   }
 }
 
-export const PHASE_COPY: Record<Phase, { title: string; line: string; sw: string }> = {
-  CHINA: {
-    title: "At our China warehouse",
-    line: "Your cargo is at our Foshan warehouse, being prepared for shipment.",
-    sw: "Mzigo wako uko ghalani kwetu Foshan, unaandaliwa kusafirishwa.",
+type Copy = { title: string; line: string; sw: string };
+
+const STAGE_COPY: Record<BlueWaveStage | "AWAITING" | "CANCELLED", Copy> = {
+  AWAITING: {
+    title: "Waiting in Foshan",
+    line: "Nothing has reached our Foshan warehouse under this reference yet.",
+    sw: "Bado hatujapokea mzigo huu katika warehouse yetu Foshan.",
   },
-  SEA: {
+  RECEIVED_IN_CHINA: {
+    title: "Received in China",
+    line: "Your cargo has been received at our Foshan warehouse and is in the BlueWave system.",
+    sw: "Mzigo wako umepokelewa katika warehouse yetu Foshan na umeingia kwenye mfumo wa BlueWave.",
+  },
+  STORED_IN_CHINA: {
+    title: "Stored in China",
+    line: "Your cargo is stored at our Foshan warehouse and assigned to a container.",
+    sw: "Mzigo wako umehifadhiwa Foshan na umepangiwa kontena.",
+  },
+  IN_TRANSIT: {
     title: "In transit",
-    line: "Your cargo is on its way to Tanzania by sea.",
-    sw: "Mzigo wako uko njiani kuja Tanzania kwa meli.",
+    line: "Your cargo is on its way from China to Dar es Salaam.",
+    sw: "Mzigo wako uko safarini kutoka China kuelekea Dar es Salaam.",
   },
-  DAR: {
+  ARRIVED_IN_DAR: {
     title: "Arrived in Dar es Salaam",
-    line: "Your cargo has arrived and is going through clearance and check-in.",
-    sw: "Mzigo wako umefika Dar es Salaam na unapitia taratibu za forodha na ukaguzi.",
+    line: "Your cargo is at our Dar es Salaam warehouse. Free storage started the day it arrived.",
+    sw: "Mzigo wako umefika katika warehouse yetu Dar es Salaam. Storage ya bure imeanza siku ulipofika.",
   },
-  READY: {
+  READY_FOR_PICKUP: {
     title: "Ready for pickup",
-    line: "Your cargo has completed the required process and is ready for collection.",
-    sw: "Mzigo wako uko tayari kuchukuliwa.",
+    line: "Payment is confirmed and your pickup note is issued. Bring your ID to our Dar es Salaam warehouse.",
+    sw: "Mzigo wako uko tayari kuchukuliwa. Njoo na kitambulisho chako.",
   },
-  DONE: {
+  COLLECTED: {
     title: "Collected",
     line: "Your cargo has been handed over. Thank you for shipping with BlueWave.",
     sw: "Mzigo wako umekabidhiwa. Asante kwa kusafirisha na BlueWave.",
@@ -70,18 +78,19 @@ export const PHASE_COPY: Record<Phase, { title: string; line: string; sw: string
   },
 };
 
+/** The big words at the top of the page, for the stage the cargo is at. */
+export function stageCopy(stage: StageCode): Copy {
+  if (stage === "CANCELLED") return STAGE_COPY.CANCELLED;
+  return STAGE_COPY[bluewaveStageOfCode(stage) ?? "AWAITING"];
+}
+
 const GROUP_OF: Record<StageKey, "CHINA" | "SEA" | "DAR"> = {
-  RECEIVED_CHINA: "CHINA",
-  LOADED: "CHINA",
-  DEPARTED: "CHINA",
-  AT_SEA: "SEA",
-  ARRIVED_DAR: "DAR",
-  RECEIVED_DAR: "DAR",
-  CLEARANCE: "DAR",
-  CLEARED: "DAR",
-  INVOICED: "DAR",
-  READY: "DAR",
-  HANDED_OVER: "DAR",
+  RECEIVED_IN_CHINA: "CHINA",
+  STORED_IN_CHINA: "CHINA",
+  IN_TRANSIT: "SEA",
+  ARRIVED_IN_DAR: "DAR",
+  READY_FOR_PICKUP: "DAR",
+  COLLECTED: "DAR",
 };
 
 type Step = PublicTracking["journey"]["steps"][number];
@@ -105,7 +114,7 @@ export function RouteStage({ phase, eta, vessel }: { phase: Phase; eta: string |
         <RoutePoint label="Indian Ocean" sub={vessel ?? "By sea"} active={phase === "SEA"} reached={reached(50)} align="center" />
         <RoutePoint
           label="Dar es Salaam"
-          sub="Port & warehouse"
+          sub="Our warehouse"
           active={phase === "DAR" || phase === "READY" || phase === "DONE"}
           reached={reached(100)}
           align="right"
@@ -165,7 +174,7 @@ function RoutePoint({
 /* ------------------------------------------------------------ the timeline */
 
 const GROUPS: { key: "CHINA" | "SEA" | "DAR"; title: string; icon: typeof Warehouse }[] = [
-  { key: "CHINA", title: "China warehouse", icon: Warehouse },
+  { key: "CHINA", title: "China", icon: Warehouse },
   { key: "SEA", title: "In transit", icon: Ship },
   { key: "DAR", title: "Dar es Salaam", icon: Anchor },
 ];
@@ -228,7 +237,7 @@ export function JourneyGroups({ steps, eta, etaPassed }: { steps: Step[]; eta: s
                       <p className="bw-mono text-xs text-bw-muted">
                         {step.atLabel} {when(step.at)}
                       </p>
-                    ) : step.key === "AT_SEA" && step.state === "current" && eta && !etaPassed ? (
+                    ) : step.key === "IN_TRANSIT" && step.state === "current" && eta && !etaPassed ? (
                       <p className="bw-mono text-xs text-bw-muted">Expected {when(eta)}</p>
                     ) : null}
                     {step.detail ? <p className="text-xs font-medium text-bw-coral">{step.detail}</p> : null}
