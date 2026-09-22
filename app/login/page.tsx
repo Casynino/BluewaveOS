@@ -29,27 +29,27 @@ export default async function LoginPage({
   return (
     <AuthPanel
       photo="portCranes"
-      label="Customer account · Karibu tena"
+      label="Karibu tena · Welcome back"
       title={
         <>
-          Your cargo, <span className="text-white/55">in one place</span>
+          Welcome back. <span className="text-bw-coral-bright">Your cargo is waiting.</span>
         </>
       }
       points={[
-        "All your cargo, from Foshan to Kariakoo",
+        "Every box, Foshan to Kariakoo",
         "Invoices and receipts",
-        "Pickup notes for collection in Dar",
+        "Pickup notes for Dar",
         "Updates as your goods move",
       ]}
       note="BlueWave staff sign in here too — you will land on your own desk."
     >
-      <h1 className="bw-display text-5xl uppercase text-bw-fg">Sign in</h1>
-      <p className="mt-2 text-bw-muted">Staff and customers use the same door. You will land in the right place.</p>
+      <h1 className="bw-display text-4xl uppercase text-white">Sign in</h1>
+      <p className="mt-2 text-sm leading-relaxed text-white/70">Staff and customers use the same door. You will land in the right place.</p>
 
       {revoked ? (
         <div
           role="alert"
-          className="mt-6 flex gap-3 rounded-[2px] border border-amber-500/40 border-l-[3px] border-l-amber-500 bg-amber-50 p-3 text-sm text-amber-900"
+          className="mt-6 flex gap-3 rounded-[2px] border border-amber-500/40 border-l-[3px] border-l-amber-500 bg-amber-500/15 p-3 text-sm text-amber-100"
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>Your account is no longer active. Speak to your manager if you think this is wrong.</p>
@@ -58,9 +58,9 @@ export default async function LoginPage({
 
       <LoginForm callbackUrl={params.callbackUrl ?? ""} />
 
-      <p className="mt-8 border-t border-bw-line pt-5 text-sm text-bw-muted">
+      <p className="mt-7 border-t border-white/10 pt-5 text-sm text-white/70">
         New customer?{" "}
-        <Link href="/register" className="font-semibold text-bw-coral underline-offset-4 hover:underline">
+        <Link href="/register" className="font-semibold text-bw-coral-bright underline-offset-4 hover:underline">
           Open an account
         </Link>
       </p>

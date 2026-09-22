@@ -24,18 +24,18 @@ export default function RegisterPage() {
       label="New customer · Karibu BlueWave"
       title={
         <>
-          Ship from China <span className="text-white/55">with your own mark</span>
+          Ship from China <span className="text-bw-coral-bright">under your own mark.</span>
         </>
       }
       points={[
-        "Your own shipping mark, straight away",
-        "Our Foshan warehouse address for your suppliers",
-        "All your cargo, invoices and pickup notes",
+        "Your shipping mark, straight away",
+        "Our Foshan address for suppliers",
+        "Cargo, invoices and pickup notes",
         "Updates as your goods move",
       ]}
     >
-      <h1 className="bw-display text-5xl uppercase text-bw-fg">Open an account</h1>
-      <p className="mt-2 text-bw-muted">
+      <h1 className="bw-display text-4xl uppercase text-white">Open an account</h1>
+      <p className="mt-2 text-sm leading-relaxed text-white/70">
         You get a shipping mark and our Foshan warehouse address as soon as you register.
       </p>
 
@@ -43,9 +43,9 @@ export default function RegisterPage() {
         <RegisterForm />
       </div>
 
-      <p className="mt-8 border-t border-bw-line pt-5 text-sm text-bw-muted">
+      <p className="mt-7 border-t border-white/10 pt-5 text-sm text-white/70">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-bw-coral underline-offset-4 hover:underline">
+        <Link href="/login" className="font-semibold text-bw-coral-bright underline-offset-4 hover:underline">
           Sign in
         </Link>
       </p>
