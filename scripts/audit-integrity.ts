@@ -39,18 +39,43 @@ async function main() {
     (i: (typeof invoices)[number]) =>
       `${i.number}: lines ${i.items.reduce((s, it) => s.add(D(it.amount)), D(0))} vs subtotal ${i.subtotal}`
   );
+  /*
+    A BILL ADDS UP THE WAY IT WAS ISSUED.
+
+    `vatInclusive` is pinned on the row: true and the total IS the subtotal,
+    with VAT the part of it the tax office is owed (380 × 18 / 118 = 57.97);
+    false and VAT was added on top. Checked against that column rather than
+    against one of the two shapes, because BlueWave's prices include VAT and
+    reading every bill as though they did not reported the whole book as wrong
+    — which is a check nobody can act on and so a check nobody reads.
+    The arithmetic is applyVat's in lib/pricing.ts, restated here on purpose:
+    a test that imports the function it is testing proves only that it is
+    consistent with itself.
+  */
+  const restated = (i: { subtotal: unknown; vatPercent: unknown; vatInclusive: boolean }) => {
+    const subtotal = D(i.subtotal);
+    const vatPercent = D(i.vatPercent);
+    if (i.vatInclusive) {
+      const total = subtotal.toDecimalPlaces(2);
+      const vatAmount = vatPercent.greaterThan(0)
+        ? total.mul(vatPercent).div(vatPercent.add(100)).toDecimalPlaces(2)
+        : D(0);
+      return { vatAmount, total };
+    }
+    const vatAmount = subtotal.mul(vatPercent).div(100).toDecimalPlaces(2);
+    return { vatAmount, total: subtotal.add(vatAmount).toDecimalPlaces(2) };
+  };
   check(
-    "total = subtotal + VAT",
-    invoices.filter((i) => !D(i.subtotal).add(D(i.vatAmount)).sub(D(i.total)).abs().lessThanOrEqualTo(0.005)),
-    (i: (typeof invoices)[number]) => `${i.number}: ${i.subtotal} + ${i.vatAmount} ≠ ${i.total}`
+    "total is the subtotal and the VAT, as that bill was issued",
+    invoices.filter((i) => !restated(i).total.sub(D(i.total)).abs().lessThanOrEqualTo(0.005)),
+    (i: (typeof invoices)[number]) =>
+      `${i.number}: ${i.subtotal} ${i.vatInclusive ? "including" : "plus"} ${i.vatPercent}% ≠ ${i.total}`
   );
   check(
-    "VAT = subtotal × vatPercent",
-    invoices.filter((i) => {
-      const expect = D(i.subtotal).mul(D(i.vatPercent)).div(100).toDecimalPlaces(2);
-      return !expect.sub(D(i.vatAmount)).abs().lessThanOrEqualTo(0.02);
-    }),
-    (i: (typeof invoices)[number]) => `${i.number}: ${i.vatPercent}% of ${i.subtotal} ≠ ${i.vatAmount}`
+    "VAT is that percentage of that bill",
+    invoices.filter((i) => !restated(i).vatAmount.sub(D(i.vatAmount)).abs().lessThanOrEqualTo(0.02)),
+    (i: (typeof invoices)[number]) =>
+      `${i.number}: ${i.vatPercent}% of ${i.subtotal} (${i.vatInclusive ? "inclusive" : "on top"}) ≠ ${i.vatAmount}`
   );
   check(
     "totalTzs = total × pinned rate",
@@ -180,6 +205,108 @@ async function main() {
      goods Dar has confirmed on its floor. */
   const notes = await prisma.pickupNote.findMany({ where: { status: "USED" }, include: { cargo: { include: { darReceiving: { select: { id: true } } } } } });
   check("pickup note used on cargo that was never checked in at Dar", notes.filter((n) => !n.cargo.darReceiving), (n: (typeof notes)[number]) => n.noteNumber);
+  /* A note is written so somebody can come and collect. Once they have, it is
+     spent — one left ACTIVE against collected goods is a second claim on boxes
+     that have already left the warehouse. */
+  const spent = await prisma.$queryRaw<{ note: string; reference: string }[]>`
+    SELECT n."noteNumber" AS note, c.reference
+    FROM "PickupNote" n JOIN "Cargo" c ON c.id = n."cargoId"
+    WHERE n.status = 'ACTIVE' AND c.status IN ('COLLECTED', 'DELIVERED')`;
+  check("a live pickup note on cargo that has already gone", spent,
+    (r: (typeof spent)[number]) => `${r.note} on ${r.reference}`);
+
+  console.log("\nNOTHING POINTING AT NOTHING");
+  /*
+    THE ROWS A FOREIGN KEY CANNOT CATCH.
+
+    Every one of these columns IS a foreign key, so a row pointing at an id
+    that was never there cannot exist. What can is a row pointing at a parent
+    that has been SOFT-deleted — `deletedAt` set, the row still present, and
+    the constraint satisfied. Those are the orphans in a system whose deletes
+    are all soft, and the screens that join through them show a bill against a
+    consignment nobody can open.
+  */
+  const orphans: [string, string][] = [
+    ["cargo whose sender or receiver is a deleted customer", `
+      SELECT c.reference AS id FROM "Cargo" c
+      JOIN "Customer" s ON s.id = c."senderId"
+      JOIN "Customer" r ON r.id = c."receiverId"
+      WHERE c."deletedAt" IS NULL AND (s."deletedAt" IS NOT NULL OR r."deletedAt" IS NOT NULL)`],
+    ["a live bill against a deleted consignment", `
+      SELECT i.number AS id FROM "Invoice" i
+      JOIN "Cargo" c ON c.id = i."cargoId"
+      WHERE i.status <> 'CANCELLED' AND c."deletedAt" IS NOT NULL`],
+    ["a live bill against a deleted customer", `
+      SELECT i.number AS id FROM "Invoice" i
+      JOIN "Customer" cu ON cu.id = i."customerId"
+      WHERE i.status <> 'CANCELLED' AND cu."deletedAt" IS NOT NULL`],
+    ["a verified payment against a cancelled or deleted bill's consignment", `
+      SELECT p.reference AS id FROM "Payment" p
+      JOIN "Invoice" i ON i.id = p."invoiceId"
+      JOIN "Cargo" c ON c.id = i."cargoId"
+      WHERE p.status = 'VERIFIED' AND c."deletedAt" IS NOT NULL`],
+    ["a payment whose customer is not the customer on its bill", `
+      SELECT p.reference AS id FROM "Payment" p
+      JOIN "Invoice" i ON i.id = p."invoiceId"
+      WHERE p."customerId" <> i."customerId"`],
+    ["a container line for a deleted consignment", `
+      SELECT co.reference || ' / ' || c.reference AS id
+      FROM "ContainerCargo" l
+      JOIN "Cargo" c ON c.id = l."cargoId"
+      JOIN "Container" co ON co.id = l."containerId"
+      WHERE c."deletedAt" IS NOT NULL AND co."deletedAt" IS NULL`],
+    ["a package loaded into a deleted container", `
+      SELECT p.reference AS id FROM "CargoPackage" p
+      JOIN "Container" co ON co.id = p."containerId"
+      WHERE p."deletedAt" IS NULL AND co."deletedAt" IS NOT NULL`],
+    ["a package on a container its consignment has no line on", `
+      SELECT p.reference AS id FROM "CargoPackage" p
+      WHERE p."deletedAt" IS NULL AND p."containerId" IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM "ContainerCargo" l
+          WHERE l."cargoId" = p."cargoId" AND l."containerId" = p."containerId")`],
+    ["a notice for a customer who is no longer on the books", `
+      SELECT n.id FROM "Notification" n
+      JOIN "Customer" cu ON cu.id = n."customerId"
+      WHERE cu."deletedAt" IS NOT NULL`],
+    ["a notice for a staff account that has been closed", `
+      SELECT n.id FROM "Notification" n
+      JOIN "User" u ON u.id = n."userId"
+      WHERE u.active = false`],
+    ["a receipt whose payment is no longer verified", `
+      SELECT r.number AS id FROM "Receipt" r
+      JOIN "Payment" p ON p.id = r."paymentId"
+      WHERE p.status NOT IN ('VERIFIED', 'REVERSED')`],
+    ["a release against a deleted consignment", `
+      SELECT r.number AS id FROM "Release" r
+      JOIN "Cargo" c ON c.id = r."cargoId"
+      WHERE c."deletedAt" IS NOT NULL`],
+  ];
+  for (const [name, sql] of orphans) {
+    const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(sql);
+    check(name, rows, (r: { id: string }) => r.id);
+  }
+
+  console.log("\nCHARGED TWICE");
+  /* Storage is a judgement somebody makes once. Two lines for it on one bill
+     is the same rent charged twice, and the customer has no way to see that
+     from the total. */
+  const twice = await prisma.$queryRaw<{ number: string; n: bigint }[]>`
+    SELECT i.number, count(*) AS n
+    FROM "InvoiceItem" it JOIN "Invoice" i ON i.id = it."invoiceId"
+    WHERE it.category = 'Storage'
+    GROUP BY i.number HAVING count(*) > 1`;
+  check("storage charged more than once on one bill", twice,
+    (r: (typeof twice)[number]) => `${r.number} × ${r.n}`);
+  /* Freight is the consignment itself. A second freight line on one bill is
+     the same cubic metres billed twice over. */
+  const freightTwice = await prisma.$queryRaw<{ number: string; n: bigint }[]>`
+    SELECT i.number, count(*) AS n
+    FROM "InvoiceItem" it JOIN "Invoice" i ON i.id = it."invoiceId"
+    WHERE it.category = 'Freight' AND it.description LIKE 'Sea freight — %'
+    GROUP BY i.number HAVING count(*) > 1`;
+  check("one consignment's freight on one bill more than once", freightTwice,
+    (r: (typeof freightTwice)[number]) => `${r.number} × ${r.n}`);
 
   console.log(bad === 0 ? "\nEverything the screens assume holds.\n" : `\n${bad} row(s) to look at.\n`);
   await prisma.$disconnect();

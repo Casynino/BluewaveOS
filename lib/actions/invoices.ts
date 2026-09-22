@@ -1123,7 +1123,19 @@ export async function chargeStorage(
   const subtotal = invoice.subtotal.add(position.amount);
   const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
 
-  await prisma.$transaction(async (tx) => {
+  /*
+    COUNTED AGAIN INSIDE THE TRANSACTION.
+
+    The check above ran against a bill read before the rate and the company's
+    settings were fetched. Two presses a moment apart — a second press, or a
+    form the browser retried — both found no storage line on that older copy
+    and both added one, and the customer was charged the floor rent twice on
+    one bill. Nothing is written when it is no longer nought.
+  */
+  const alreadyCharged = await prisma.$transaction(async (tx) => {
+    if ((await tx.invoiceItem.count({ where: { invoiceId: invoice.id, category: "Storage" } })) > 0) {
+      return true;
+    }
     await tx.invoiceItem.create({
       data: {
         invoiceId: invoice.id,
@@ -1147,7 +1159,10 @@ export async function chargeStorage(
           : null,
       },
     });
+    return false;
   });
+
+  if (alreadyCharged) return { ok: "Storage is already on this bill." };
 
   await recordAudit({
     actor,
