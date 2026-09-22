@@ -20,9 +20,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { submitVisitRequest } from "@/lib/actions/visits";
-
-/* A date input's floor; the server refuses a past date anyway. */
-const TODAY = new Date().toISOString().slice(0, 10);
+import { darDateInput } from "@/lib/dar-time";
 
 export const VISIT_LANGUAGES = ["English", "Swahili", "Chinese interpreter", "Other"] as const;
 
@@ -44,6 +42,9 @@ export type VisitFormProps = {
  */
 export function VisitForm({ cities, marketGroups, factories, categories, selected }: VisitFormProps) {
   const { state, pending, onSubmit } = usePublicSubmit(submitVisitRequest);
+  /* The floor on the travel dates, read now rather than when the module
+     loaded; the server refuses a past date anyway. */
+  const today = darDateInput();
 
   if (state.ok) {
     return (
@@ -121,10 +122,10 @@ export function VisitForm({ cities, marketGroups, factories, categories, selecte
           <VsSection index="02" title="When" lead="Roughly is fine. Market halls keep their own holidays, and the team will tell you if your dates fall on one.">
             <div className="grid gap-4 sm:grid-cols-2">
               <VsField id="v-travelFrom" label="Arriving in China">
-                <Input id="v-travelFrom" name="travelFrom" type="date" min={TODAY} max="2099-12-31" />
+                <Input id="v-travelFrom" name="travelFrom" type="date" min={today} max="2099-12-31" />
               </VsField>
               <VsField id="v-travelTo" label="Leaving China" optional>
-                <Input id="v-travelTo" name="travelTo" type="date" min={TODAY} max="2099-12-31" />
+                <Input id="v-travelTo" name="travelTo" type="date" min={today} max="2099-12-31" />
               </VsField>
             </div>
             <VsCheck name="flexibleDates" label="My dates are flexible" sub="Tick this if you have not fixed your dates yet — the team will suggest some." className="sm:max-w-md" />

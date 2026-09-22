@@ -4,6 +4,7 @@ import { Instagram, MessageCircle } from "lucide-react";
 import type { BwCompany } from "@/components/bw/data";
 import { Lockup } from "@/components/bw/lockup";
 import { Label } from "@/components/bw/ui";
+import { darFields } from "@/lib/dar-time";
 
 const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
@@ -115,7 +116,9 @@ export function BwFooter({ company }: { company: BwCompany }) {
       <div className="border-t border-white/10">
         <div className="bw-mono mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 px-4 py-5 text-[0.7rem] uppercase tracking-[0.12em] text-white/45 sm:px-6 lg:px-10">
           <p>
-            © {new Date().getFullYear()} {company.legalName ?? company.name}
+            {/* The year Dar is in, not the year the server's own clock is in:
+                for three hours every New Year's Eve those are different. */}
+            © {darFields().year} {company.legalName ?? company.name}
             {company.tin ? ` · TIN ${company.tin}` : ""}
           </p>
           <p>Discover · Source · Ship · Collect</p>
