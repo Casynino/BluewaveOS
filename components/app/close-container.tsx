@@ -1,16 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Lock, PackageX, TriangleAlert } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 
 import { FormMessage } from "@/components/app/form-message";
+import { Modal } from "@/components/app/modal";
 import { SubmitButton } from "@/components/app/submit-button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { closeContainer, type CloseState } from "@/lib/actions/close-container";
 import { useT } from "@/components/app/locale-provider";
-import { Tx } from "@/components/app/tx";
 
 /** A consignment on the box that nobody has counted and nobody has reported. */
 export type OpenConsignment = {
@@ -36,21 +36,18 @@ export type MoveTarget = {
 };
 
 /**
- * CLOSING A SAILING, WITH THE QUESTION ON THE SAME SCREEN AS THE DECISION.
+ * CLOSING A SAILING: A SMALL BUTTON, AND ONE QUESTION BEHIND IT.
  *
- * A box with nothing outstanding closes in one press: there is nothing to ask,
- * and a list of no rows in front of somebody is a screen pretending to be work.
+ * The container page is already a page of figures, so closing takes a button
+ * the size of the act and nothing more. A box with nothing outstanding closes
+ * from it in one press.
  *
- * A box with consignments nobody has accounted for asks about each of them,
- * here, because the alternative — a refusal naming four references — sent the
- * closer to another screen to answer a question they were already standing in
- * front of. Each row gets the customer, the mark and the figures, so the choice
- * is made against the cargo rather than against a reference number, and the
- * choices are the three that are actually true: it is on another sailing, it
- * never came off, or this is not the moment to close the box.
- *
- * Leaving a row unanswered closes nothing. That is the way out, and it does not
- * need a button of its own.
+ * A box with consignments nobody has accounted for opens a dialog: the list,
+ * ticked, and ONE choice for all of them — the container they are really on,
+ * or missing. That is the honest shape of it: a bale left off a box is rarely
+ * left off alone, and asking the same question five times in five dropdowns is
+ * the same answer typed five times. A row can be un-ticked to be left as it
+ * is, and then the box does not close — which the dialog says before the press.
  */
 export function ClosePanel({
   containerId,
@@ -68,164 +65,172 @@ export function ClosePanel({
 }) {
   const tx = useT();
   const [state, action] = useActionState<CloseState, FormData>(closeContainer, {});
-  /* Held here only so the row can explain itself as it is answered. The server
-     reads the form, never this. */
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [open, setOpen] = useState(false);
+  /* Everything ticked to start with: the common close is "all of it went on
+     the next box", not a row-by-row argument. */
+  const [picked, setPicked] = useState<string[]>(outstanding.map((row) => row.id));
+  const [outcome, setOutcome] = useState("");
 
   const clean = outstanding.length === 0;
+  const left = outstanding.filter((row) => !picked.includes(row.id));
+
+  useEffect(() => {
+    if (state.ok) setOpen(false);
+  }, [state.ok]);
+
+  /* Nothing outstanding: the button is the whole of it. */
+  if (clean) {
+    return (
+      <form action={action} className="flex flex-wrap items-center gap-3">
+        <input type="hidden" name="containerId" value={containerId} />
+        <SubmitButton size="sm" className="gap-2" pendingLabel={tx("Closing…")}>
+          <Lock className="size-4" />
+          {tx("Close the container")}
+        </SubmitButton>
+        <FormMessage error={state.error} ok={state.ok} />
+      </form>
+    );
+  }
 
   return (
-    <form action={action} className="space-y-4">
-      <input type="hidden" name="containerId" value={containerId} />
+    <div className="flex flex-wrap items-center gap-3">
+      <Button type="button" size="sm" variant="outline" className="gap-2" onClick={() => setOpen(true)}>
+        <Lock className="size-4" />
+        {tx("Close the container")}
+        <span className="rounded-full bg-warning/15 px-1.5 text-xs font-medium text-warning">
+          {outstanding.length}
+        </span>
+      </Button>
+      <FormMessage error={state.error} ok={state.ok} />
 
-      <div className="rounded-xl border bg-card p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-lg font-semibold tracking-tight">
-              {tx("Close")} {reference}
-            </p>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+      {open ? (
+        <Modal title={`${tx("Close")} ${reference}`} onClose={() => setOpen(false)}>
+          <form action={action} className="space-y-4">
+            <input type="hidden" name="containerId" value={containerId} />
+            {/* The server reads one answer per consignment; the dialog asks once. */}
+            {outstanding.map((row) => (
+              <input
+                key={row.id}
+                type="hidden"
+                name={`outcome:${row.id}`}
+                value={picked.includes(row.id) ? outcome : "leave"}
+              />
+            ))}
+
+            <p className="text-sm text-muted-foreground">
               {tx(
-                "Nothing more can happen to a closed container: nothing goes on it, nothing comes off it, and it leaves the receiving dock."
+                "Still open on this container. Tick the ones to deal with and say where they go — a consignment left on a closed box is one nobody can find again."
               )}
             </p>
-          </div>
-          <Badge tone={clean ? "good" : "warn"}>
-            {clean
-              ? tx("Everything accounted for")
-              : `${outstanding.length} ${tx("still open")}`}
-          </Badge>
-        </div>
 
-        {clean ? null : (
-          <>
-            <p className="mt-4 flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
-              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-              <span>
-                {tx(
-                  "These consignments have not been checked in and have not been reported missing. Say what happened to each one — a consignment left on a closed box is one nobody can find again."
-                )}
-              </span>
-            </p>
-
-            <ul className="mt-4 space-y-3">
-              {outstanding.map((row) => {
-                const answer = answers[row.id] ?? "";
-                return (
-                  <li
-                    key={row.id}
-                    className="rounded-lg border bg-background p-3 sm:p-4"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                      <span className="tnum text-sm font-semibold">
-                        {row.reference}
-                      </span>
-                      <span className="tnum text-xs text-muted-foreground">
-                        {row.packages} {tx("pkg")} · {row.cbmLabel}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 truncate text-sm">
-                      {row.customer}
-                      {row.shippingMark ? (
-                        <span className="tnum text-muted-foreground">
-                          {" · "}
-                          {row.shippingMark}
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      <Tx>{row.goods}</Tx>
-                    </p>
-
-                    <NativeSelect
-                      name={`outcome:${row.id}`}
-                      value={answer}
+            <ul className="max-h-64 divide-y overflow-y-auto rounded-lg border">
+              {outstanding.map((row) => (
+                <li key={row.id}>
+                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-secondary/50">
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0"
+                      checked={picked.includes(row.id)}
                       onChange={(e) =>
-                        setAnswers((a) => ({ ...a, [row.id]: e.target.value }))
+                        setPicked((ids) =>
+                          e.target.checked ? [...ids, row.id] : ids.filter((id) => id !== row.id)
+                        )
                       }
-                      aria-label={`${tx("What happened to")} ${row.reference}`}
-                      className="mt-3 w-full"
-                    >
-                      <option value="">{tx("What happened to it?")}</option>
-                      {mayReportMissing ? (
-                        <option value="missing">
-                          {tx("It never came off — report it missing")}
-                        </option>
-                      ) : null}
-                      {targets.length > 0 ? (
-                        <optgroup label={tx("It is on another container")}>
-                          {targets.map((t) => (
-                            <option key={t.id} value={`move:${t.id}`}>
-                              {`${t.reference} · ${t.where}${
-                                t.route ? ` · ${t.route}` : ""
-                              } · ${t.fill}`}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : null}
-                      <option value="leave">
-                        {tx("Leave it — do not close the container")}
-                      </option>
-                    </NativeSelect>
-
-                    {answer === "missing" ? (
-                      <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
-                        <PackageX className="mt-0.5 size-3.5 shrink-0" />
-                        {tx(
-                          "A case opens on it. It keeps its row here, its code and its history, and it can never be released."
-                        )}
-                      </p>
-                    ) : answer.startsWith("move:") ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {tx(
-                          "It moves exactly as it is — same reference, code, measurements, photographs and history. Its storage clock follows the box it goes on."
-                        )}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="tnum text-sm font-semibold">{row.reference}</span>
+                        <span className="tnum text-xs text-muted-foreground">
+                          {row.packages} {tx("pkg")} · {row.cbmLabel}
+                        </span>
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {row.customer}
+                        {row.shippingMark ? ` · ${row.shippingMark}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              ))}
             </ul>
 
-            {!mayReportMissing || targets.length === 0 ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {!mayReportMissing
-                  ? tx(
-                      "Reporting a consignment missing is the Dar floor's to do; ask them, or a manager."
-                    )
-                  : tx("There is no other live container to move one onto.")}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="text-xs font-medium text-brand hover:underline"
+                onClick={() =>
+                  setPicked(picked.length === outstanding.length ? [] : outstanding.map((r) => r.id))
+                }
+              >
+                {picked.length === outstanding.length ? tx("Tick none") : tx("Tick all")}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {picked.length} {tx("of")} {outstanding.length}
+              </span>
+            </div>
+
+            <NativeSelect
+              value={outcome}
+              onChange={(e) => setOutcome(e.target.value)}
+              aria-label={tx("Where do the ticked consignments go?")}
+            >
+              <option value="">{tx("Where do they go?")}</option>
+              {targets.length > 0 ? (
+                <optgroup label={tx("Move them to")}>
+                  {targets.map((t) => (
+                    <option key={t.id} value={`move:${t.id}`}>
+                      {`${t.reference} · ${t.where}${t.route ? ` · ${t.route}` : ""} · ${t.fill}`}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {mayReportMissing ? (
+                <option value="missing">{tx("They never came off — report them missing")}</option>
+              ) : null}
+            </NativeSelect>
+
+            <Input
+              name="reason"
+              placeholder={tx("Why the sailing is being closed now")}
+              aria-label={tx("Why the sailing is being closed now")}
+            />
+
+            {left.length > 0 ? (
+              <p className="text-xs text-warning">
+                {left.length} {tx("left un-ticked stay on this container, so it will not close.")}
+              </p>
+            ) : outcome.startsWith("move:") ? (
+              <p className="text-xs text-muted-foreground">
+                {tx(
+                  "They move exactly as they are — same reference, code, measurements, photographs and history. Their storage clock follows the box they go on."
+                )}
+              </p>
+            ) : outcome === "missing" ? (
+              <p className="text-xs text-muted-foreground">
+                {tx(
+                  "A case opens on each. They keep their row here, their code and their history, and can never be released."
+                )}
               </p>
             ) : null}
 
-            <div className="mt-4 space-y-2">
-              <Input
-                name="reason"
-                placeholder={tx("Why the sailing is being closed now")}
-                aria-label={tx("Why the sailing is being closed now")}
-              />
-              <p className="text-xs text-muted-foreground">
-                {tx(
-                  "It goes on the container's history, on every consignment that moves, and on the case for anything reported missing."
-                )}
-              </p>
+            <FormMessage error={state.error} />
+
+            <div className="flex flex-wrap gap-2">
+              <SubmitButton
+                className="gap-2"
+                disabled={!outcome || left.length > 0}
+                pendingLabel={tx("Closing…")}
+              >
+                <Lock className="size-4" />
+                {tx("Close the container")}
+              </SubmitButton>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                {tx("Cancel")}
+              </Button>
             </div>
-          </>
-        )}
-
-        <FormMessage error={state.error} ok={state.ok} />
-
-        <SubmitButton
-          size="lg"
-          className="mt-4 h-12 w-full gap-2 text-base sm:w-auto sm:px-6"
-          pendingLabel={tx("Closing…")}
-        >
-          <Lock />
-          {tx("Close the container")}
-        </SubmitButton>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {tx("Today's date and time are recorded with your name.")}
-        </p>
-      </div>
-    </form>
+          </form>
+        </Modal>
+      ) : null}
+    </div>
   );
 }
