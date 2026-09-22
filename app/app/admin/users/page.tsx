@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { DeskAccountsForm } from "@/components/app/desk-accounts-form";
 import { NewUserForm } from "@/components/app/new-user-form";
 import { PageHeader } from "@/components/app/page-header";
 import { UserRow } from "@/components/app/user-row";
@@ -110,11 +111,14 @@ export default async function UsersPage() {
           </Table>
         </div>
 
-        <NewUserForm
-          warehouses={warehouses}
-          actorIsOwner={actorIsOwner}
-          locale={locale}
-        />
+        <div className="space-y-6">
+          {actorIsOwner ? <DeskAccountsForm /> : null}
+          <NewUserForm
+            warehouses={warehouses}
+            actorIsOwner={actorIsOwner}
+            locale={locale}
+          />
+        </div>
       </div>
     </div>
   );

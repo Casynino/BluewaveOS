@@ -600,3 +600,63 @@ export async function setBaseSalary(
   revalidatePath("/app/manager/payroll");
   return { ok: outcome.ok };
 }
+
+/*
+  ONE LOGIN PER DEPARTMENT, IN ONE PRESS.
+
+  So the owner can try every desk before real staff are named. Creates only
+  the desk accounts that are missing — an existing account, and its password,
+  are left exactly as they are. Owner only: it opens five accounts at once.
+*/
+const DESKS: { email: string; name: string; role: Role }[] = [
+  { email: "manager@bluewavecargo.co.tz", name: "Operations Manager", role: "MANAGER" },
+  { email: "support@bluewavecargo.co.tz", name: "Customer Support", role: "CUSTOMER_SUPPORT" },
+  { email: "china@bluewavecargo.co.tz", name: "Foshan Warehouse", role: "CHINA_WAREHOUSE" },
+  { email: "dar@bluewavecargo.co.tz", name: "Dar Warehouse", role: "DAR_WAREHOUSE" },
+  { email: "finance@bluewavecargo.co.tz", name: "Finance Officer", role: "FINANCE" },
+];
+
+export async function createDeskAccounts(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const actor = await gate();
+  if ("error" in actor) return actor;
+  if (actor.role !== OWNER) return { error: "Only the owner can open the department logins." };
+
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const created: string[] = [];
+  for (const desk of DESKS) {
+    if (await prisma.user.findUnique({ where: { email: desk.email }, select: { id: true } })) continue;
+    const kind = ROLE_WAREHOUSE_KIND[desk.role];
+    const floor = kind
+      ? await prisma.warehouse.findFirst({ where: { kind, active: true }, orderBy: { createdAt: "asc" }, select: { id: true } })
+      : null;
+    const user = await prisma.user.create({
+      data: {
+        name: desk.name,
+        email: desk.email,
+        role: desk.role,
+        department: ROLE_DEPARTMENT[desk.role],
+        locale: defaultLocaleForRole(desk.role),
+        warehouseId: floor?.id ?? null,
+        passwordHash,
+        createdById: actor.id,
+      },
+      select: { id: true },
+    });
+    await recordAudit({
+      actor,
+      action: "user.create",
+      entity: "User",
+      entityId: user.id,
+      summary: `Opened the ${desk.name} login (${desk.email})`,
+    });
+    created.push(desk.email);
+  }
+
+  revalidatePath("/app/admin/users");
+  return created.length
+    ? { ok: `Created ${created.length}: ${created.join(", ")}` }
+    : { ok: "Every department login already exists." };
+}
