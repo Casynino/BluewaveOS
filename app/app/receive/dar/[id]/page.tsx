@@ -17,7 +17,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCbm, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -249,23 +248,29 @@ export default async function CheckInContainerPage({
         }
       />
 
-      {/* Every box off the container, scanned one at a time. Arrival only —
-          each consignment is still checked in below. */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+      {/*
+        THE SCANNER IS A BAR, NOT A CHAPTER.
+
+        Every box off the container is scanned here — arrival only; each
+        consignment is still checked in on the list below. It sat in a full card
+        with a paragraph of explanation, which put the job itself a screen down
+        on the phone the dock actually uses. The rule it explains is the same
+        one the scanner says out loud when it happens.
+      */}
+      <div className="rounded-xl border bg-card p-4 shadow-soft">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="flex items-center gap-2 text-sm font-semibold">
             <ScanLine className="size-4" />
             {T("Scan boxes off the container")}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Scan the sticker on every box as it comes off. Each box is marked as arrived with your name and the time;
-            a box from another container, one scanned twice or one already handed over is flagged straight away.
           </p>
-        </CardHeader>
-        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            {T("A box from another container, one scanned twice or one already handed over is flagged straight away.")}
+          </p>
+        </div>
+        <div className="mt-3">
           <BoxScanner mode="dar" containerId={container.id} initial={boxProgress} />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/*
         THE CONTAINER'S OWN ARITHMETIC, ABOVE THE ROWS THAT MAKE IT.

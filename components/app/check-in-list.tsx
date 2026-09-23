@@ -17,6 +17,7 @@ import { DamageTag } from "@/components/app/damage-tag";
 import { DarReceiveForm } from "@/components/app/dar-receive-form";
 import { FormMessage } from "@/components/app/form-message";
 import { MissingCargoButton } from "@/components/app/missing-cargo-button";
+import { Modal } from "@/components/app/modal";
 import { AddToContainer, MoveCargo } from "@/components/app/move-cargo";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
@@ -203,6 +204,24 @@ export function CheckInList({
     added: rows.filter((r) => r.added).length,
   };
   const shown = rows.filter((r) => matchesLens(r, lens));
+  /*
+    THE WHOLE ARMFUL IN ONE PRESS.
+
+    Five clean cartons off a small box is five ticks, and ninety is ninety. The
+    floor's own habit is "these are all fine" — so that sentence gets a control,
+    over exactly the rows on screen, and never over one somebody has already
+    ruled on.
+  */
+  const pickableShown = shown.filter((r) => r.arrivedPackages === null && !r.missing);
+  const allPicked =
+    pickableShown.length > 0 && pickableShown.every((r) => picked.has(r.id));
+  const toggleAll = () =>
+    setPicked((current) => {
+      const next = new Set(current);
+      if (allPicked) for (const r of pickableShown) next.delete(r.id);
+      else for (const r of pickableShown) next.add(r.id);
+      return next;
+    });
 
   const pick = (id: string) =>
     setPicked((current) => {
@@ -232,6 +251,11 @@ export function CheckInList({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {pickableShown.length > 0 ? (
+            <Button type="button" size="sm" variant="outline" onClick={toggleAll}>
+              {allPicked ? "Clear" : `Tick all ${pickableShown.length}`}
+            </Button>
+          ) : null}
           {pickedOpen.length > 0 ? (
             <AcceptPicked
               cargoIds={pickedOpen.map((r) => r.id)}
@@ -280,7 +304,19 @@ export function CheckInList({
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="w-8 px-2 py-2" />
+                <th className="w-8 px-2 py-2">
+                  {pickableShown.length > 0 ? (
+                    <input
+                      type="checkbox"
+                      className="size-4 align-middle"
+                      checked={allPicked}
+                      onChange={toggleAll}
+                      aria-label={
+                        allPicked ? "Clear the ticked rows" : "Tick every row on screen"
+                      }
+                    />
+                  ) : null}
+                </th>
                 <th className="px-3 py-2 font-medium">Tracking</th>
                 <th className="px-3 py-2 font-medium">Customer</th>
                 <th className="px-3 py-2 font-medium">Goods</th>
@@ -400,10 +436,22 @@ function FinishCheckIn({
 
   return (
     <div className="flex flex-col items-end gap-2">
+      <Button type="button" size="sm" onClick={() => setAsking(true)}>
+        <CheckCheck />
+        Confirm container
+      </Button>
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
+
+      {/* A DIALOG, NOT A PANEL WEDGED INTO THE TOOLBAR.
+
+          It was drawn inline beside the progress bar, which pushed the bar and
+          the lens chips down the page and left the clerk reading a question
+          floating over their own list. The question stops the screen; it
+          belongs over it. */}
       {asking ? (
-        <div className="w-80 rounded-lg border bg-card p-3 shadow-raised">
-          <p className="text-sm font-medium">Confirm this container?</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <Modal title="Confirm this container?" onClose={() => setAsking(false)}>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
             Everything counted and clean is signed off, and the box is closed.
             Anything missing or damaged keeps its case and does not hold the rest
             up.
@@ -411,7 +459,7 @@ function FinishCheckIn({
 
           {remaining.length > 0 ? (
             <>
-              <p className="mt-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
                 <span className="font-semibold">
                   {remaining.length} not yet checked.
                 </span>{" "}
@@ -422,7 +470,7 @@ function FinishCheckIn({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="mt-2 w-full"
+                className="w-full"
                 onClick={tickThroughAndConfirm}
                 disabled={pending}
               >
@@ -434,7 +482,7 @@ function FinishCheckIn({
                 /* The evening decision, with a name on it. Every consignment it
                    rules over keeps a case, so none of them leaves the dock
                    without a list it is still on. */
-                <div className="mt-3 border-t pt-3">
+                <div className="border-t pt-3">
                   <label
                     htmlFor="override-reason"
                     className="text-xs font-medium"
@@ -469,13 +517,12 @@ function FinishCheckIn({
           ) : null}
 
           {error ? (
-            <p className="mt-2 text-xs font-medium text-destructive">{error}</p>
+            <p className="text-xs font-medium text-destructive">{error}</p>
           ) : null}
 
-          <div className="mt-3 flex justify-end gap-2">
+          <div className="flex justify-end gap-2 border-t pt-3">
             <Button
               type="button"
-              size="sm"
               variant="ghost"
               onClick={() => setAsking(false)}
               disabled={pending}
@@ -485,7 +532,6 @@ function FinishCheckIn({
             {remaining.length === 0 ? (
               <Button
                 type="button"
-                size="sm"
                 onClick={() => {
                   setError(null);
                   start(async () => {
@@ -499,14 +545,7 @@ function FinishCheckIn({
             ) : null}
           </div>
         </div>
-      ) : (
-        <Button type="button" size="sm" onClick={() => setAsking(true)}>
-          <CheckCheck />
-          Confirm container
-        </Button>
-      )}
-      {!asking && error ? (
-        <p className="text-xs font-medium text-destructive">{error}</p>
+        </Modal>
       ) : null}
     </div>
   );
