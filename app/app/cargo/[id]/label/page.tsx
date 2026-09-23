@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, FileText, Layers, Plus } from "lucide-react";
+import { CheckCircle2, FileText, Plus } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -100,49 +100,39 @@ export default async function CargoLabelPage({
           QR label" on the cargo page is one press rather than a page to find a
           button on. */}
       <AutoPrint />
+      {/*
+        A LINE SAYING IT WORKED, NOT A PANEL OF BUTTONS.
+
+        The label is already on the screen underneath with its own Print and its
+        own Download, so repeating them up here gave the clerk six controls for
+        two documents and pushed the sticker itself off a phone. What belongs
+        here is the other paper — the note, which is on a different page — and
+        the way back to the next customer.
+      */}
       {received ? (
-        <div className="rounded-2xl border border-success/40 bg-success/10 p-4 print:hidden">
-          <p className="flex items-center gap-2 font-semibold text-success">
-            <CheckCircle2 className="size-5" />
+        <div className="rounded-xl border border-success/40 bg-success/10 px-4 py-3 print:hidden">
+          <p className="flex items-center gap-2 text-sm font-semibold text-success">
+            <CheckCircle2 className="size-4 shrink-0" />
             Received · {cargo.reference}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Print the labels and stick one on each box — {stickers.length} box
-            {stickers.length === 1 ? "" : "es"}.
-            {cargo.deliveryNote
-              ? ` ${T("The delivery note")} ${cargo.deliveryNote.number} ${T("is ready for whoever brought them.")}`
-              : ""}
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {stickers.length} {stickers.length === 1 ? T("box") : T("boxes")}
+            {cargo.deliveryNote ? ` · ${T("delivery note")} ${cargo.deliveryNote.number}` : ""}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
-            <DocumentActions
-              className="col-span-2 sm:contents"
-              primaryPrint
-              href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
-              printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
-              downloadLabel={T("Download PDF")}
-            />
+          <div className="mt-2.5 flex flex-wrap gap-2">
             {/* Handed over before they leave, not looked for a week later. */}
             {cargo.deliveryNote ? (
-              <>
-                <Link
-                  href={`/app/cargo/${cargo.id}/delivery-note?print=1`}
-                  className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
-                >
-                  <FileText className="size-4" />
-                  {T("Print delivery note")}
-                </Link>
-                <Link
-                  href={`/app/cargo/${cargo.id}/documents?print=1`}
-                  className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
-                >
-                  <Layers className="size-4" />
-                  {T("Print both")}
-                </Link>
-              </>
+              <Link
+                href={`/app/cargo/${cargo.id}/delivery-note`}
+                className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-md border bg-background px-3 text-sm font-medium hover:bg-secondary"
+              >
+                <FileText className="size-4" />
+                {T("Delivery note")}
+              </Link>
             ) : null}
             <Link
               href="/app/receive/new"
-              className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
+              className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-md border bg-background px-3 text-sm font-medium hover:bg-secondary"
             >
               <Plus className="size-4" />
               {T("Receive next")}

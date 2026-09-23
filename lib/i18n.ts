@@ -8184,8 +8184,7 @@ const ZH: Record<string, string> = {
     "请扫描上方箱子上的标签。从列表里打开只说明是哪一票货，并不能证明柜台上的是哪一箱。",
   "Check the tracking number against the customer's paperwork yourself, and make sure the cargo is in the handover photograph — that photo is the only record that the right box left the building.":
     "请自行核对运单号与客户的单据，并确保交货照片里拍到了货物——这张照片是唯一能证明出库的是正确箱子的记录。",
-  "The delivery note": "收货单",
-  "is ready for whoever brought them.": "已准备好，可交给送货人。",
+  "delivery note": "收货单",
   "A box from another container, one scanned twice or one already handed over is flagged straight away.":
     "来自其他柜的箱子、重复扫描的箱子或已交付的箱子，会立即被标示出来。",
 };
