@@ -105,6 +105,9 @@ type View = keyof typeof VIEWS;
 
 const SORT_ORDER: Sort[] = ["newest", "waiting", "owed", "urgent"];
 
+/* Rows drawn at once. Fifty is a morning's calling and half a second of page. */
+const PAGE_SIZE = 50;
+
 /**
  * THE CALL LIST.
  *
@@ -119,7 +122,7 @@ const SORT_ORDER: Sort[] = ["newest", "waiting", "owed", "urgent"];
 export default async function CollectionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; view?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; view?: string; sort?: string; page?: string }>;
 }) {
   await primeLocale();
   const user = await requirePermission("finance.view");
@@ -127,7 +130,7 @@ export default async function CollectionsPage({
   const mayRecord = can(user.role, "payment.submit");
   /* Releasing on credit writes the pickup note, which only Finance may do. */
   const mayCredit = can(user.role, "payment.verify");
-  const { q, view, sort } = await searchParams;
+  const { q, view, sort, page: askedPage } = await searchParams;
   const query = q?.trim() ?? "";
   const chosen: View = view && view in VIEWS ? (view as View) : "all";
   const order: Sort = sort && sort in SORTS ? (sort as Sort) : "newest";
@@ -413,6 +416,28 @@ export default async function CollectionsPage({
 
   const overdue = rows.filter((r) => r.late > 0).length;
 
+  /*
+    THE MONEY IS COUNTED OVER THE WHOLE LIST; THE CALLS ARE MADE A PAGE AT A
+    TIME.
+
+    Every figure above — owed, overdue, due this week — is summed over the
+    selection, because a desk that reads "TZS 20m outstanding" must be reading
+    all of it. What is drawn as rows is fifty at a time: at six hundred open
+    bills the page was rendering every one of them, which is the ten seconds
+    somebody waited before they could press a single WhatsApp button.
+
+    Balances are derived at read time and never stored, so the page cannot be
+    sliced in SQL: the whole selection is valued, then sorted, then cut.
+  */
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(askedPage) || 1), pages);
+  const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const firstOnPage = shown.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastOnPage = Math.min(page * PAGE_SIZE, shown.length);
+  /* A filter, a sort or a search puts the desk back at the top of the list. */
+  const pageHref = (to: number) =>
+    `/app/finance/collections?view=${chosen}&sort=${order}${query ? `&q=${encodeURIComponent(query)}` : ""}${to > 1 ? `&page=${to}` : ""}`;
+
   return (
     <div className="space-y-6">
       <CollectionsHeader
@@ -555,6 +580,12 @@ export default async function CollectionsPage({
           <span className="tnum">
             <span className="font-semibold text-foreground">{shown.length}</span>{" "}
             on this list
+            {pages > 1 ? (
+              <span className="text-muted-foreground">
+                {" · "}
+                {T("showing")} {firstOnPage}–{lastOnPage}
+              </span>
+            ) : null}
           </span>
           <span className="tnum">
             Due today{" "}
@@ -608,7 +639,7 @@ export default async function CollectionsPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shown.map((row) => (
+              {pageRows.map((row) => (
                 <TableRow key={row.invoice.id}>
                   <TableCell className="text-sm font-semibold">
                     {row.invoice.customer.fullName}
@@ -770,6 +801,34 @@ export default async function CollectionsPage({
           </Table>
         )}
       </Card>
+
+      {pages > 1 ? (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          {page > 1 ? (
+            <Link
+              href={pageHref(page - 1)}
+              className="focus-ring rounded-md border bg-card px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+            >
+              ← {T("Back")}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="tnum text-xs text-muted-foreground">
+            {T("Page")} {page} {T("of")} {pages}
+          </span>
+          {page < pages ? (
+            <Link
+              href={pageHref(page + 1)}
+              className="focus-ring rounded-md border bg-card px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+            >
+              {T("More")} →
+            </Link>
+          ) : (
+            <span />
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
