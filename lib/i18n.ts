@@ -8199,6 +8199,8 @@ const ZH: Record<string, string> = {
   "e.g. Not in bay C where the check-in put it, not on the overflow rack, not in the Dar office van.":
     "例如：入库记录写的 C 区没有，备用货架上没有，达累斯萨拉姆办公室的车上也没有。",
   "Do not release this": "不要放行这票货",
+  "Count in": "清点入库",
+  "Something is wrong with": "有问题的是",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

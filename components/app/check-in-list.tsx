@@ -885,36 +885,53 @@ function CheckInRowView({
         </tr>
       ) : null}
 
+      {/*
+        THE BENCH OPENS OVER THE LIST, NOT INSIDE IT.
+
+        These forms used to unfold into the row itself, eleven columns wide:
+        the consignment being counted scrolled off the top, the table's own
+        headings sat above a page of fields belonging to no visible row, and
+        the clerk lost which carton they were looking at. A dialog names the
+        consignment, takes the whole screen's attention while the figures are
+        typed, and gives it straight back.
+      */}
       {counting ? (
-        <tr className="border-t bg-secondary/30">
-          <td colSpan={11} className="px-6 py-4">
-            <DarReceiveForm
-              cargoId={row.id}
-              warehouses={warehouses}
-              defaultWarehouseId={defaultWarehouseId}
-              china={row.china}
-              existing={row.existing}
-            />
-          </td>
-        </tr>
+        <Modal
+          title={`${tx("Count in")} ${row.reference}`}
+          className="max-w-2xl"
+          onClose={() => setCounting(false)}
+        >
+          <RowHeading row={row} />
+          <DarReceiveForm
+            cargoId={row.id}
+            warehouses={warehouses}
+            defaultWarehouseId={defaultWarehouseId}
+            china={row.china}
+            existing={row.existing}
+            onDone={() => setCounting(false)}
+          />
+        </Modal>
       ) : null}
 
       {moving ? (
-        <tr className="border-t bg-secondary/30">
-          <td colSpan={11} className="px-6 py-4">
-            <MoveCargo
-              cargoId={row.id}
-              containerId={containerId}
-              reference={row.reference}
-              containers={otherContainers}
-            />
-          </td>
-        </tr>
+        <Modal title={`${tx("Move")} ${row.reference}`} onClose={() => setMoving(false)}>
+          <RowHeading row={row} />
+          <MoveCargo
+            cargoId={row.id}
+            containerId={containerId}
+            reference={row.reference}
+            containers={otherContainers}
+          />
+        </Modal>
       ) : null}
 
       {flagging ? (
-        <tr className="border-t bg-secondary/30">
-          <td colSpan={11} className="px-6 py-4">
+        <Modal
+          title={`${tx("Something is wrong with")} ${row.reference}`}
+          className="max-w-xl"
+          onClose={() => setFlagging(false)}
+        >
+          <RowHeading row={row} />
             <p className="mb-3 text-sm text-muted-foreground">
               It did not come off the container, or it came off damaged. Either
               opens a case naming what was expected against what arrived — and
@@ -941,10 +958,27 @@ function CheckInRowView({
                 condition={row.condition}
               />
             </div>
-          </td>
-        </tr>
+        </Modal>
       ) : null}
     </>
+  );
+}
+
+/** Which consignment the dialog is about, in the words the row uses. */
+function RowHeading({ row }: { row: CheckInRow }) {
+  return (
+    <div className="rounded-lg border bg-secondary/40 px-4 py-3">
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <span className="tnum text-sm font-semibold">{row.reference}</span>
+        <span className="text-sm text-muted-foreground">{row.customer}</span>
+      </p>
+      <p className="tnum mt-0.5 text-xs text-muted-foreground">
+        <Tx>{row.description}</Tx>
+        {` · ${row.expectedPackages} pkg`}
+        {row.expectedPieces > 0 ? `, ${row.expectedPieces} pcs` : ""}
+        {row.expectedCbm ? ` · ${row.expectedCbm}` : ""}
+      </p>
+    </div>
   );
 }
 

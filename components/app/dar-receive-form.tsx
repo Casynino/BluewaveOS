@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { PackageCheck, TriangleAlert } from "lucide-react";
 
 import { receiveInDar, type ActionState } from "@/lib/actions/dar";
 import { FormMessage } from "@/components/app/form-message";
 import { SubmitButton } from "@/components/app/submit-button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -33,6 +34,7 @@ export function DarReceiveForm({
   defaultWarehouseId,
   china,
   existing,
+  onDone,
 }: {
   cargoId: string;
   warehouses: { id: string; name: string }[];
@@ -54,6 +56,8 @@ export function DarReceiveForm({
     discrepancyNotes: string | null;
     warehouseId: string;
   } | null;
+  /** Given when the bench opens in a dialog: closes it once the row is saved. */
+  onDone?: () => void;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
@@ -64,6 +68,12 @@ export function DarReceiveForm({
     existing?.packagesCount?.toString() ?? ""
   );
   const [condition, setCondition] = useState(existing?.condition ?? "GOOD");
+
+  /* The dialog closes on the answer, not on the press: a save that failed
+     leaves the clerk looking at their own figures and the reason. */
+  useEffect(() => {
+    if (state.ok && onDone) onDone();
+  }, [state.ok, onDone]);
 
   const mismatch =
     china !== null && count !== "" && Number(count) !== china.packagesCount;
@@ -242,10 +252,17 @@ export function DarReceiveForm({
       </div>
 
       <FormMessage error={state.error} ok={state.ok} />
-      <SubmitButton>
-        <PackageCheck />
-        {existing ? "Save receiving record" : "Confirm received at Dar"}
-      </SubmitButton>
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton>
+          <PackageCheck />
+          {existing ? "Save receiving record" : "Confirm received at Dar"}
+        </SubmitButton>
+        {onDone ? (
+          <Button type="button" variant="ghost" onClick={onDone}>
+            {tx("Cancel")}
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }
