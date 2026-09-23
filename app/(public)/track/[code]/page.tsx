@@ -6,13 +6,16 @@ import { JourneyGroups, RouteStage, WhatNext, phaseOf, stageCopy } from "@/compo
 import { TrackField } from "@/components/bw/track-field";
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { CargoPhotos } from "@/components/site/cargo-photos";
-import { formatDateTime } from "@/lib/format";
+import { mergedBillFor } from "@/lib/combined-bill";
+import { formatCurrency } from "@/lib/currency";
+import type { InvoiceAccount } from "@/lib/invoice-accounts";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { currentUser } from "@/lib/session";
 import { clientAddress, hit } from "@/lib/rate-limit";
 import { whatsappLink, WHATSAPP_OPENER } from "@/lib/site-contact";
 import { SHARE_CARD_TEXT } from "@/lib/share-card-text";
-import { trackKeyValid } from "@/lib/track-key";
+import { trackKey, trackKeyValid } from "@/lib/track-key";
 import { referenceFromInput, trackByReference, type PublicTracking } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 
@@ -89,15 +92,101 @@ const dayMonthYear = (value: string | null) =>
       }).format(new Date(value))
     : "—";
 
+/**
+ * THE MERGED VIEW, WHEN THE LINK ASKS FOR ONE.
+ *
+ * `all=1` is what a merged-payment message sends: one key, signed over one
+ * reference, widened on the server to the bills that reference is paid with.
+ * The customer comes from the cargo the key names — never from the address —
+ * and every row carries its own signed key through to its own tracking page,
+ * so nothing here takes tracking away from a consignment.
+ *
+ * Without `all=1` this is never built and the page is what it has always been.
+ */
+type MergedView = {
+  count: number;
+  references: string[];
+  invoiceHref: string;
+  status: "UNPAID" | "PART_PAID" | "PAID";
+  headline: string;
+  equivalent: string | null;
+  billed: string | null;
+  paid: string | null;
+  rate: string | null;
+  rows: {
+    reference: string;
+    href: string;
+    goods: string;
+    stage: string;
+    cbm: string;
+    packages: string;
+    invoiceNumber: string;
+    amount: string;
+  }[];
+  payments: { date: string; reference: string; amount: string }[];
+  accounts: InvoiceAccount[];
+};
+
+async function mergedView(reference: string): Promise<MergedView | null> {
+  const merged = await mergedBillFor(reference);
+  /* One bill is not a merge, and the page says nothing new about it. */
+  if (!merged || merged.rows.length < 2) return null;
+
+  const totals = merged.totals;
+  const settled = merged.status === "PAID";
+  const headlineTzs = settled ? totals.billedTzs : totals.outstandingTzs;
+  const headlineUsd = settled ? totals.billedUsd : totals.outstandingUsd;
+
+  return {
+    count: merged.rows.length,
+    references: merged.rows.map((row) => row.reference),
+    invoiceHref: `/track/${encodeURIComponent(reference)}/invoice?all=1&k=${encodeURIComponent(trackKey(reference))}`,
+    status: merged.status,
+    headline: headlineTzs
+      ? formatCurrency(headlineTzs, "TZS")
+      : formatCurrency(totals.unconvertedOutstanding, "USD"),
+    equivalent: headlineTzs && headlineUsd ? formatCurrency(headlineUsd, "USD") : null,
+    /* What was billed, and only once something has been received against it:
+       with nothing paid it is the figure printed above it. */
+    billed:
+      totals.billedTzs && totals.paidTzs && totals.paidTzs.greaterThan(0)
+        ? formatCurrency(totals.billedTzs, "TZS")
+        : null,
+    paid: totals.paidTzs && totals.paidTzs.greaterThan(0) ? formatCurrency(totals.paidTzs, "TZS") : null,
+    /* Only where every bill in the group was pinned at the same rate. */
+    rate: merged.sharedRate ? grouped(merged.sharedRate.toDecimalPlaces(0).toString()) : null,
+    rows: merged.rows.map((row) => ({
+      reference: row.reference,
+      /* Its own key: a row that refused to open would send the customer to the
+         office to ask why their own cargo is hidden. */
+      href: `/track/${encodeURIComponent(row.reference)}?k=${encodeURIComponent(trackKey(row.reference))}`,
+      goods: row.description || "—",
+      stage: row.stageLabel,
+      cbm: row.cbm ? `${row.cbm.toFixed(3)} CBM` : "—",
+      packages: row.packages !== null ? String(row.packages) : "—",
+      invoiceNumber: row.invoiceNumber,
+      amount: row.outstandingTzs
+        ? formatCurrency(row.outstandingTzs, "TZS")
+        : formatCurrency(row.outstanding, row.currency),
+    })),
+    payments: merged.payments.map((payment) => ({
+      date: formatDate(payment.paidAt),
+      reference: payment.reference,
+      amount: formatCurrency(payment.amount, payment.currency),
+    })),
+    accounts: merged.accounts,
+  };
+}
+
 export default async function TrackResultPage({
   params,
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ k?: string }>;
+  searchParams: Promise<{ k?: string; all?: string }>;
 }) {
   const { code } = await params;
-  const { k } = await searchParams;
+  const { k, all } = await searchParams;
   const reference = referenceFromInput(safeDecode(code));
 
   if (!reference) {
@@ -177,10 +266,25 @@ export default async function TrackResultPage({
       : 0;
   const full = trackKeyValid(result.reference, k) || owner > 0;
 
-  return <Result result={result} invoiceHref={invoiceHref} full={full} />;
+  /* The merged view is the customer's own link and nothing else: the key has
+     to be the one we signed for this reference. The signed-in owner reads
+     their whole account in the portal, which is where that belongs. */
+  const merged = all === "1" && trackKeyValid(result.reference, k) ? await mergedView(result.reference) : null;
+
+  return <Result result={result} invoiceHref={invoiceHref} full={full} merged={merged} />;
 }
 
-function Result({ result, invoiceHref, full }: { result: PublicTracking; invoiceHref: string | null; full: boolean }) {
+function Result({
+  result,
+  invoiceHref,
+  full,
+  merged,
+}: {
+  result: PublicTracking;
+  invoiceHref: string | null;
+  full: boolean;
+  merged: MergedView | null;
+}) {
   const { journey, charge, storage } = result;
   /* Opens with the greeting already in the box. See lib/site-contact.ts. */
   const wa = whatsappLink(result.whatsapp, WHATSAPP_OPENER);
@@ -264,13 +368,27 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
         <Frame className="grid gap-6 py-10 lg:grid-cols-12 lg:py-14">
           <div className="space-y-6 lg:col-span-7">
             <div>
-              <Label className="text-bw-muted">Payment</Label>
+              <Label className="text-bw-muted">{merged ? "Merged payment" : "Payment"}</Label>
               <h2 id="payment" className="bw-display mt-3 text-3xl uppercase text-bw-fg sm:text-4xl">
-                {!charge ? "No invoice yet" : settled ? "Paid" : charge.status === "PART_PAID" ? "Partly paid" : "Payment due"}
+                {merged
+                  ? merged.status === "PAID"
+                    ? "Paid"
+                    : merged.status === "PART_PAID"
+                      ? "Partly paid"
+                      : "Payment due"
+                  : !charge
+                    ? "No invoice yet"
+                    : settled
+                      ? "Paid"
+                      : charge.status === "PART_PAID"
+                        ? "Partly paid"
+                        : "Payment due"}
               </h2>
             </div>
 
-            {!charge ? (
+            {merged ? (
+              <MergedCharge merged={merged} reference={result.reference} wa={wa} whatsappLabel={result.whatsappLabel} />
+            ) : !charge ? (
               <p className="text-bw-muted">
                 Your invoice is raised once the cargo is checked in at our Dar es Salaam warehouse. It will appear here and in your account.
               </p>
@@ -418,6 +536,143 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
       </section>
 
     </>
+  );
+}
+
+/**
+ * SEVERAL CONSIGNMENTS, ONE THING TO PAY.
+ *
+ * The payment is merged; the cargo is not. The card says plainly how many
+ * consignments this one figure covers, names every one of them, and hands each
+ * of them back its own tracking page. The download is the combined bill — the
+ * document that matches the figure above it — never one consignment's invoice.
+ */
+function MergedCharge({
+  merged,
+  reference,
+  wa,
+  whatsappLabel,
+}: {
+  merged: MergedView;
+  reference: string;
+  wa: string | null;
+  whatsappLabel: string | null;
+}) {
+  const settled = merged.status === "PAID";
+  return (
+    <div className="overflow-hidden rounded-[3px] border border-bw-line bg-bw-panel">
+      <div className="border-b border-bw-line p-6">
+        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">
+          {settled ? "Settled in full" : "Amount due"} · {merged.count} consignments
+        </p>
+        <p className="bw-mono mt-2 text-[clamp(2rem,5vw,3rem)] font-semibold leading-none text-bw-fg">
+          {merged.headline}
+        </p>
+        {merged.equivalent ? <p className="bw-mono mt-2 text-sm text-bw-muted">≈ {merged.equivalent}</p> : null}
+        <p className="mt-3 text-sm text-bw-muted">
+          This link covers {merged.count} consignments on one payment:{" "}
+          <span className="bw-mono text-bw-fg">{merged.references.join(", ")}</span>. Each one keeps its own
+          tracking number and its own invoice.
+        </p>
+        {merged.billed || merged.paid ? (
+          <p className="bw-mono mt-2 text-xs text-bw-muted">
+            {merged.billed ? `Billed ${merged.billed}` : ""}
+            {merged.billed && merged.paid ? " · " : ""}
+            {merged.paid ? `Received ${merged.paid}` : ""}
+          </p>
+        ) : null}
+      </div>
+
+      {/* The combined bill, not one consignment's invoice: what is downloaded
+          has to be the document behind the figure above it. */}
+      <div className="border-b border-bw-line bg-bw-ground">
+        <a href={merged.invoiceHref} download rel="nofollow" className="group flex items-center gap-4 px-6 py-4">
+          <FileText className="size-6 shrink-0 text-bw-harbour" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-bw-fg">Pakua invoice ya pamoja hapa</span>
+            <span className="block text-sm text-bw-muted">
+              Download the merged invoice for all {merged.count} consignments · PDF
+            </span>
+          </span>
+          <Download className="size-5 shrink-0 text-bw-coral transition-transform group-hover:translate-y-0.5" />
+        </a>
+      </div>
+
+      {/* Every consignment, with where it stands and a way through to its own
+          page. Two consignments on one payment are still two consignments. */}
+      <ul className="divide-y divide-bw-line">
+        {merged.rows.map((row) => (
+          <li key={row.reference}>
+            <Link href={row.href} className="block px-6 py-4 hover:bg-bw-ground">
+              <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="bw-mono font-semibold text-bw-fg">{row.reference}</span>
+                <span className="bw-mono text-sm text-bw-fg">{row.amount}</span>
+              </span>
+              <span className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm text-bw-muted">
+                <span className="min-w-0">
+                  {row.stage}
+                  {row.goods !== "—" ? ` · ${row.goods}` : ""}
+                </span>
+                <span className="bw-mono text-xs">
+                  {row.cbm} · {row.packages} pkg · {row.invoiceNumber}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {merged.rate ? (
+        <p className="bw-mono border-t border-bw-line px-6 py-3 text-xs text-bw-muted">
+          Rate iliyotumika: USD 1 = TZS {merged.rate}
+        </p>
+      ) : null}
+
+      {/* Each transfer as it arrived, in the currency it arrived in. */}
+      {merged.payments.length > 0 ? (
+        <dl className="space-y-2 border-t border-bw-line px-6 py-5 text-sm">
+          <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">Malipo yaliyopokelewa</dt>
+          {merged.payments.map((payment) => (
+            <dd key={payment.reference} className="flex justify-between gap-4">
+              <span className="bw-mono text-bw-muted">
+                {payment.date} · {payment.reference}
+              </span>
+              <span className="bw-mono text-bw-fg">{payment.amount}</span>
+            </dd>
+          ))}
+        </dl>
+      ) : null}
+
+      {!settled && merged.accounts.length > 0 ? (
+        <div className="border-t border-bw-line px-6 py-6">
+          <p className="font-bw-display text-xl font-semibold uppercase text-bw-fg">Njia za malipo</p>
+          <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2">
+            {merged.accounts.map((account) => (
+              <li key={`${account.bankName}-${account.accountNumber}`} className="bg-bw-panel p-4">
+                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
+                  {account.bankName}
+                  {account.kind === "MOBILE_MONEY" ? " — Lipa number" : ` — ${account.currency}`}
+                </p>
+                <p className="bw-mono mt-1 text-lg font-semibold text-bw-fg">{account.accountNumber}</p>
+                <p className="text-sm text-bw-muted">{account.accountName}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-sm text-bw-muted">
+            Lipa jumla kwa muamala mmoja na utumie <span className="bw-mono font-semibold text-bw-fg">{reference}</span>{" "}
+            kama kumbukumbu ya malipo. Baada ya kulipa, tuma uthibitisho kwa{" "}
+            {wa ? (
+              <a href={wa} target="_blank" rel="noopener noreferrer" className="font-semibold text-bw-coral hover:underline">
+                WhatsApp {whatsappLabel}
+              </a>
+            ) : (
+              "WhatsApp"
+            )}
+            .
+          </p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

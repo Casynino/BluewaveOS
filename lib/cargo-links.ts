@@ -49,6 +49,29 @@ export function trackLink(reference: string): string {
   return `${siteBase()}/track/${encodeURIComponent(reference)}?${SHARE_TAG}&k=${trackKey(reference)}`;
 }
 
+/**
+ * THE TWO ADDRESSES A MERGED PAYMENT IS SENT WITH.
+ *
+ * Both are signed over ONE reference — the consignment named here — and both
+ * carry `all=1`, which asks the page and the route to widen to the rest of
+ * that customer's bills in the same group. The widening is worked out on the
+ * server from the cargo this key names (lib/combined-bill.ts); a customer is
+ * never read out of an address bar.
+ *
+ *   track    the merged view: every consignment in the group, each of them
+ *            clickable through to its own tracking page
+ *   invoice  the combined bill as a PDF — one document for the one payment
+ *
+ * The tracking link keeps SHARE_TAG so WhatsApp fetches a fresh card; the
+ * invoice link is a download and has no card to draw.
+ */
+export function mergedLinks(reference: string): { track: string; invoice: string } {
+  return {
+    track: `${trackLink(reference)}&all=1`,
+    invoice: `${siteBase()}/track/${encodeURIComponent(reference)}/invoice?k=${trackKey(reference)}&all=1`,
+  };
+}
+
 type LinkInput = {
   reference: string;
   /** The live bill, when there is one. A draft is nobody's bill and gets no link. */

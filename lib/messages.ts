@@ -187,6 +187,40 @@ function rateLine(context: MessageContext): string | null {
 }
 
 /**
+ * THE FREE-STORAGE PARAGRAPH, WRITTEN ONCE.
+ *
+ * The same words on a single consignment's letter and on the merged one: the
+ * clock the customer is told about is the clock lib/storage-clock.ts counts,
+ * and two wordings would eventually promise two different last days.
+ */
+function storageParagraph(input: {
+  freeDays?: number | null;
+  pickupAddress?: string | null;
+  storageFrom?: Date | null;
+  lastFreeDay: Date | null;
+  /** The goods are on the Dar floor: the days are running, not coming. */
+  landed: boolean;
+  plural: boolean;
+}): string {
+  const days = input.freeDays ?? 7;
+  const where = input.pickupAddress ? ` (${input.pickupAddress})` : "";
+  const goods = input.plural ? "mizigo yako" : "mzigo wako";
+  const head = `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}`;
+  if (input.storageFrom) {
+    return (
+      head +
+      (input.lastFreeDay ? `, hadi ${day(input.lastFreeDay)}.` : ".") +
+      " Baada ya hapo storage charges zinaweza kutozwa."
+    );
+  }
+  return input.landed
+    ? `${head}, kuanzia siku ${goods} ${input.plural ? "ilipofika" : "ulipofika"}.`
+    : `*STORAGE:* Utapata siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku ${goods} ${
+        input.plural ? "itakapofika" : "utakapofika"
+      }.`;
+}
+
+/**
  * THE LETTER THAT GOES WITH THE GOODS IN DAR.
  *
  * In the shape BlueWave's customers already know from WhatsApp: one heading,
@@ -221,16 +255,14 @@ function darBillLetter(
   }
   if (context.fxRate) money.push(`• Exchange Rate: 1 USD = ${context.fxRate} TZS`);
 
-  const days = context.freeStorageDays ?? 7;
-  const last = lastFreeDayOf(context);
-  const where = context.pickupAddress ? ` (${context.pickupAddress})` : "";
-  const storage = context.storageFrom
-    ? `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}` +
-      (last ? `, hadi ${day(last)}.` : ".") +
-      " Baada ya hapo storage charges zinaweza kutozwa."
-    : stage === "ARRIVED_IN_DAR" || stage === "READY_FOR_PICKUP"
-      ? `*STORAGE:* Una siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako ulipofika.`
-      : `*STORAGE:* Utapata siku ${days} bure za kuhifadhiwa kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mzigo wako utakapofika.`;
+  const storage = storageParagraph({
+    freeDays: context.freeStorageDays,
+    pickupAddress: context.pickupAddress,
+    storageFrom: context.storageFrom,
+    lastFreeDay: lastFreeDayOf(context),
+    landed: stage === "ARRIVED_IN_DAR" || stage === "READY_FOR_PICKUP",
+    plural: false,
+  });
 
   return [
     `*${COMPANY.name.toUpperCase()}*`,
@@ -244,6 +276,134 @@ function darBillLetter(
     ].join("\n"),
     storage,
     ...(ref ? [`*${context.invoiceId ? "Angalia invoice na njia za malipo" : "Fuatilia mzigo wako"}:*\n${trackLink(ref)}`] : []),
+  ].join("\n\n");
+}
+
+/** One consignment as the merged letter lists it. */
+export type MergeLetterCargo = {
+  reference: string;
+  description?: string | null;
+  /** This bill's own outstanding, formatted with its currency code. */
+  outstanding: string;
+  /** Where this consignment stands, in its own right. */
+  stage?: string | null;
+};
+
+export type MergeLetterContext = {
+  customerName: string;
+  cargo: MergeLetterCargo[];
+  /** The goods added up, as the counter measured them. */
+  packages?: number | null;
+  pieces?: number | null;
+  cbm?: string | null;
+  containers?: string[];
+  /** The group in the shillings it is collected in. */
+  billedTzs?: string | null;
+  paidTzs?: string | null;
+  amountTzs?: string | null;
+  /** The dollar equivalent of what is left, when the bills carry a rate. */
+  amountUsd?: string | null;
+  /**
+   * The rate the bills were PINNED at, and only when every one of them shares
+   * it. Two bills issued in different months carry two rates, and printing one
+   * of them over both would be wrong for half the money.
+   */
+  fxRate?: string | null;
+  /** Nothing is left to pay on any of them. */
+  paid?: boolean;
+  /** Some money has landed and some has not. */
+  partlyPaid?: boolean;
+  freeStorageDays?: number | null;
+  storageFrom?: Date | null;
+  lastFreeDay?: Date | null;
+  /** What the floor has charged so far, when it is charging at all. */
+  storageCharge?: string | null;
+  pickupAddress?: string | null;
+  /** Where the whole group is tracked, and where the one document is. */
+  trackLink: string;
+  invoiceLink: string;
+};
+
+/**
+ * THE LETTER FOR ONE PAYMENT COVERING SEVERAL CONSIGNMENTS.
+ *
+ * Built to the shape of `darBillLetter` above — the heading, the greeting, one
+ * line of lead, blocks of `• Label: value`, the money in shillings with its
+ * dollar figure, the free storage — because that is the letter BlueWave's
+ * customers already know. What it adds is the group: every reference on its own
+ * line with what that bill still owes, so the total is made of figures the
+ * customer can check one at a time.
+ *
+ * TWO LINKS, AND THEY DO DIFFERENT THINGS. Tracking is where the cargo is;
+ * the invoice is the document to pay from. A customer who taps the wrong one
+ * rings the office, so they are labelled apart rather than folded into one.
+ *
+ * THE CARGO IS NOT MERGED, ONLY THE PAYMENT. Every consignment keeps its own
+ * reference here exactly as it keeps its own record, and the merged tracking
+ * page the first link opens carries each of them through to its own page.
+ */
+export function mergeBillLetter(context: MergeLetterContext): string {
+  const name = context.customerName.split(" ")[0] || context.customerName;
+  const owing = !context.paid;
+  const count = context.cargo.length;
+
+  /* One status for the group only while they agree; otherwise each
+     consignment carries its own on its own line. A container that has landed
+     and one still at sea are not one status. */
+  const stages = [...new Set(context.cargo.map((c) => c.stage).filter(Boolean))] as string[];
+  const oneStage = stages.length === 1 ? stages[0] : null;
+
+  const cargoRows = context.cargo.map((c) => {
+    const goods = c.description?.trim() ? ` — ${c.description.trim()}` : "";
+    const stage = !oneStage && c.stage ? ` (${c.stage})` : "";
+    return `• ${c.reference}${goods}: ${c.outstanding}${stage}`;
+  });
+
+  const containers = [...new Set((context.containers ?? []).filter(Boolean))];
+  const detailRows: [string, string | null | undefined][] = [
+    ["Mizigo", context.packages ? String(context.packages) : null],
+    ["Vipande", context.pieces ? String(context.pieces) : null],
+    ["Ujazo", context.cbm ? `${context.cbm} CBM` : null],
+    ["Kontena", containers.length ? containers.join(", ") : null],
+    ["Status", oneStage],
+  ];
+
+  const money: string[] = [];
+  if (context.billedTzs) money.push(`• Jumla ya bili: TZS ${context.billedTzs}`);
+  if (context.paidTzs) money.push(`• Imelipwa: TZS ${context.paidTzs}`);
+  if (context.amountTzs) {
+    money.push(`• *${owing ? "Kiasi cha kulipa" : "Kiasi"}: TZS ${context.amountTzs}*`);
+    if (context.amountUsd) money.push(`• Sawa na: USD ${context.amountUsd}`);
+  }
+  if (context.fxRate) money.push(`• Exchange Rate: 1 USD = ${context.fxRate} TZS`);
+  money.push(
+    `• Hali ya malipo: ${
+      context.paid ? "Imelipwa yote" : context.partlyPaid ? "Imelipwa kiasi" : "Haijalipwa"
+    }`
+  );
+
+  const storage = storageParagraph({
+    freeDays: context.freeStorageDays,
+    pickupAddress: context.pickupAddress,
+    storageFrom: context.storageFrom,
+    lastFreeDay: context.lastFreeDay ?? null,
+    landed: Boolean(context.storageFrom),
+    plural: true,
+  });
+
+  const details = detailRows.filter(([, v]) => v).map(([l, v]) => `• ${l}: ${v}`);
+
+  return [
+    `*${COMPANY.name.toUpperCase()}*`,
+    `Habari ${name}!`,
+    `Mizigo yako ${count} imewekwa kwenye bili moja ya malipo ili ulipe kwa muamala mmoja. Kila mzigo unabaki na namba yake ya kufuatilia.`,
+    [`*MIZIGO ILIYOMO (${count})*`, ...cargoRows].join("\n"),
+    /* A block with no rows under it is a heading standing on its own. */
+    ...(details.length ? [["*MAELEZO YA MZIGO*", ...details].join("\n")] : []),
+    ["*MALIPO*", ...money].join("\n"),
+    storage + (context.storageCharge ? ` Storage iliyokwisha tozwa: ${context.storageCharge}.` : ""),
+    `*Fuatilia mizigo yako yote:*\n${context.trackLink}`,
+    `*Pakua invoice ya pamoja (PDF):*\n${context.invoiceLink}`,
   ].join("\n\n");
 }
 
