@@ -73,20 +73,22 @@ describe("the merged payment letter", () => {
 
     assert.equal(blocks[0], "*BLUEWAVE CARGO*");
     /* First name only, as every other BlueWave letter greets. */
-    assert.equal(blocks[1], "Habari Juma!");
-    assert.match(blocks[2], /^Mizigo yako 2 /);
-    assert.ok(text.includes("*MIZIGO ILIYOMO (2)*"), "the consignments are named as a block");
-    assert.ok(text.includes("*MAELEZO YA MZIGO*"), "the goods, in the block every letter uses");
-    assert.ok(text.includes("*MALIPO*"));
-    assert.match(text, /\*STORAGE:\* [\w]+ siku 7 bure /);
+    assert.equal(blocks[1], "Habari Juma,");
+    assert.match(blocks[2], /^Invoice zako 2 zimeunganishwa /);
+    assert.ok(blocks[3].startsWith("Kila mzigo bado una Tracking Number"));
+    assert.ok(text.includes("📦 *MIZIGO ILIYOJUMUISHWA (2)*"), "the consignments are named as a block");
+    assert.ok(text.includes("*MAELEZO YA JUMLA*"), "the goods, under their own heading");
+    assert.ok(text.includes("💰 *TAARIFA ZA MALIPO*"));
+    assert.match(text, /📦 \*STORAGE\*\n[\w]+ siku 7 bure /);
+    /* The sign-off the owner reads out on the phone. */
+    assert.ok(text.trimEnd().endsWith("BlueWave Cargo — Kwetu Muda ni Mali."));
   });
 
   test("names every consignment with what its own bill owes", () => {
     const text = letter();
     assert.ok(text.includes("• BW0019 — Ladies handbags: TZS 1,146,960"));
     assert.ok(text.includes("• BW0020 — Shoes: TZS 540,000"));
-    /* The total is the figure to send, and it is the bold one. */
-    assert.ok(text.includes("• *Kiasi cha kulipa: TZS 1,686,960*"));
+    assert.ok(text.includes("• Kiasi cha kulipa: TZS 1,686,960"));
     assert.ok(text.includes("• Sawa na: USD 624.80"));
   });
 
@@ -100,10 +102,10 @@ describe("the merged payment letter", () => {
       amountTzs: "1,146,960",
       amountUsd: "424.80",
     });
-    assert.ok(text.includes("*MIZIGO ILIYOMO (1)*"));
+    assert.ok(text.includes("📦 *MIZIGO ILIYOJUMUISHWA (1)*"));
     assert.ok(text.includes("• BW0019 — Ladies handbags: TZS 1,146,960"));
     assert.equal(text.includes("BW0020"), false);
-    assert.ok(text.includes("• *Kiasi cha kulipa: TZS 1,146,960*"));
+    assert.ok(text.includes("• Kiasi cha kulipa: TZS 1,146,960"));
   });
 
   test("the goods are added up, and the totals of two consignments are one block", () => {
@@ -121,7 +123,7 @@ describe("the merged payment letter", () => {
        Printing one of them over both would be wrong for half the money, so
        nothing is said instead. */
     assert.equal(letter().includes("Exchange Rate"), false);
-    assert.ok(letter({ fxRate: "2,700" }).includes("• Exchange Rate: 1 USD = 2,700 TZS"));
+    assert.ok(letter({ fxRate: "2,700" }).includes("• Exchange Rate: 1 USD = TZS 2,700"));
   });
 
   test("says where the payment stands, and never guesses", () => {
@@ -154,17 +156,25 @@ describe("the merged payment letter", () => {
 
   test("two links, and they say which is which", () => {
     const text = letter();
-    assert.ok(text.includes(`*Fuatilia mizigo yako yote:*\n${TRACK}`));
-    assert.ok(text.includes(`*Pakua invoice ya pamoja (PDF):*\n${INVOICE}`));
+    assert.ok(
+      text.includes(
+        `🔎 *FUATILIA MIZIGO YAKO*\nFuatilia mizigo yote iliyopo kwenye Invoice ya Pamoja:\n${TRACK}`
+      )
+    );
+    assert.ok(
+      text.includes(
+        `📄 *PAKUA INVOICE YA PAMOJA*\nHii ni Invoice ya Pamoja yenye mizigo yote iliyounganishwa:\n${INVOICE}`
+      )
+    );
     /* The document is the last thing in the letter — the thing to act on. */
-    assert.ok(text.trimEnd().endsWith(INVOICE));
+    assert.ok(text.includes(`${INVOICE}\n\nBlueWave Cargo`));
   });
 
   test("the storage clock is only promised once the goods have landed", () => {
     const waiting = letter({ storageFrom: null });
     assert.match(waiting, /Utapata siku 7 bure .* itakapofika\./);
     const landed = letter({ storageFrom: new Date("2026-09-01T08:00:00Z"), lastFreeDay: new Date("2026-09-07T08:00:00Z") });
-    assert.match(landed, /hadi 7 Sept? 2026\./);
+    assert.match(landed, /hadi 7 Septemba 2026\./);
     const charged = letter({
       storageFrom: new Date("2026-09-01T08:00:00Z"),
       lastFreeDay: new Date("2026-09-07T08:00:00Z"),

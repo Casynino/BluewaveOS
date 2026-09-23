@@ -372,38 +372,59 @@ export function mergeBillLetter(context: MergeLetterContext): string {
   if (context.billedTzs) money.push(`• Jumla ya bili: TZS ${context.billedTzs}`);
   if (context.paidTzs) money.push(`• Imelipwa: TZS ${context.paidTzs}`);
   if (context.amountTzs) {
-    money.push(`• *${owing ? "Kiasi cha kulipa" : "Kiasi"}: TZS ${context.amountTzs}*`);
+    money.push(`• ${owing ? "Kiasi cha kulipa" : "Kiasi"}: TZS ${context.amountTzs}`);
     if (context.amountUsd) money.push(`• Sawa na: USD ${context.amountUsd}`);
   }
-  if (context.fxRate) money.push(`• Exchange Rate: 1 USD = ${context.fxRate} TZS`);
+  if (context.fxRate) money.push(`• Exchange Rate: 1 USD = TZS ${context.fxRate}`);
   money.push(
     `• Hali ya malipo: ${
       context.paid ? "Imelipwa yote" : context.partlyPaid ? "Imelipwa kiasi" : "Haijalipwa"
     }`
   );
 
-  const storage = storageParagraph({
-    freeDays: context.freeStorageDays,
-    pickupAddress: context.pickupAddress,
-    storageFrom: context.storageFrom,
-    lastFreeDay: context.lastFreeDay ?? null,
-    landed: Boolean(context.storageFrom),
-    plural: true,
-  });
+  /*
+    THE STORAGE PARAGRAPH IS WRITTEN OUT HERE RATHER THAN SHARED.
+
+    The single-consignment letters carry it inline after "*STORAGE:*"; this one
+    is a section of its own under a heading, and its date is in Swahili months
+    because the whole letter is. Sharing one helper would mean one of the two
+    letters saying something its owner did not ask for.
+  */
+  const freeDays = context.freeStorageDays ?? 7;
+  const where = context.pickupAddress ? ` (${context.pickupAddress})` : "";
+  const until = swDay(context.lastFreeDay ?? null);
+  const storage = context.storageFrom
+    ? `Una siku ${freeDays} bure za kuhifadhi mizigo yako kwenye warehouse yetu Dar es Salaam${where}` +
+      (until ? `, hadi ${until}.` : ".") +
+      " Baada ya hapo, storage charges zinaweza kutozwa."
+    : `Utapata siku ${freeDays} bure za kuhifadhi mizigo yako kwenye warehouse yetu Dar es Salaam${where}, kuanzia siku mizigo yako itakapofika.`;
 
   const details = detailRows.filter(([, v]) => v).map(([l, v]) => `• ${l}: ${v}`);
 
   return [
     `*${COMPANY.name.toUpperCase()}*`,
-    `Habari ${name}!`,
-    `Mizigo yako ${count} imewekwa kwenye bili moja ya malipo ili ulipe kwa muamala mmoja. Kila mzigo unabaki na namba yake ya kufuatilia.`,
-    [`*MIZIGO ILIYOMO (${count})*`, ...cargoRows].join("\n"),
-    /* A block with no rows under it is a heading standing on its own. */
-    ...(details.length ? [["*MAELEZO YA MZIGO*", ...details].join("\n")] : []),
-    ["*MALIPO*", ...money].join("\n"),
-    storage + (context.storageCharge ? ` Storage iliyokwisha tozwa: ${context.storageCharge}.` : ""),
-    `*Fuatilia mizigo yako yote:*\n${context.trackLink}`,
-    `*Pakua invoice ya pamoja (PDF):*\n${context.invoiceLink}`,
+    `Habari ${name},`,
+    `Invoice zako ${count} zimeunganishwa kuwa Invoice ya Pamoja, ili uweze kufanya malipo yote kwa muamala mmoja.`,
+    "Kila mzigo bado una Tracking Number yake na unaweza kuufuatilia kivyake.",
+    [`📦 *MIZIGO ILIYOJUMUISHWA (${count})*`, ...cargoRows].join("\n"),
+    /* A heading with no rows under it is a heading standing on its own. */
+    ...(details.length ? [["*MAELEZO YA JUMLA*", ...details].join("\n")] : []),
+    ["💰 *TAARIFA ZA MALIPO*", ...money].join("\n"),
+    [
+      "📦 *STORAGE*",
+      storage + (context.storageCharge ? ` Storage iliyokwisha tozwa: ${context.storageCharge}.` : ""),
+    ].join("\n"),
+    [
+      "🔎 *FUATILIA MIZIGO YAKO*",
+      "Fuatilia mizigo yote iliyopo kwenye Invoice ya Pamoja:",
+      context.trackLink,
+    ].join("\n"),
+    [
+      "📄 *PAKUA INVOICE YA PAMOJA*",
+      "Hii ni Invoice ya Pamoja yenye mizigo yote iliyounganishwa:",
+      context.invoiceLink,
+    ].join("\n"),
+    `${COMPANY.name} — Kwetu Muda ni Mali.`,
   ].join("\n\n");
 }
 
@@ -463,6 +484,27 @@ export function composeNotice(event: CargoEvent, context: MessageContext): Cargo
       : {}
   );
 }
+
+/* The months as a customer reads them aloud. Intl has no sw-TZ month names we
+   can rely on across runtimes, so they are written out once. */
+const SW_MONTH = [
+  "Januari", "Februari", "Machi", "Aprili", "Mei", "Juni",
+  "Julai", "Agosti", "Septemba", "Oktoba", "Novemba", "Desemba",
+];
+
+const swDay = (date: Date | null | undefined) => {
+  if (!date) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Dar_es_Salaam",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  }).formatToParts(date);
+  const at = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  /* Some ICU builds pad a "numeric" day to two digits; a customer reads the
+     seventh of the month as 7. */
+  return `${Number(at("day"))} ${SW_MONTH[Number(at("month")) - 1]} ${at("year")}`;
+};
 
 const day = (date: Date | null | undefined) =>
   date

@@ -234,9 +234,9 @@ describe("one payment across three consignments", () => {
 
       const letter = messages.mergeBillLetter(combined.mergeLetterContextFor(merged));
       assert.ok(letter.startsWith("*BLUEWAVE CARGO*"), "the company's own letter");
-      assert.ok(letter.includes("Habari Juma!"));
+      assert.ok(letter.includes("Habari Juma,"));
       for (const cargo of s.cargos) assert.ok(letter.includes(cargo.reference), `${cargo.reference} is named`);
-      assert.ok(letter.includes("*MIZIGO ILIYOMO (3)*"));
+      assert.ok(letter.includes("📦 *MIZIGO ILIYOJUMUISHWA (3)*"));
 
       /* The goods added up, as the Dar counter measured them. */
       assert.ok(letter.includes("• Mizigo: 24"), letter);
@@ -307,7 +307,7 @@ describe("one payment across three consignments", () => {
       assert.ok(merged?.storage, "three consignments booked in have a clock");
       assert.ok(merged.storage.freeDays > 0);
       assert.ok(merged.storage.lastFreeDay.getTime() >= merged.storage.arrivedAt.getTime());
-      assert.ok(messages.mergeBillLetter(combined.mergeLetterContextFor(merged)).includes("*STORAGE:*"));
+      assert.ok(messages.mergeBillLetter(combined.mergeLetterContextFor(merged)).includes("📦 *STORAGE*"));
     } finally {
       await unseed(s.cargoIds, s.customerIds);
     }

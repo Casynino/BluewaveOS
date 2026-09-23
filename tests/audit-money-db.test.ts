@@ -226,7 +226,10 @@ describe("the reports say what the database says", () => {
 
   test("three payments of a thousand are three thousand, not two or four", async () => {
     const books = await report.loadBooks();
-    const before = report.figures(books, { from: new Date("2030-01-01"), to: new Date("2030-02-01"), label: "test" });
+    /* A window no other suite writes into. 2030 was one until the website
+       requests began dating their fixtures there, and a shared database makes
+       any occupied window a test that fails for somebody else's reason. */
+    const before = report.figures(books, { from: new Date("2040-01-01"), to: new Date("2040-02-01"), label: "test" });
     assert.equal(before.collected.tzs, 0, "nothing is dated in the test window already");
   });
 });
