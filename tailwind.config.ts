@@ -180,12 +180,20 @@ const config: Config = {
           from: { transform: "scaleY(0)" },
           to: { transform: "scaleY(1)" },
         },
+        /* The line sweeping the viewfinder while the camera is reading. It is
+           decoration over a live picture; the frame drawn on the picture is
+           what tells a clerk where to hold the sticker. */
+        "scan-line": {
+          "0%": { transform: "translateY(-100%)" },
+          "100%": { transform: "translateY(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-up": "fade-up 0.5s ease-out both",
         "grow-up": "grow-up 0.6s cubic-bezier(0.16,1,0.3,1) both",
+        "scan-line": "scan-line 2.2s ease-in-out infinite",
       },
     },
   },

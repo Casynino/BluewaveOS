@@ -8187,6 +8187,17 @@ const ZH: Record<string, string> = {
   "delivery note": "收货单",
   "A box from another container, one scanned twice or one already handed over is flagged straight away.":
     "来自其他柜的箱子、重复扫描的箱子或已交付的箱子，会立即被标示出来。",
+  "Paste the code from the sticker": "粘贴标签上的代码",
+  "has been handed over and marked collected.": "已交接完毕并标记为已提货。",
+  "Written on credit": "赊账开具",
+  "Stop the pickup and open a case": "停止提货并开立案件",
+  "Opening the case…": "正在开立案件…",
+  "Do not mark this handed over. Reporting it opens a case, stops any further pickup attempt, and tells the manager and the Dar floor straight away.":
+    "不要标记为已交付。上报会开立案件，阻止之后任何一次提货，并立即通知经理和达累斯萨拉姆仓库。",
+  "The case is open. The cargo cannot be released until it is closed, the manager and the Dar floor have been told, and the customer has been told we are tracing their cargo.":
+    "案件已开立。案件关闭之前这票货不得放行；经理和达累斯萨拉姆仓库已收到通知，客户也已被告知我们正在追查他们的货物。",
+  "e.g. Not in bay C where the check-in put it, not on the overflow rack, not in the Dar office van.":
+    "例如：入库记录写的 C 区没有，备用货架上没有，达累斯萨拉姆办公室的车上也没有。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

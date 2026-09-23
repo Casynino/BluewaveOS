@@ -88,17 +88,23 @@ export async function releaseCargo(
     return { error: "Say how you identified the person collecting." };
   }
 
+  /* A counter takes more than one picture of a handover — the boxes, and the
+     person carrying them out — and the release row holds one. Every file is
+     stored: the first goes on the row, where the delivery note reads it, and
+     the whole list goes in the line below, which is what a disputed handover
+     is reconstructed from and which is never rewritten. */
   const files = formData
     .getAll("signature")
     .filter((f): f is File => f instanceof File && f.size > 0);
-  let signatureUrl: string | null = null;
+  const photos: string[] = [];
   try {
-    if (files[0]) signatureUrl = await store(files[0], "releases");
+    for (const file of files) photos.push(await store(file, "releases"));
   } catch (error) {
     return {
       error: error instanceof UploadError ? error.message : "That upload failed.",
     };
   }
+  const signatureUrl = photos[0] ?? null;
 
   let number: string;
   try {
@@ -190,6 +196,7 @@ export async function releaseCargo(
                answer from "no" — both are worth more than a silent yes. */
             notePresented,
             noteAbsenceReason: notePresented === false ? (data.noteAbsenceReason ?? null) : null,
+            photos,
             boxesScanned: boxes.length,
             verification:
               notePresented === false

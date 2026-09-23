@@ -38,8 +38,26 @@ export type CounterHandover = {
   /** Live boxes, and how many of them have already gone out under a scan. */
   expected: number;
   scannedOut: number;
+  /**
+   * How many of the live boxes are physically on the Dar floor, and which of
+   * them are not. The clerk reads this back to the customer before anything
+   * moves, so the short cartons are named rather than counted — "two of three"
+   * sends somebody hunting the whole shelf.
+   */
+  boxesHere: number;
+  boxesShort: number[];
   /** What Dar counted, for the packages field on the handover form. */
   darPackages: number | null;
+  /**
+   * Dar's own weight where the floor has recorded one, China's until then.
+   * Neither row overwrites the other; this is only which of the two the
+   * counter is shown while holding the box.
+   */
+  weightKg: number | null;
+  /** The container these boxes crossed in, for the customer who asks. */
+  containerRef: string | null;
+  /** The day the boxes landed in Dar, which is also day one of free storage. */
+  arrivedInDar: Date | null;
   check: {
     ok: boolean;
     conditions: { label: string; passed: boolean; detail?: string }[];
@@ -53,8 +71,15 @@ export type CounterHandover = {
   } | null;
   /** Set once the goods have gone; the screen then reports rather than asks. */
   released: { number: string; releasedAt: Date; collectedByName: string | null } | null;
-  /** Who can make a refusal go away, with a number to ring. */
-  remedies: (ReleaseRemedy & { staff: { name: string; phone: string | null }[] })[];
+  /**
+   * Who can make a refusal go away, with a number to ring. The desk is named
+   * here rather than in the component: the counter's screen runs in the
+   * browser and this file does not, so the label travels with the row.
+   */
+  remedies: (ReleaseRemedy & {
+    label: string;
+    staff: { name: string; phone: string | null }[];
+  })[];
 };
 
 const DESK_LABEL: Record<ReleaseRemedy["desk"], string> = {
@@ -92,6 +117,26 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
          it is not part of the decision, which is why it is added here rather
          than to RELEASE_INCLUDE. */
       pickupNote: { select: { status: true, onCredit: true, noteNumber: true, issuedAt: true } },
+      /* The check's receiving row, carrying the two facts the counter reads to
+         the customer as well. Widened here rather than in RELEASE_INCLUDE so
+         the decision keeps asking for exactly what it decides on. */
+      darReceiving: {
+        select: {
+          verified: true,
+          discrepancy: true,
+          packagesCount: true,
+          weightKg: true,
+          receivedAt: true,
+        },
+      },
+      chinaReceiving: { select: { weightKg: true } },
+      /* The last container the consignment was loaded into. A consignment can
+         be re-loaded after a container is opened again, and the box on the
+         floor came off the most recent one. */
+      containerLines: {
+        orderBy: { createdAt: "asc" },
+        select: { container: { select: { reference: true } } },
+      },
       receiver: { select: { id: true, fullName: true, phone: true } },
       sender: { select: { id: true, fullName: true } },
       release: { select: { number: true, releasedAt: true, collectedByName: true } },
@@ -120,6 +165,14 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
     damaged: Boolean(box.damagedAt),
   }));
   const live = boxes.filter((b) => b.state !== "void");
+  /* On the floor means off the container: a box still in China or still in the
+     box is not one the counter can hand over, whatever the manifest says. */
+  const here = live.filter((b) => b.state === "at-dar" || b.state === "collected");
+
+  /* A Decimal does not survive the trip to the browser, and the screen only
+     ever prints this. Dar's figure first: it is the one measured against the
+     box that is actually on the floor. */
+  const weight = cargo.darReceiving?.weightKg ?? cargo.chinaReceiving?.weightKg ?? null;
 
   /* Only fetched when something is actually blocking — the counter reads a
      list of phone numbers when it needs one, not on every handover. */
@@ -145,7 +198,12 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
     boxes,
     expected: live.length,
     scannedOut: live.filter((b) => b.state === "collected").length,
+    boxesHere: here.length,
+    boxesShort: live.filter((b) => !here.includes(b)).map((b) => b.sequence),
     darPackages: cargo.darReceiving?.packagesCount ?? null,
+    weightKg: weight === null ? null : Number(weight),
+    containerRef: cargo.containerLines.at(-1)?.container.reference ?? null,
+    arrivedInDar: cargo.darArrivedAt ?? cargo.darReceiving?.receivedAt ?? null,
     check: { ok: check.ok, conditions: check.conditions, blockedBy: check.blockedBy },
     note: cargo.pickupNote
       ? {
@@ -158,6 +216,7 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
     released: cargo.release,
     remedies: remedies.map((r) => ({
       ...r,
+      label: deskLabel(r.desk),
       staff: staff
         .filter((s) => s.department === r.desk)
         .map((s) => ({ name: s.name, phone: s.phone })),
