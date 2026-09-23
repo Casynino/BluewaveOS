@@ -251,36 +251,14 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
         </Frame>
       </section>
 
-      {/* ------------------------------------------------ WHAT HAPPENS NEXT */}
-      <section aria-labelledby="next" className="border-b border-bw-line bg-bw-ground">
-        <Frame className="py-10 lg:py-14">
-          <Label className="text-bw-muted">What happens next</Label>
-          <h2 id="next" className="bw-display mt-3 text-3xl uppercase text-bw-fg sm:text-4xl">
-            From here to your hands
-          </h2>
-          <div className="mt-6">
-            <WhatNext steps={journey.steps} done={phase === "DONE"} />
-          </div>
-        </Frame>
-      </section>
+      {/*
+        THE BILL AND THE PICTURES FIRST, THE JOURNEY UNDER THEM.
 
-      {/* ------------------------------------------------ THE JOURNEY */}
-      <section aria-labelledby="journey" className="bg-bw-ground">
-        <Frame className="py-10 lg:py-14">
-          <Label className="text-bw-muted">Your cargo journey</Label>
-          <h2 id="journey" className="bw-display mt-3 text-3xl uppercase text-bw-fg sm:text-4xl">
-            {result.origin} → {result.destination}
-          </h2>
-          <p className="mt-1 text-bw-muted">
-            {result.service === "FCL" ? "Full container" : "Loose cargo"}
-            {result.vessel ? ` · ${result.vessel}` : ""}
-          </p>
-          <div className="mt-6">
-            <JourneyGroups steps={journey.steps} eta={eta} etaPassed={journey.etaPassed} />
-          </div>
-        </Frame>
-      </section>
-
+        A customer opening this link has one question — what do I owe and what
+        does my cargo look like — and the stages of the voyage answered it four
+        screens down. The journey has not moved off the page; it sits where
+        somebody reads it after the thing they came for.
+      */}
       {/* ------------------------------------------------ PAYMENT & PICKUP */}
       <section aria-labelledby="payment" className="border-t border-bw-line bg-bw-panel">
         <Frame className="grid gap-6 py-10 lg:grid-cols-12 lg:py-14">
@@ -408,6 +386,37 @@ function Result({ result, invoiceHref, full }: { result: PublicTracking; invoice
           </aside>
         </Frame>
       </section>
+
+      {/* ------------------------------------------------ WHAT HAPPENS NEXT */}
+      <section aria-labelledby="next" className="border-y border-bw-line bg-bw-ground">
+        <Frame className="py-10 lg:py-14">
+          <Label className="text-bw-muted">What happens next</Label>
+          <h2 id="next" className="bw-display mt-3 text-3xl uppercase text-bw-fg sm:text-4xl">
+            From here to your hands
+          </h2>
+          <div className="mt-6">
+            <WhatNext steps={journey.steps} done={phase === "DONE"} />
+          </div>
+        </Frame>
+      </section>
+
+      {/* ------------------------------------------------ THE JOURNEY */}
+      <section aria-labelledby="journey" className="bg-bw-ground">
+        <Frame className="py-10 lg:py-14">
+          <Label className="text-bw-muted">Your cargo journey</Label>
+          <h2 id="journey" className="bw-display mt-3 text-3xl uppercase text-bw-fg sm:text-4xl">
+            {result.origin} → {result.destination}
+          </h2>
+          <p className="mt-1 text-bw-muted">
+            {result.service === "FCL" ? "Full container" : "Loose cargo"}
+            {result.vessel ? ` · ${result.vessel}` : ""}
+          </p>
+          <div className="mt-6">
+            <JourneyGroups steps={journey.steps} eta={eta} etaPassed={journey.etaPassed} />
+          </div>
+        </Frame>
+      </section>
+
     </>
   );
 }
