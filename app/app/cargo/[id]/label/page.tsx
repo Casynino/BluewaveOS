@@ -1,19 +1,22 @@
 import Link from "next/link";
-import { CheckCircle2, FileText, Plus } from "lucide-react";
+import { CheckCircle2, Download, FileText, Plus } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM, type StickerData } from "@/components/app/cargo-sticker";
-import { DocumentActions } from "@/components/app/document-actions";
-import { AutoPrint } from "@/components/app/print-button";
+import { AutoPrint, PrintButton } from "@/components/app/print-button";
+import { Button } from "@/components/ui/button";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { stickersFor } from "@/lib/box-labels";
 import { requireStaff } from "@/lib/session";
 import { canAny } from "@/lib/rbac";
-import { SmartBack } from "@/components/app/smart-back";
 
 import { primeLocale, T } from "@/lib/server-t";
+
+/** One size for every control on this screen: a thumb, not a pointer. */
+const ACTION = "h-12 rounded-xl px-5 text-base font-semibold";
+
 export async function generateMetadata({
   params,
 }: {
@@ -110,49 +113,59 @@ export default async function CargoLabelPage({
         the way back to the next customer.
       */}
       {received ? (
-        <div className="rounded-xl border border-success/40 bg-success/10 px-4 py-3 print:hidden">
-          <p className="flex items-center gap-2 text-sm font-semibold text-success">
-            <CheckCircle2 className="size-4 shrink-0" />
+        <div className="rounded-2xl border border-success/40 bg-success/10 p-4 print:hidden">
+          <p className="flex items-center gap-2 text-xl font-bold text-success">
+            <CheckCircle2 className="size-6 shrink-0" />
             Received · {cargo.reference}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-base text-muted-foreground">
             {stickers.length} {stickers.length === 1 ? T("box") : T("boxes")}
             {cargo.deliveryNote ? ` · ${T("delivery note")} ${cargo.deliveryNote.number}` : ""}
           </p>
-          <div className="mt-2.5 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-3">
             {/* Handed over before they leave, not looked for a week later. */}
             {cargo.deliveryNote ? (
-              <Link
-                href={`/app/cargo/${cargo.id}/delivery-note`}
-                className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-md border bg-background px-3 text-sm font-medium hover:bg-secondary"
-              >
-                <FileText className="size-4" />
-                {T("Delivery note")}
-              </Link>
+              <Button asChild variant="secondary" className={ACTION}>
+                <Link href={`/app/cargo/${cargo.id}/delivery-note`}>
+                  <FileText />
+                  {T("Delivery note")}
+                </Link>
+              </Button>
             ) : null}
-            <Link
-              href="/app/receive/new"
-              className="focus-ring inline-flex h-9 items-center justify-center gap-1.5 rounded-md border bg-background px-3 text-sm font-medium hover:bg-secondary"
-            >
-              <Plus className="size-4" />
-              {T("Receive next")}
-            </Link>
+            <Button asChild variant="secondary" className={ACTION}>
+              <Link href="/app/receive/new">
+                <Plus />
+                {T("Receive next")}
+              </Link>
+            </Button>
           </div>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div>
-          <SmartBack fallbackHref={`/app/cargo/${cargo.id}`} fallbackLabel={`${cargo.reference}`} />
-          <p className="mt-1 text-xs text-muted-foreground">
-            One code per physical box — never copy a label onto two. {LABEL_MM.width} ×{" "}
-            {LABEL_MM.height} mm.
-          </p>
+
+      {/* The label's own two controls, in their own card rather than loose
+          beside a back link: on the phone the counter works on, a row that
+          wrapped put Download under the hint and Print beside it. */}
+      <div className="rounded-2xl border bg-card p-4 print:hidden">
+        <p className="text-base text-muted-foreground">
+          One code per physical box — never copy a label onto two. {LABEL_MM.width} ×{" "}
+          {LABEL_MM.height} mm.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <PrintButton
+            primary
+            className={ACTION}
+            label={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
+          />
+          <Button asChild variant="secondary" className={ACTION}>
+            <a
+              href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
+              download
+            >
+              <Download />
+              {T("Download PDF")}
+            </a>
+          </Button>
         </div>
-        <DocumentActions
-          href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
-          printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
-          downloadLabel={T("Download PDF")}
-        />
       </div>
 
       {/* A scroll frame, not a centring one: the sheet is a fixed 100mm and
