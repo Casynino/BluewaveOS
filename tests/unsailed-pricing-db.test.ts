@@ -11,6 +11,17 @@ import { unsailedToPrice } from "@/lib/unsailed-pricing";
 const prisma = new PrismaClient();
 const ROLLBACK = new Error("rollback");
 
+/*
+  ONE SNAPSHOT, BECAUSE THE SUITES SHARE A DATABASE.
+
+  `unsailedToPrice` asks for a consignment and the customer it belongs to in one
+  query. Under READ COMMITTED it can read a row another suite is in the middle
+  of tearing down and then fail to find its customer — a required relation
+  coming back null, which is not something the live system can produce.
+  RepeatableRead gives this suite one consistent view for the whole
+  transaction, so it tests its own fixtures rather than the timing of everybody
+  else's cleanup.
+*/
 async function inRollback(fn: (tx: Prisma.TransactionClient) => Promise<void>) {
   try {
     await prisma.$transaction(
@@ -18,7 +29,10 @@ async function inRollback(fn: (tx: Prisma.TransactionClient) => Promise<void>) {
         await fn(tx);
         throw ROLLBACK;
       },
-      { timeout: 30_000 }
+      {
+        timeout: 30_000,
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      }
     );
   } catch (error) {
     if (error !== ROLLBACK) throw error;
