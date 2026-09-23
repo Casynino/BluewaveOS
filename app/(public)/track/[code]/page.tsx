@@ -447,6 +447,7 @@ function Result({
                   )}
                   {full && storage.charged ? (
                     <Cell
+                      wide
                       label="Storage so far"
                       value={storage.chargeTzs !== null ? `TSh ${grouped(storage.chargeTzs)}` : `${storage.currency} ${grouped(storage.charge)}`}
                       tone={Number(storage.charge) > 0 ? "text-bw-coral" : undefined}
@@ -646,7 +647,7 @@ function MergedCharge({
       {!settled && merged.accounts.length > 0 ? (
         <div className="border-t border-bw-line px-6 py-6">
           <p className="font-bw-display text-xl font-semibold uppercase text-bw-fg">Njia za malipo</p>
-          <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2">
+          <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2 [&>li:last-child:nth-child(odd)]:sm:col-span-2">
             {merged.accounts.map((account) => (
               <li key={`${account.bankName}-${account.accountNumber}`} className="bg-bw-panel p-4">
                 <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
@@ -755,7 +756,7 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
       {!settled && result.accounts.length > 0 ? (
         <div className="border-t border-bw-line px-6 py-6">
           <p className="font-bw-display text-xl font-semibold uppercase text-bw-fg">Njia za malipo</p>
-          <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2">
+          <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2 [&>li:last-child:nth-child(odd)]:sm:col-span-2">
             {result.accounts.map((account) => (
               <li key={`${account.bankName}-${account.accountNumber}`} className="bg-bw-panel p-4">
                 <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
@@ -806,9 +807,21 @@ function Panel({ title, icon, children }: { title: string; icon?: React.ReactNod
   );
 }
 
-function Cell({ label, value, tone }: { label: string; value: string; tone?: string }) {
+/* `wide` fills the rest of the row. An odd cell in a two-wide grid leaves a
+   hole beside it, and a hole reads as a figure somebody failed to fill in. */
+function Cell({
+  label,
+  value,
+  tone,
+  wide,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  wide?: boolean;
+}) {
   return (
-    <div className="min-w-0 bg-bw-panel p-4">
+    <div className={cn("min-w-0 bg-bw-panel p-4", wide && "col-span-2")}>
       <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">{label}</dt>
       <dd className={cn("mt-1 font-semibold text-bw-fg", tone)}>{value}</dd>
     </div>
