@@ -1,7 +1,7 @@
 import { accountPositions } from "@/lib/accounts";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
 import { darFields, darMidnight, darStartOfDay, darStartOfMonth, darStartOfQuarter, darStartOfWeek, darStartOfYear } from "@/lib/dar-time";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 
 /**
  * THE BOOKS, READ ONCE, FOR EVERY REPORT.
@@ -85,10 +85,12 @@ export function monthRange(year: number, month: number): Range {
 export const within = (d: Date | null | undefined, r: { from: Date; to: Date }) =>
   !!d && d >= r.from && d < r.to;
 
-export async function loadBooks() {
+/* A transaction may be handed in so a caller can read the books and the rows
+   behind them as one database — see tests/audit-money-db.test.ts. */
+export async function loadBooks(client: TxClient | typeof prisma = prisma) {
   const [invoices, payments, expenses, containers, china, dar, positions, rate] =
     await Promise.all([
-      prisma.invoice.findMany({
+      client.invoice.findMany({
         where: { status: { notIn: ["DRAFT", "CANCELLED"] } },
         include: {
           payments: true,
@@ -109,7 +111,7 @@ export async function loadBooks() {
           },
         },
       }),
-      prisma.payment.findMany({
+      client.payment.findMany({
         /* Money that arrived. A written-off shortfall settles a bill and is
            not income or cash. */
         where: { status: "VERIFIED", writtenOff: false },
@@ -119,7 +121,7 @@ export async function loadBooks() {
           invoice: { select: { number: true, currency: true, cargo: { select: { reference: true } } } },
         },
       }),
-      prisma.containerExpense.findMany({
+      client.containerExpense.findMany({
         where: { deletedAt: null, cancelledAt: null },
         include: {
           expenseType: { select: { name: true } },
@@ -128,21 +130,21 @@ export async function loadBooks() {
           vendor: { select: { name: true } },
         },
       }),
-      prisma.container.findMany({
+      client.container.findMany({
         where: { deletedAt: null },
         include: {
           shipment: { select: { vessel: true, departureDate: true, actualArrival: true, originPort: true } },
           _count: { select: { cargoLines: true } },
         },
       }),
-      prisma.chinaReceiving.findMany({
+      client.chinaReceiving.findMany({
         select: { receivedAt: true, cbm: true, packagesCount: true, cargo: { select: { deletedAt: true } } },
       }),
-      prisma.darReceiving.findMany({
+      client.darReceiving.findMany({
         select: { receivedAt: true, cbm: true, containerId: true },
       }),
       accountPositions(),
-      prisma.exchangeRate.findFirst({
+      client.exchangeRate.findFirst({
         where: { active: true },
         orderBy: { effectiveFrom: "desc" },
         select: { rate: true, effectiveFrom: true },

@@ -192,19 +192,32 @@ describe("a bill is settled by exactly what was paid", () => {
 
 describe("the reports say what the database says", () => {
   test("collected, billed and VAT match raw SQL over the same rows", async () => {
-    const books = await report.loadBooks();
-    const wide = { from: new Date("2000-01-01"), to: new Date("2100-01-01"), label: "everything" };
-    const f = report.figures(books, wide);
+    /*
+      READ IN ONE BREATH.
 
-    const [collected] = await prisma.$queryRaw<{ tzs: string | null }[]>`
-      SELECT COALESCE(SUM(COALESCE("baseCurrencyAmount", 0)), 0)::text AS tzs
-      FROM "Payment" WHERE status = 'VERIFIED' AND "writtenOff" = false`;
+      The books and the raw sums are two reads of a database other suites are
+      writing to in the same run, and a bill discounted between them made the
+      report disagree with SQL by the discount — a green test failing for a
+      reason that has nothing to do with the reports. Both reads now happen
+      inside one repeatable-read transaction, so they see one database.
+    */
+    const { f, collected, billed } = await prisma.$transaction(
+      async (tx) => {
+        const [collectedRow] = await tx.$queryRaw<{ tzs: string | null }[]>`
+          SELECT COALESCE(SUM(COALESCE("baseCurrencyAmount", 0)), 0)::text AS tzs
+          FROM "Payment" WHERE status = 'VERIFIED' AND "writtenOff" = false`;
+        const [billedRow] = await tx.$queryRaw<{ tzs: string | null; vat: string | null }[]>`
+          SELECT COALESCE(SUM(COALESCE("totalTzs", 0)), 0)::text AS tzs,
+                 COALESCE(SUM(CASE WHEN total > 0 THEN COALESCE("totalTzs", 0) * ("vatAmount" / total) ELSE 0 END), 0)::text AS vat
+          FROM "Invoice" WHERE status NOT IN ('DRAFT', 'CANCELLED')`;
+        const books = await report.loadBooks(tx);
+        const wide = { from: new Date("2000-01-01"), to: new Date("2100-01-01"), label: "everything" };
+        return { f: report.figures(books, wide), collected: collectedRow, billed: billedRow };
+      },
+      { isolationLevel: "RepeatableRead" }
+    );
+
     assert.equal(Math.round(f.collected.tzs), Number(collected.tzs ?? 0), "collected");
-
-    const [billed] = await prisma.$queryRaw<{ tzs: string | null; vat: string | null }[]>`
-      SELECT COALESCE(SUM(COALESCE("totalTzs", 0)), 0)::text AS tzs,
-             COALESCE(SUM(CASE WHEN total > 0 THEN COALESCE("totalTzs", 0) * ("vatAmount" / total) ELSE 0 END), 0)::text AS vat
-      FROM "Invoice" WHERE status NOT IN ('DRAFT', 'CANCELLED')`;
     assert.equal(Math.round(f.billed.tzs), Math.round(Number(billed.tzs ?? 0)), "billed");
     assert.equal(Math.round(f.vat.tzs), Math.round(Number(billed.vat ?? 0)), "VAT");
     /* Revenue is the bills less their VAT, to the shilling. */
