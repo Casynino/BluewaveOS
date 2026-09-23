@@ -8147,6 +8147,22 @@ const ZH: Record<string, string> = {
   "This is recorded against the handover with your name on it.":
     "这会连同你的名字一起记录在本次交货上。",
   "Say how you identified the person collecting.": "请说明你是如何核实提货人身份的。",
+  "Cargo joins this list the moment Finance confirms payment and issues its pickup note.":
+    "财务确认付款并开具提货单后，货物即出现在此清单。",
+  "Every box accounted for": "每一箱都已清点齐全",
+  "Held for these customers": "为这些客户暂存的箱数",
+  "Past the free days": "已过免费仓储期",
+  "Not cleared for collection.": "尚未放行提货。",
+  "no note yet": "尚无提货单",
+  "d of storage": "天仓储",
+  "pkgs": "件",
+  "Delete customer": "删除客户",
+  "Deleted customers": "已删除的客户",
+  "Deleted customers appear here, with who removed them and why.":
+    "已删除的客户显示在此，并附上删除人与原因。",
+  "They leave the customer lists and cannot sign in. Their bills and cargo history are kept, and the owner can restore them from Deleted records.":
+    "他们将从客户列表中移除且无法登录。账单与货物记录仍保留，老板可在“已删除记录”中恢复。",
+  "e.g. duplicate of CUS-000012": "例如：与 CUS-000012 重复",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

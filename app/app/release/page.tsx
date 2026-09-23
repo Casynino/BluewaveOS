@@ -1,112 +1,175 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { Boxes, Hourglass, PackageCheck, TriangleAlert, Truck } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionTabs } from "@/components/app/section-tabs";
-import { ReleaseForm } from "@/components/app/release-panel";
-import { BoxScanner } from "@/components/app/box-scanner";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  PickupQueueTable,
+  type PickupQueueRow,
+} from "@/components/app/pickup-queue-table";
+import { Card } from "@/components/ui/card";
+import { formatDateTime, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { checkRelease, RELEASE_INCLUDE } from "@/lib/release";
 import { requirePermission } from "@/lib/session";
+import { storageStart, storageState } from "@/lib/storage-clock";
 
-import { primeLocale, T } from "@/lib/server-t";
+import { primeLocale, P, T } from "@/lib/server-t";
+
 export const metadata: Metadata = { title: "Pickup list" };
 
+const DAY = 86_400_000;
+
+/** "4 h", "3 d", "3 d 5 h". Computed here, so hydration cannot disagree. */
+function waitLabel(ms: number): string {
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return T("just now");
+  if (hours < 24) return `${hours} ${T("h")}`;
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest > 0 ? `${days} ${T("d")} ${rest} ${T("h")}` : `${days} ${T("d")}`;
+}
+
 /**
- * THE COUNTER, AND ONLY WHAT MAY LEAVE IT.
+ * THE PICKUP LIST — EVERYONE WHO MAY COLLECT TODAY.
  *
- * Ready consignments only. The page once listed the blocked ones too, with a
- * checklist of what each was missing — which meant the floor read five reasons
- * for every one thing it could actually hand over, and the money owed was
- * printed on a screen the warehouse is deliberately kept away from.
+ * A row is here because the goods have landed in Dar and Finance has written a
+ * pickup note against them: the money question is already answered, and the
+ * screen shows it as a fact rather than as a figure — the warehouse never sees
+ * a price. What is left is the floor's own question, are all the boxes
+ * actually here, so every row carries the same check the counter will run.
+ * Discovering a shortage here is a phone call; discovering it with the
+ * customer at the desk is a claim.
  *
- * Why a consignment is not here is a question for its own page, where the
- * timeline and the case live. This list answers one question: who is standing
- * at the counter, and may they take their goods.
+ * NOTHING IS HANDED OVER FROM THIS SCREEN. Release opens the handover, where
+ * the box is read, the person collecting is named and the photograph is taken,
+ * and where `checkRelease` is asked again inside the transaction. A button
+ * drawn on a list is not a permission and never was.
  *
- * The exception is a search. Somebody typed a name because that person is in
- * front of them, and an empty list in answer teaches the counter nothing — so a
- * search that matches blocked cargo says which consignment and what is missing,
- * in the words lib/release.ts uses, which carry no figure. The alternative is a
- * clerk ringing Finance, or releasing on a customer's word.
- *
- * Readiness is computed on every read — arrived in Dar, verified, invoiced,
- * paid, no case, no hold. Nothing on this screen can grant it.
+ * The list deliberately includes cargo that is paid, noted and NOT yet ready,
+ * because the reason is almost always work on this side of the counter — a
+ * container landed and nobody has counted it off. The customer holding that
+ * note is real and is ringing somebody, and "Waiting on us" is the honest name
+ * for it.
  */
-export default async function ReleasePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function ReleasePage() {
   await primeLocale();
-  await requirePermission("release.execute");
-  const { q } = await searchParams;
-  const query = q?.trim() ?? "";
+  const actor = await requirePermission("release.execute");
+  /* Finance and the office see what was settled; the floor sees only that it
+     was. Same rule as every other warehouse screen. */
+  const showMoney = can(actor.role, "finance.view");
+  const now = new Date();
 
-  const cargo = await prisma.cargo.findMany({
-    where: {
-      deletedAt: null,
-      /*
-        LANDED CARGO, INCLUDING WHAT IS WAITING ON THIS FLOOR.
+  const [settings, cargo] = await Promise.all([
+    prisma.companySetting.findFirst({
+      select: { freeStorageDays: true, storagePerDay: true, storageCurrency: true },
+    }),
+    prisma.cargo.findMany({
+      where: {
+        deletedAt: null,
+        /*
+          LANDED CARGO, INCLUDING WHAT IS WAITING ON THIS FLOOR.
 
-        A consignment Finance has billed, been paid for and written a pickup
-        note against can still be standing in a container nobody has counted —
-        and it used to be invisible here, because this list only held what Dar
-        had already booked in. The customer holding that note is real and is
-        ringing somebody. So goods whose box has landed are on the list too,
-        under what is waiting on us, with the counting they are waiting for.
-      */
-      OR: [
-        { status: { in: ["RECEIVED_DAR", "READY_FOR_RELEASE"] } },
-        { status: "ARRIVED_TANZANIA", pickupNote: { status: "ACTIVE" } },
-      ],
-      ...(query
-        ? {
-            OR: [
-              { reference: { contains: query, mode: "insensitive" as const } },
-              { shippingMark: { contains: query, mode: "insensitive" as const } },
-              {
-                receiver: {
-                  OR: [
-                    { fullName: { contains: query, mode: "insensitive" as const } },
-                    { phone: { contains: query } },
-                  ],
-                },
-              },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { updatedAt: "asc" },
-    take: 60,
-    include: {
-      ...RELEASE_INCLUDE,
-      receiver: { select: { fullName: true, phone: true } },
-      sender: { select: { fullName: true } },
-    },
-  });
+          A consignment Finance has billed, been paid for and written a note
+          against can still be standing in a container nobody has counted — and
+          it used to be invisible here, because the list only held what Dar had
+          already booked in. ARRIVED_TANZANIA is that case: the box is in the
+          country, the customer has their note, and the counting is ours.
+        */
+        status: { in: ["ARRIVED_TANZANIA", "RECEIVED_DAR", "READY_FOR_RELEASE"] },
+        /* Finance's written permission to collect is what puts a row here. */
+        pickupNote: { status: "ACTIVE" },
+      },
+      orderBy: { updatedAt: "asc" },
+      take: 200,
+      include: {
+        ...RELEASE_INCLUDE,
+        /* issuedAt is how long the customer has been waiting on us — the one
+           figure here that shames the floor rather than the customer. */
+        pickupNote: {
+          select: {
+            status: true,
+            onCredit: true,
+            noteNumber: true,
+            issuedAt: true,
+            amountPaid: true,
+            currency: true,
+            issuedBy: { select: { name: true } },
+          },
+        },
+        receiver: { select: { id: true, fullName: true, phone: true } },
+        darReceiving: { select: { verified: true, discrepancy: true, packagesCount: true, receivedAt: true } },
+      },
+    }),
+  ]);
 
-  const checked = cargo.map((item) => ({ item, check: checkRelease(item) }));
-
-  /* How far each ready consignment's boxes have been scanned out. */
+  /* How many of each consignment's boxes Dar has actually counted in. */
   const boxRows = await prisma.cargoBox.groupBy({
     by: ["cargoId"],
     where: { cargoId: { in: cargo.map((c) => c.id) }, voidedAt: null },
-    _count: { _all: true, collectedAt: true },
+    _count: { _all: true, darReceivedAt: true },
   });
-  const boxesOf = new Map(boxRows.map((r) => [r.cargoId, { done: r._count.collectedAt, total: r._count._all }]));
-  const ready = checked.filter((c) => c.check.ok);
-  /* Paid, noted, and standing here: the floor's own work, named. */
-  const waitingOnUs = checked.filter(
-    (c) => !c.check.ok && c.item.pickupNote?.status === "ACTIVE"
+  const boxesOf = new Map(
+    boxRows.map((r) => [r.cargoId, { checkedIn: r._count.darReceivedAt, total: r._count._all }])
   );
-  const held = query
-    ? checked.filter((c) => !c.check.ok && c.item.pickupNote?.status !== "ACTIVE")
-    : [];
+
+  const rows: PickupQueueRow[] = cargo.map((item) => {
+    const check = checkRelease(item);
+    const boxes = boxesOf.get(item.id) ?? { checkedIn: 0, total: 0 };
+    const packages = boxes.total || item.darReceiving?.packagesCount || 0;
+    const issuedAt = item.pickupNote?.issuedAt ?? null;
+    const waitingMs = issuedAt ? Math.max(0, now.getTime() - issuedAt.getTime()) : 0;
+
+    /* Days, not money: how long the goods have been sitting past the free
+       period. The rate that turns days into shillings is Finance's, and stays
+       on Finance's screens. */
+    const start = storageStart(item.darReceiving?.receivedAt, item.darArrivedAt);
+    const storageDays = start
+      ? storageState({
+          arrivedAt: start,
+          freeDays: settings?.freeStorageDays ?? 0,
+          perDay: settings?.storagePerDay ?? null,
+          currency: settings?.storageCurrency ?? "USD",
+          now,
+        }).chargeableDays
+      : 0;
+
+    return {
+      id: item.id,
+      reference: item.reference,
+      description: P(item.description, item.descriptionZh),
+      noteNumber: item.pickupNote?.noteNumber ?? null,
+      ...(showMoney && item.pickupNote
+        ? {
+            amountPaid: toNumber(item.pickupNote.amountPaid) ?? 0,
+            currency: item.pickupNote.currency,
+          }
+        : {}),
+      issuedAtLabel: issuedAt ? formatDateTime(issuedAt) : null,
+      issuedByName: item.pickupNote?.issuedBy?.name ?? null,
+      waitingMs,
+      waitingLabel: issuedAt ? waitLabel(waitingMs) : null,
+      customerId: item.receiver.id,
+      customerName: item.receiver.fullName,
+      customerPhone: item.receiver.phone,
+      packagesShort: `${packages} ${packages === 1 ? T("pkg") : T("pkgs")}`,
+      boxesCheckedIn: boxes.checkedIn,
+      boxesTotal: boxes.total,
+      storageDays,
+      blockedBy: check.blockedBy,
+      ready: check.ok,
+    };
+  });
+
+  const ready = rows.filter((row) => row.ready).length;
+  const held = rows.length - ready;
+  const boxesWaiting = rows.reduce((sum, row) => sum + (row.boxesTotal || 0), 0);
+  const charging = rows.filter((row) => row.storageDays > 0).length;
+  const longestWait = rows.reduce((max, row) => Math.max(max, row.waitingMs), 0);
+  const overAWeek = rows.filter((row) => row.waitingMs >= 7 * DAY).length;
 
   return (
     <div className="space-y-6">
@@ -114,182 +177,80 @@ export default async function ReleasePage({
         THE PICKUP LIST, NOT "RELEASE".
 
         The word on the counter is pickup: a customer rings to ask whether their
-        goods are ready to collect, and this is the list that answers. The screen
-        is named after the question rather than after the database operation.
-
-        What may go is computed, never asserted — verified, invoiced, paid, no
-        case and no hold. Nobody here can overrule it; settling what is missing
-        is what makes it ready.
+        goods are ready to collect, and this is the list that answers. The
+        screen is named after the question rather than after the operation.
       */}
       <PageHeader
         title={T("Pickup list")}
-        description={T("Customers whose cargo has arrived in Dar and is paid. Hand it over from the row; anything paid but still waiting on this floor is named underneath.")}
+        description={T("Cargo Finance has cleared for collection. Open a row to release it — the pickup note itself is issued and cancelled by Finance.")}
       />
       <SectionTabs />
 
-      <form className="max-w-md">
-        <Input
-          name="q"
-          defaultValue={query}
-          placeholder={T("Reference, mark, customer or phone…")}
-          aria-label={T("Find cargo")}
-        />
-      </form>
-
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Ready to collect ({ready.length})
-        </h2>
-        {ready.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon="DoorOpen"
-              title={T("Nobody is waiting to collect")}
-              description={T("Cargo joins this list the moment it is verified, invoiced and paid in full.")}
+      {rows.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="Truck"
+            title={T("Nobody is waiting to collect")}
+            description={T("Cargo joins this list the moment Finance confirms payment and issues its pickup note.")}
+          />
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <KpiCard
+              index={0}
+              label={T("Awaiting collection")}
+              numeric={rows.length}
+              hint={
+                longestWait > 0
+                  ? `${T("Longest wait")} ${waitLabel(longestWait)}`
+                  : T("Just issued")
+              }
+              icon={Truck}
+              tone="brand"
             />
-          </Card>
-        ) : (
-          ready.map(({ item }) => (
-            <Card key={item.id}>
-              <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-                {/* The person at the counter leads. A pickup list is read by
-                    somebody looking for a name, and the tracking number is what
-                    confirms it once they have found them. */}
-                <div>
-                  <CardTitle className="text-base">
-                    {item.receiver.fullName}
-                  </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    <span className="tnum">{item.receiver.phone}</span>
-                    {" · "}
-                    <Link
-                      href={`/app/cargo/${item.id}`}
-                      className="tnum hover:underline"
-                    >
-                      {item.reference}
-                    </Link>
-                    {item.receiverId !== item.senderId
-                      ? ` · sent by ${item.sender.fullName}`
-                      : ""}
-                  </p>
-                </div>
-                {/* The paper the customer is holding, so the counter can match
-                    one against the other before anything moves. */}
-                <div className="flex items-center gap-2">
-                  {item.pickupNote?.noteNumber ? (
-                    <span className="tnum text-xs text-muted-foreground">
-                      {item.pickupNote.noteNumber}
-                    </span>
-                  ) : null}
-                  <Badge tone="good">{T("ready")}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Every box goes out under its own scan; the handover is
-                    completed once they all have. */}
-                {boxesOf.get(item.id)?.total ? (
-                  <BoxScanner mode="release" cargoId={item.id} initial={boxesOf.get(item.id)} />
-                ) : null}
-                <ReleaseForm
-                  cargoId={item.id}
-                  packages={boxesOf.get(item.id)?.total || item.darReceiving?.packagesCount || 1}
-                  receiverName={item.receiver.fullName}
-                  receiverPhone={item.receiver.phone}
-                />
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </section>
+            <KpiCard
+              index={1}
+              label={T("Ready to release")}
+              numeric={ready}
+              hint={T("Every box accounted for")}
+              icon={PackageCheck}
+              tone="success"
+              ring={{ value: ready, total: rows.length }}
+            />
+            <KpiCard
+              index={2}
+              label={T("Waiting on us")}
+              numeric={held}
+              hint={held > 0 ? T("Cannot be handed over yet") : T("Nothing blocked")}
+              icon={TriangleAlert}
+              tone={held > 0 ? "danger" : "success"}
+            />
+            <KpiCard
+              index={3}
+              label={T("Boxes on the floor")}
+              numeric={boxesWaiting}
+              hint={T("Held for these customers")}
+              icon={Boxes}
+              tone="marine"
+            />
+            <KpiCard
+              index={4}
+              label={T("Past the free days")}
+              numeric={charging}
+              hint={
+                overAWeek > 0
+                  ? `${overAWeek} ${T("waiting over a week")}`
+                  : T("Everyone still inside free storage")
+              }
+              icon={Hourglass}
+              tone={charging > 0 ? "warning" : "success"}
+            />
+          </div>
 
-      {/*
-        PAID, NOTED, AND WAITING ON THIS FLOOR.
-
-        The customer has settled the bill and is holding a pickup note; the
-        only thing between them and their goods is work on this side of the
-        counter — usually the count nobody has finished. Naming it here, with
-        the sentence from the release check and the screen that clears it, is
-        the difference between a customer who is told why and a customer who is
-        told to ring back.
-      */}
-      {waitingOnUs.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {T("Paid — waiting on us")} ({waitingOnUs.length})
-          </h2>
-          <Card>
-            <CardContent className="space-y-2 pt-6">
-              {waitingOnUs.map(({ item, check }) => (
-                <div
-                  key={item.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {item.receiver.fullName}
-                      <span className="tnum ml-2 text-xs font-normal text-muted-foreground">
-                        {item.receiver.phone}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      <Link href={`/app/cargo/${item.id}`} className="tnum hover:underline">
-                        {item.reference}
-                      </Link>
-                      {item.pickupNote?.noteNumber ? (
-                        <span className="tnum">{` · ${item.pickupNote.noteNumber}`}</span>
-                      ) : null}
-                      {" · "}
-                      {check.blockedBy}
-                    </p>
-                  </div>
-                  {/* Where the work is done, one press away. */}
-                  <Link
-                    href="/app/receive/dar"
-                    className="focus-ring rounded-md border bg-card px-3 py-1.5 text-xs font-medium hover:bg-secondary"
-                  >
-                    {T("Check it in")}
-                  </Link>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      {/* Only ever in answer to a search: the customer is at the counter and
-          the clerk needs a sentence to give them. */}
-      {held.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {T("Found, but not ready")} ({held.length})
-          </h2>
-          <Card>
-            <CardContent className="space-y-2 pt-6">
-              {held.map(({ item, check }) => (
-                <div
-                  key={item.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.receiver.fullName}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      <Link
-                        href={`/app/cargo/${item.id}`}
-                        className="tnum hover:underline"
-                      >
-                        {item.reference}
-                      </Link>
-                      {" · "}
-                      {check.blockedBy}
-                    </p>
-                  </div>
-                  <Badge tone="warn">{T("not ready")}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
+          <PickupQueueTable rows={rows} />
+        </>
+      )}
     </div>
   );
 }

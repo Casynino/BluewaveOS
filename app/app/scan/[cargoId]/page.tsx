@@ -81,6 +81,31 @@ export default async function HandoverPage({
         back={{ href: "/app/scan", label: "Scan & release" }}
       />
 
+      {/*
+        "CLEARED" WITH A DEAD BUTTON IS WORSE THAN A PLAIN REFUSAL.
+
+        Cargo opened from the pickup list is genuinely clear — the check below
+        says so — but the box has not been read yet, and the check knows
+        nothing about that. A clerk who reads GO, fills the form in and finds
+        the button dead has been walked into it. So the outstanding thing is
+        said at the top, where the answer to "may I hand this over" lives.
+      */}
+      {!handover.released && handover.check.ok && handover.expected > 0 && handover.scannedOut === 0 ? (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="flex items-start gap-3 pt-6">
+            <CircleAlert className="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-base font-semibold text-amber-900 dark:text-amber-200">
+                {T("Cleared — now scan the box")}
+              </p>
+              <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-200/80">
+                {T("Payment and paperwork are in order. Read the QR on the carton to confirm you have the right one, then hand it over.")}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* WHO IS STANDING THERE. First, and largest: a counter reads a name. */}
       <Card>
         <CardContent className="space-y-4 pt-6">
@@ -337,6 +362,9 @@ export default async function HandoverPage({
                   receiverPhone={handover.receiver.phone}
                   noteNumber={handover.note?.noteNumber ?? null}
                   askAboutNote
+                  defaultOpen
+                  boxesScannedOut={handover.scannedOut}
+                  boxesExpected={handover.expected}
                 />
               </CardContent>
             </Card>

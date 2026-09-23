@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, DoorOpen, X } from "lucide-react";
+import { Check, DoorOpen, PackageCheck, TriangleAlert, X } from "lucide-react";
 
 import { releaseCargo, type ActionState } from "@/lib/actions/release";
 import { FormMessage } from "@/components/app/form-message";
@@ -60,6 +60,9 @@ export function ReleaseForm({
   receiverPhone,
   noteNumber,
   askAboutNote = false,
+  defaultOpen = false,
+  boxesScannedOut = 0,
+  boxesExpected = 0,
 }: {
   cargoId: string;
   packages: number;
@@ -76,15 +79,39 @@ export function ReleaseForm({
    * nothing rather than assuming, which is why the field is nullable.
    */
   askAboutNote?: boolean;
+  /** Open on the handover screen; collapsed where it sits inside a list. */
+  defaultOpen?: boolean;
+  /**
+   * THE BOX ITSELF, READ OR NOT READ.
+   *
+   * A row opened from a list names the consignment and proves nothing about
+   * what is on the counter. Reading the sticker is what confirms the clerk is
+   * holding the right carton, so until at least one box has been scanned out
+   * the handover is not armed — and the way past it is named rather than
+   * hidden, because a label soaked in the rain is a real carton with a real
+   * customer standing next to it.
+   *
+   * Nothing new is stored for this: a release with no box scans leaves boxes
+   * with no `collectedAt` and no ScanEvent, which is itself the record that
+   * none was read.
+   */
+  boxesScannedOut?: number;
+  boxesExpected?: number;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
     releaseCargo,
     {}
   );
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [somebodyElse, setSomebodyElse] = useState(false);
   const [noNote, setNoNote] = useState(false);
+  const [scanImpossible, setScanImpossible] = useState(false);
+
+  /* Nothing to scan (a consignment with no labels) is not the same as nothing
+     scanned — the first cannot be asked for and never blocks the counter. */
+  const expectsScan = boxesExpected > 0;
+  const armed = !expectsScan || boxesScannedOut > 0 || scanImpossible;
 
   if (!open) {
     return (
@@ -98,6 +125,43 @@ export function ReleaseForm({
   return (
     <form action={action} className="space-y-4 rounded-lg border p-4">
       <input type="hidden" name="cargoId" value={cargoId} />
+
+      {/* THE BOX, BEFORE ANYTHING ELSE ON THIS FORM. */}
+      {expectsScan && boxesScannedOut > 0 ? (
+        <div className="flex items-center gap-2 rounded-lg border border-success/40 bg-success/5 p-3">
+          <PackageCheck className="size-4 shrink-0 text-success" />
+          <p className="text-sm font-medium text-success">
+            {tx("Box scanned and confirmed")}
+          </p>
+        </div>
+      ) : expectsScan && scanImpossible ? (
+        <div className="rounded-lg border-2 border-warning/50 bg-warning/10 p-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-warning">
+            <TriangleAlert className="size-4 shrink-0" />
+            {tx("Releasing without scanning the label")}
+          </p>
+          <p className="mt-1 text-xs text-warning/90">
+            {tx("Check the tracking number against the customer's paperwork yourself, and make sure the cargo is in the handover photograph — that photo is the only record that the right box left the building.")}
+          </p>
+        </div>
+      ) : expectsScan ? (
+        <div className="rounded-lg border border-dashed p-3">
+          <p className="text-sm font-semibold">{tx("Scan the box to confirm")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {tx("Read the sticker on the carton above. Opening this cargo from a list names it; it does not prove which box is on the counter.")}
+          </p>
+          {/* The way out, for a box whose label cannot be read. It skips no
+              check — every guard runs again in the release transaction — it
+              names what is being relied on instead: the handover photograph. */}
+          <button
+            type="button"
+            onClick={() => setScanImpossible(true)}
+            className="focus-ring mt-2 min-h-11 text-left text-xs font-medium text-warning underline underline-offset-2"
+          >
+            {tx("The label cannot be read — release without scanning")}
+          </button>
+        </div>
+      ) : null}
 
       {/*
         THE PAPER, ASKED ABOUT SEPARATELY FROM THE PERMISSION.
@@ -245,10 +309,15 @@ export function ReleaseForm({
       {/* The last thing a clerk touches, one-handed, with a customer watching:
           full width and thumb-sized, not a 36px target beside a Cancel. */}
       <div className="space-y-2">
-        <SubmitButton size="lg" className="h-14 w-full text-base">
+        <SubmitButton size="lg" className="h-14 w-full text-base" disabled={!armed}>
           <DoorOpen />
           {tx("Release")}
         </SubmitButton>
+        {armed ? null : (
+          <p className="text-center text-xs text-muted-foreground">
+            {tx("Scan the box before releasing it.")}
+          </p>
+        )}
         <Button type="button" variant="ghost" className="w-full" onClick={() => setOpen(false)}>
           {tx("Cancel")}
         </Button>
