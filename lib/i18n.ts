@@ -6167,6 +6167,8 @@ const ZH: Record<string, string> = {
   "At Dar es Salaam port — on its way to our warehouse": "在达累斯萨拉姆港——正运往我们的仓库",
   "Delayed at sea — later than expected": "海上延误——晚于预计时间",
   "35 days at sea": "海上35天",
+  "Paid — waiting on us": "已付款——等待我方处理",
+  "Customers whose cargo has arrived in Dar and is paid. Hand it over from the row; anything paid but still waiting on this floor is named underneath.": "货物已抵达达累斯萨拉姆且已付款的客户。可直接在该行完成交付；已付款但仍在本仓等待处理的货物列在下方。",
   "Discounted": "已折扣",
   "Put the price back": "恢复原价",
   "Why it is not agreed": "不同意的原因",

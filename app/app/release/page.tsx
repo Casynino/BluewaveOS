@@ -50,7 +50,20 @@ export default async function ReleasePage({
   const cargo = await prisma.cargo.findMany({
     where: {
       deletedAt: null,
-      status: { in: ["RECEIVED_DAR", "READY_FOR_RELEASE"] },
+      /*
+        LANDED CARGO, INCLUDING WHAT IS WAITING ON THIS FLOOR.
+
+        A consignment Finance has billed, been paid for and written a pickup
+        note against can still be standing in a container nobody has counted —
+        and it used to be invisible here, because this list only held what Dar
+        had already booked in. The customer holding that note is real and is
+        ringing somebody. So goods whose box has landed are on the list too,
+        under what is waiting on us, with the counting they are waiting for.
+      */
+      OR: [
+        { status: { in: ["RECEIVED_DAR", "READY_FOR_RELEASE"] } },
+        { status: "ARRIVED_TANZANIA", pickupNote: { status: "ACTIVE" } },
+      ],
       ...(query
         ? {
             OR: [
@@ -87,7 +100,13 @@ export default async function ReleasePage({
   });
   const boxesOf = new Map(boxRows.map((r) => [r.cargoId, { done: r._count.collectedAt, total: r._count._all }]));
   const ready = checked.filter((c) => c.check.ok);
-  const held = query ? checked.filter((c) => !c.check.ok) : [];
+  /* Paid, noted, and standing here: the floor's own work, named. */
+  const waitingOnUs = checked.filter(
+    (c) => !c.check.ok && c.item.pickupNote?.status === "ACTIVE"
+  );
+  const held = query
+    ? checked.filter((c) => !c.check.ok && c.item.pickupNote?.status !== "ACTIVE")
+    : [];
 
   return (
     <div className="space-y-6">
@@ -104,7 +123,7 @@ export default async function ReleasePage({
       */}
       <PageHeader
         title={T("Pickup list")}
-        description={T("Customers whose cargo has arrived in Dar, is paid and is ready for pickup. Open a row to hand it over.")}
+        description={T("Customers whose cargo has arrived in Dar and is paid. Hand it over from the row; anything paid but still waiting on this floor is named underneath.")}
       />
       <SectionTabs />
 
@@ -182,6 +201,60 @@ export default async function ReleasePage({
           ))
         )}
       </section>
+
+      {/*
+        PAID, NOTED, AND WAITING ON THIS FLOOR.
+
+        The customer has settled the bill and is holding a pickup note; the
+        only thing between them and their goods is work on this side of the
+        counter — usually the count nobody has finished. Naming it here, with
+        the sentence from the release check and the screen that clears it, is
+        the difference between a customer who is told why and a customer who is
+        told to ring back.
+      */}
+      {waitingOnUs.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {T("Paid — waiting on us")} ({waitingOnUs.length})
+          </h2>
+          <Card>
+            <CardContent className="space-y-2 pt-6">
+              {waitingOnUs.map(({ item, check }) => (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {item.receiver.fullName}
+                      <span className="tnum ml-2 text-xs font-normal text-muted-foreground">
+                        {item.receiver.phone}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      <Link href={`/app/cargo/${item.id}`} className="tnum hover:underline">
+                        {item.reference}
+                      </Link>
+                      {item.pickupNote?.noteNumber ? (
+                        <span className="tnum">{` · ${item.pickupNote.noteNumber}`}</span>
+                      ) : null}
+                      {" · "}
+                      {check.blockedBy}
+                    </p>
+                  </div>
+                  {/* Where the work is done, one press away. */}
+                  <Link
+                    href="/app/receive/dar"
+                    className="focus-ring rounded-md border bg-card px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+                  >
+                    {T("Check it in")}
+                  </Link>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       {/* Only ever in answer to a search: the customer is at the counter and
           the clerk needs a sentence to give them. */}
