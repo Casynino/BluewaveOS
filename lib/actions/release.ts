@@ -25,6 +25,20 @@ const releaseSchema = z.object({
   collectedByIdNo: z.string().trim().optional(),
   relationship: z.string().trim().optional(),
   notes: z.string().trim().optional(),
+  /*
+    THE PAPER, WHICH IS NOT THE PERMISSION.
+
+    By the time this form can be submitted the release check has already
+    refused everything without a live pickup note. What it cannot see is
+    whether the customer walked in holding their printed copy — they lose
+    them, never print them, or arrive before anyone has handed one over. A
+    screen that asks sends these; a screen that does not sends neither, and the
+    handover records that the question was never put rather than an answer
+    nobody gave.
+  */
+  noteAsked: z.boolean(),
+  noteMissing: z.boolean(),
+  noteAbsenceReason: z.string().trim().optional(),
 });
 
 /**
@@ -57,11 +71,22 @@ export async function releaseCargo(
     collectedByIdNo: formData.get("collectedByIdNo") || undefined,
     relationship: formData.get("relationship") || undefined,
     notes: formData.get("notes") || undefined,
+    noteAsked: formData.get("noteAsked") === "1",
+    noteMissing: formData.get("noteMissing") === "1",
+    noteAbsenceReason: formData.get("noteAbsenceReason") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the form." };
   }
   const data = parsed.data;
+
+  /* Null when nobody was asked. Recording "the note was presented" because a
+     box went unticked on a screen that never showed the question would be the
+     system inventing the one fact this field exists to preserve. */
+  const notePresented = data.noteAsked ? !data.noteMissing : null;
+  if (notePresented === false && (data.noteAbsenceReason?.length ?? 0) < 3) {
+    return { error: "Say how you identified the person collecting." };
+  }
 
   const files = formData
     .getAll("signature")
@@ -128,6 +153,8 @@ export async function releaseCargo(
           relationship: data.relationship || null,
           signatureUrl,
           notes: data.notes || null,
+          notePresented,
+          noteAbsenceReason: notePresented === false ? (data.noteAbsenceReason ?? null) : null,
           releasedById: actor.id,
         },
       });
@@ -148,7 +175,9 @@ export async function releaseCargo(
           action: "cargo.release",
           entity: "Cargo",
           entityId: cargo.id,
-          summary: `Released ${cargo.reference} as ${ref} to ${data.collectedByName} (${data.packagesReleased} package(s))`,
+          summary:
+            `Released ${cargo.reference} as ${ref} to ${data.collectedByName} (${data.packagesReleased} package(s))` +
+            (notePresented === false ? " — no printed pickup note presented" : ""),
           metadata: {
             method: data.method,
             collectedBy: data.collectedByName,
@@ -156,8 +185,16 @@ export async function releaseCargo(
             relationship: data.relationship ?? null,
             releasedAt: new Date().toISOString(),
             pickupNote: cargo.pickupNote?.noteNumber ?? null,
+            /* Null means the screen never asked. The question a month later is
+               "did anybody see the paper", and "we do not know" is a different
+               answer from "no" — both are worth more than a silent yes. */
+            notePresented,
+            noteAbsenceReason: notePresented === false ? (data.noteAbsenceReason ?? null) : null,
             boxesScanned: boxes.length,
-            verification: "release check passed; pickup note spent; every box scanned out",
+            verification:
+              notePresented === false
+                ? "release check passed; pickup note spent without the printed copy being shown; every box scanned out"
+                : "release check passed; pickup note spent; every box scanned out",
           },
         },
         tx
@@ -174,6 +211,7 @@ export async function releaseCargo(
 
   revalidatePath("/app/release");
   revalidatePath(`/app/cargo/${data.cargoId}`);
+  revalidatePath(`/app/scan/${data.cargoId}`);
   return { ok: `Released. Note ${number}.` };
 }
 

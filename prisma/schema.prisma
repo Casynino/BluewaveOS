@@ -1809,6 +1809,23 @@ model Release {
 
   signatureUrl String?
 
+  /**
+   * WAS THE PRINTED PICKUP NOTE ON THE COUNTER?
+   *
+   * A different question from "is there a live pickup note", which is the
+   * release check's and is answered before anything moves. This one is about
+   * the paper: customers lose it, never print it, or arrive before anyone has
+   * handed it to them. The counter may still serve them when the check says
+   * yes — and when it does, the handover says so itself, with the name of
+   * whoever decided, instead of being reconstructed a month later from the
+   * fact that nobody can find a stub.
+   *
+   * Null on a handover made from a screen that never asked.
+   */
+  notePresented     Boolean?
+  /// How the person was identified when they brought no paper.
+  noteAbsenceReason String?
+
   releasedAt   DateTime @default(now())
   releasedById String?
   releasedBy   User?    @relation(fields: [releasedById], references: [id], onDelete: SetNull)

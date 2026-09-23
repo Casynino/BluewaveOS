@@ -197,6 +197,66 @@ export function checkRelease(cargo: CargoForRelease): ReleaseCheck {
   };
 }
 
+/**
+ * WHO CAN MAKE THE ANSWER CHANGE.
+ *
+ * The check's sentences say what is missing. A counter with a customer in
+ * front of it also needs to know whose job it is, because the alternative —
+ * the one this replaces — is a clerk who cannot name a department deciding it
+ * is easier to hand the boxes over and sort the paperwork out afterwards.
+ *
+ * Nothing here releases anything. It is a list of phone calls, keyed on the
+ * one condition that is failing, and every sentence is a thing that desk does
+ * in the system rather than a favour they can do on the phone. No figure
+ * appears in any of them: the warehouse reads this screen.
+ */
+export type ReleaseRemedy = {
+  desk: "FINANCE" | "MANAGEMENT" | "DAR_WAREHOUSE" | "CUSTOMER_SUPPORT";
+  what: string;
+};
+
+const REMEDIES: Record<string, ReleaseRemedy[]> = {
+  "Not already handed over": [],
+  "Not missing or cancelled": [
+    { desk: "MANAGEMENT", what: "Ask the manager what is to happen to these goods." },
+  ],
+  "Received at the Dar warehouse": [
+    { desk: "DAR_WAREHOUSE", what: "The boxes are booked in on the receiving dock first." },
+  ],
+  "Counted and verified": [
+    { desk: "DAR_WAREHOUSE", what: "The floor signs the count off on the check-in screen." },
+  ],
+  "No warehouse discrepancy": [
+    { desk: "DAR_WAREHOUSE", what: "Settle the case on the count before anything leaves." },
+    { desk: "MANAGEMENT", what: "The manager closes a case the floor cannot." },
+  ],
+  "No operational hold": [
+    { desk: "MANAGEMENT", what: "Only the desk that placed the hold can lift it." },
+  ],
+  "No open case": [
+    { desk: "DAR_WAREHOUSE", what: "Resolve the case on the consignment's own page." },
+    { desk: "MANAGEMENT", what: "The manager closes a case the floor cannot." },
+  ],
+  Invoiced: [
+    { desk: "FINANCE", what: "Finance raises the bill and issues it to the customer." },
+  ],
+  "Paid in full": [
+    { desk: "FINANCE", what: "Finance takes the payment and verifies it." },
+    {
+      desk: "MANAGEMENT",
+      what: "Only the manager lets goods go before the money arrives, and Finance writes the note on credit.",
+    },
+  ],
+  "Pickup note issued": [
+    { desk: "FINANCE", what: "Finance issues the pickup note once the bill is settled." },
+  ],
+};
+
+export function releaseRemedies(check: ReleaseCheck): ReleaseRemedy[] {
+  const failing = check.conditions.find((c) => !c.passed);
+  return failing ? (REMEDIES[failing.label] ?? []) : [];
+}
+
 /** Everything the check needs, in one query shape. */
 export const RELEASE_INCLUDE = {
   /* packagesCount is not part of the decision — it is here so the release
