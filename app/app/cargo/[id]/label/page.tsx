@@ -14,8 +14,18 @@ import { canAny } from "@/lib/rbac";
 
 import { primeLocale, T } from "@/lib/server-t";
 
-/** One size for every control on this screen: a thumb, not a pointer. */
-const ACTION = "h-12 rounded-xl px-5 text-base font-semibold";
+/*
+  ONE SIZE FOR EVERY CONTROL HERE, AND TWO OF THEM FIT A PHONE.
+
+  A counter presses these with a thumb, so they are tall — but not so wide that
+  the pair wraps onto two lines on the screen the Foshan floor actually holds,
+  which turned a row of two into a stack of two.
+*/
+const ACTION = "h-11 rounded-xl px-4 text-sm font-semibold";
+/* The plain press beside the blue one: a light face on the dark screen and a
+   dark one on the light screen, so it reads as solid rather than as an outline
+   somebody forgot to fill. */
+const PLAIN = "bg-foreground text-background hover:bg-foreground/90";
 
 export async function generateMetadata({
   params,
@@ -114,25 +124,25 @@ export default async function CargoLabelPage({
       */}
       {received ? (
         <div className="rounded-2xl border border-success/40 bg-success/10 p-4 print:hidden">
-          <p className="flex items-center gap-2 text-xl font-bold text-success">
-            <CheckCircle2 className="size-6 shrink-0" />
+          <p className="flex items-center gap-2 text-lg font-semibold text-success">
+            <CheckCircle2 className="size-5 shrink-0" />
             Received · {cargo.reference}
           </p>
-          <p className="mt-1 text-base text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {stickers.length} {stickers.length === 1 ? T("box") : T("boxes")}
             {cargo.deliveryNote ? ` · ${T("delivery note")} ${cargo.deliveryNote.number}` : ""}
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-3 flex flex-wrap gap-2">
             {/* Handed over before they leave, not looked for a week later. */}
             {cargo.deliveryNote ? (
-              <Button asChild variant="secondary" className={ACTION}>
+              <Button asChild variant="secondary" className={`${ACTION} ${PLAIN}`}>
                 <Link href={`/app/cargo/${cargo.id}/delivery-note`}>
                   <FileText />
                   {T("Delivery note")}
                 </Link>
               </Button>
             ) : null}
-            <Button asChild variant="secondary" className={ACTION}>
+            <Button asChild variant="secondary" className={`${ACTION} ${PLAIN}`}>
               <Link href="/app/receive/new">
                 <Plus />
                 {T("Receive next")}
@@ -146,17 +156,17 @@ export default async function CargoLabelPage({
           beside a back link: on the phone the counter works on, a row that
           wrapped put Download under the hint and Print beside it. */}
       <div className="rounded-2xl border bg-card p-4 print:hidden">
-        <p className="text-base text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           One code per physical box — never copy a label onto two. {LABEL_MM.width} ×{" "}
           {LABEL_MM.height} mm.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <PrintButton
             primary
             className={ACTION}
             label={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
           />
-          <Button asChild variant="secondary" className={ACTION}>
+          <Button asChild variant="secondary" className={`${ACTION} ${PLAIN}`}>
             <a
               href={`/app/cargo/${cargo.id}/label/pdf${box ? `?box=${encodeURIComponent(box)}` : ""}`}
               download
