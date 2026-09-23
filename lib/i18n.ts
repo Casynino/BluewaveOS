@@ -8163,6 +8163,27 @@ const ZH: Record<string, string> = {
   "They leave the customer lists and cannot sign in. Their bills and cargo history are kept, and the owner can restore them from Deleted records.":
     "他们将从客户列表中移除且无法登录。账单与货物记录仍保留，老板可在“已删除记录”中恢复。",
   "e.g. duplicate of CUS-000012": "例如：与 CUS-000012 重复",
+  "QR label": "二维码标签",
+  "one code per carton, stuck on the box": "每箱一个编码，贴在箱子上",
+  "Proof we took the boxes in — handed to the customer or the supplier before they leave.":
+    "我们收货的凭证——在客户或供应商离开前交给他们。",
+  "Made when the boxes were received, and kept here for good — from the Foshan floor to the day the cargo is collected.":
+    "收货时即生成，并永久保存于此——从佛山仓库直到货物被提走。",
+  "Print both": "两份一起打印",
+  "The delivery note, then one label for every box.": "先是收货单，然后每箱一张标签。",
+  "One label for every box.": "每箱一张标签。",
+  "Delivery note PDF": "收货单 PDF",
+  "Labels PDF": "标签 PDF",
+  "Nothing to print for this consignment yet.": "这票货暂时没有可打印的单据。",
+  "No delivery note has been issued for this consignment yet.": "这票货尚未开具收货单。",
+  "No delivery note was issued for this consignment. The Foshan counter issues it when the boxes are received.":
+    "这票货没有收货单。收货单由佛山前台在收货时开具。",
+  "No box labels on this consignment yet — they are made when the packages are recorded.":
+    "这票货还没有箱唛标签——录入包装件数时会自动生成。",
+  "Read the sticker on the carton above. Opening this cargo from a list names it; it does not prove which box is on the counter.":
+    "请扫描上方箱子上的标签。从列表里打开只说明是哪一票货，并不能证明柜台上的是哪一箱。",
+  "Check the tracking number against the customer's paperwork yourself, and make sure the cargo is in the handover photograph — that photo is the only record that the right box left the building.":
+    "请自行核对运单号与客户的单据，并确保交货照片里拍到了货物——这张照片是唯一能证明出库的是正确箱子的记录。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

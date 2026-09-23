@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { QrCode } from "lucide-react";
 
 import { CargoTimeline } from "@/components/app/cargo-timeline";
 import { CargoDetailsEdit } from "@/components/app/cargo-details-edit";
@@ -14,6 +13,7 @@ import { HoldToggle } from "@/components/app/hold-toggle";
 import { MeasurementCompare } from "@/components/app/measurement-compare";
 import { PackageEditor } from "@/components/app/package-editor";
 import { BoxesCard } from "@/components/app/boxes-card";
+import { CargoDocuments } from "@/components/app/cargo-documents";
 import { PageHeader } from "@/components/app/page-header";
 import { bookCategories, categoryOfCargo } from "@/lib/rate-categories";
 import { PhotoPanel } from "@/components/app/photo-upload";
@@ -385,25 +385,11 @@ export default async function CargoDetailPage({
                 <Badge tone="warn">{T("Price waiting for confirmation")}</Badge>
               )
             ) : null}
-            {/* Printed at the counter while the boxes are still on the floor —
-                one sticker per carton, each with its own code. */}
-            {can(user.role, "receiving.china") && cargo.packages.length > 0 ? (
-              <Button asChild variant="outline">
-                <Link href={`/app/cargo/${cargo.id}/label`}>
-                  <QrCode />
-                  Print labels
-                </Link>
-              </Button>
-            ) : null}
-            {can(user.role, "deliveryNote.view") ? (
-              <DeliveryNoteButton
-                cargoId={cargo.id}
-                existing={cargo.deliveryNote}
-                canIssue={
-                  can(user.role, "deliveryNote.issue") && !!china && amend
-                }
-              />
-            ) : null}
+            {/* The papers themselves live in Documents, further down: both are
+                made when the boxes are taken in, both stay reproducible for
+                good, and each has its own Print and its own Download. A header
+                button that only printed labels hid the note from the desk that
+                needed it. */}
           </>
         }
       />
@@ -727,6 +713,20 @@ export default async function CargoDetailPage({
               />
             </CardContent>
           </Card>
+
+          {/* WHAT THIS CONSIGNMENT PRINTS, WHATEVER STAGE IT IS AT. */}
+          <CargoDocuments
+            cargoId={cargo.id}
+            note={cargo.deliveryNote}
+            canLabel={can(user.role, "receiving.china") || can(user.role, "receiving.dar")}
+            canNote={can(user.role, "deliveryNote.view")}
+            canIssueNote={can(user.role, "deliveryNote.issue") && !!china && amend}
+            issueControl={
+              can(user.role, "deliveryNote.issue") && !!china && amend ? (
+                <DeliveryNoteButton cargoId={cargo.id} existing={null} canIssue />
+              ) : null
+            }
+          />
 
           <BoxesCard
             cargoId={cargo.id}

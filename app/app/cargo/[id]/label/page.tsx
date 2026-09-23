@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM, type StickerData } from "@/components/app/cargo-sticker";
 import { DocumentActions } from "@/components/app/document-actions";
+import { AutoPrint } from "@/components/app/print-button";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { stickersFor } from "@/lib/box-labels";
@@ -92,6 +93,10 @@ export default async function CargoLabelPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 print:max-w-none print:space-y-0">
+      {/* Arriving with ?print=1 raises the clerk's own print dialog, so "Print
+          QR label" on the cargo page is one press rather than a page to find a
+          button on. */}
+      <AutoPrint />
       {received ? (
         <div className="rounded-2xl border border-success/40 bg-success/10 p-4 print:hidden">
           <p className="flex items-center gap-2 font-semibold text-success">
