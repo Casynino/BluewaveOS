@@ -8046,6 +8046,105 @@ const ZH: Record<string, string> = {
     "共 {total} 票待装货物，显示最早的 {shown} 票。其余请搜索。",
   "it keeps its number and gains a version each time the cargo on this box changes, because a number already on paper at a port must not change under somebody's hand.":
     "每次本柜货物变动，它保留原单号并新增一个版本，因为已经打印送到港口的单号不能在别人手里悔改。",
+
+  // ------------------------------------------------ The Dar counter's handover
+  /* The release check's own sentences. They are what a clerk reads out to a
+     customer, so they are translated as sentences and never as labels. */
+  "These goods have already left the warehouse.": "这批货已经出库了。",
+  "Reported missing at Dar.": "在达累斯萨拉姆报失。",
+  "The boxes have not been booked in at Dar.": "箱子尚未在达累斯萨拉姆入库。",
+  "Dar has received it but not signed off the count.":
+    "达累斯萨拉姆已收货，但还没有签核数量。",
+  "The count or condition did not match. Resolve the case first.":
+    "数量或货况对不上。请先处理该案件。",
+  "Held by the warehouse.": "被仓库扣住。",
+  "An invoice has been drafted but not issued to the customer yet.":
+    "账单已草拟，但还没有开给客户。",
+  "Nothing has been billed for this consignment yet.": "这票货还没有开过任何账单。",
+  "Not paid in full yet, counting verified payments only.":
+    "尚未付清，只计入已核实的付款。",
+  "The pickup note has already been used.": "提货单已经使用过了。",
+  "Finance withdrew the pickup note.": "财务已撤销该提货单。",
+  "Finance has not issued a pickup note yet.": "财务还没有开具提货单。",
+  "Not missing or cancelled": "未报失、未取消",
+
+  "Point the back camera at the QR on the box or on the pickup note.":
+    "用后置摄像头对准箱子或提货单上的二维码。",
+  "This browser cannot read a code from its camera — on an iPhone, scan the QR with the Camera app and paste it below.":
+    "此浏览器无法用摄像头读码——iPhone 请用相机 App 扫描二维码，再粘贴到下面。",
+  "This device has no camera the browser can use. Type or paste the code below.":
+    "此设备没有浏览器可用的摄像头。请在下面输入或粘贴编码。",
+  "This device has no camera the browser can use. Type the code below.":
+    "此设备没有浏览器可用的摄像头。请在下面输入编码。",
+  "The camera is blocked for this site. Allow it in the browser, or type the code below.":
+    "本站的摄像头权限被拒绝。请在浏览器中允许，或在下面输入编码。",
+  "The camera did not start. Type the code below.": "摄像头没有启动。请在下面输入编码。",
+  "Stop camera": "关闭摄像头",
+  "Code, tracking number, mark, name or phone": "编码、运单号、唛头、姓名或电话",
+  "Opening": "正在打开",
+  "That did not reach the server. Try again.": "没有送达服务器。请重试。",
+  "That code found nothing.": "这个编码没有找到任何记录。",
+  "Scan a code, or type a reference.": "请扫码，或输入单号。",
+  "That code is not a BlueWave Cargo label. Check the sticker, or type the tracking number.":
+    "这不是 BlueWave Cargo 的标签。请检查贴纸，或输入运单号。",
+  "Nothing here matches that. Try the tracking number, the shipping mark, the name or the phone.":
+    "没有匹配的记录。可以试试运单号、唛头、姓名或电话。",
+
+  "No pickup note?": "没有提货单？",
+  "Look the cargo up by tracking number, shipping mark, customer name or phone. The screen it opens says what is missing and what may be done about it.":
+    "按运单号、唛头、客户姓名或电话查找货物。打开的页面会说明缺什么、可以怎么办。",
+  "BW0125, a mark, a name or 0712…": "BW0125、唛头、姓名或 0712…",
+  "Find the customer's cargo": "查找客户的货物",
+  "Look up": "查找",
+  "may go": "可放行",
+
+  "Everything needed to hand these boxes over, on one screen.":
+    "交付这些箱子所需的一切，都在这一个页面上。",
+  "Sent by": "寄件人",
+  "only the receiver may collect": "只有收货人可以提货",
+  "Boxes scanned out": "已扫描出库的箱数",
+  "In the container": "在柜内",
+  "This consignment has no box labels — hand it over by the package count.":
+    "这票货没有箱唛标签——按件数交付。",
+  "These boxes may go": "这些箱子可以放行",
+  "These boxes may not go": "这些箱子不可放行",
+  "No pickup note has been issued for this consignment.": "这票货还没有开具提货单。",
+  /* The pickup note's three states, as the counter badge reads them. */
+  "live": "有效",
+  "already used": "已使用",
+  "withdrawn": "已撤销",
+  "Written on credit — the customer still owes on this consignment.":
+    "按赊账开具——客户在这票货上仍有欠款。",
+  "Who can put this right": "谁可以处理",
+  "The manager": "经理",
+  "The Dar floor": "达累斯萨拉姆仓库",
+  "No phone number on file for that desk — use the staff list.":
+    "该岗位没有登记电话——请查员工名单。",
+  "Ask the manager what is to happen to these goods.": "请问经理这批货要如何处理。",
+  "The boxes are booked in on the receiving dock first.": "箱子要先在收货口入库。",
+  "The floor signs the count off on the check-in screen.": "仓库在入库核对页面签核数量。",
+  "Settle the case on the count before anything leaves.": "先了结数量差异的案件，才能出货。",
+  "The manager closes a case the floor cannot.": "仓库无法了结的案件由经理关闭。",
+  "Only the desk that placed the hold can lift it.": "只有下达扣货的岗位才能解除。",
+  "Resolve the case on the consignment's own page.": "在该票货自己的页面上处理案件。",
+  "Finance raises the bill and issues it to the customer.": "财务出账单并开给客户。",
+  "Finance takes the payment and verifies it.": "财务收款并核实。",
+  "Only the manager lets goods go before the money arrives, and Finance writes the note on credit.":
+    "只有经理可以在款项到账前放货，再由财务按赊账开具提货单。",
+  "Finance issues the pickup note once the bill is settled.":
+    "账单结清后由财务开具提货单。",
+  "You may open this screen but not hand cargo over. Ask the Dar counter.":
+    "你可以打开此页面，但不能放货。请找达累斯萨拉姆前台。",
+
+  "The customer has no printed pickup note": "客户没有打印的提货单",
+  "The note on file is": "系统里的提货单是",
+  "Tick this only if they cannot show it.": "只有在客户拿不出提货单时才勾选。",
+  "How did you identify them?": "你是如何核实他身份的？",
+  "National ID checked, known customer, phone matched…":
+    "查验了身份证、熟客、电话号码吻合…",
+  "This is recorded against the handover with your name on it.":
+    "这会连同你的名字一起记录在本次交货上。",
+  "Say how you identified the person collecting.": "请说明你是如何核实提货人身份的。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

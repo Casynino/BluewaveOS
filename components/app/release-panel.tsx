@@ -58,11 +58,24 @@ export function ReleaseForm({
   packages,
   receiverName,
   receiverPhone,
+  noteNumber,
+  askAboutNote = false,
 }: {
   cargoId: string;
   packages: number;
   receiverName: string;
   receiverPhone: string;
+  /** The paper the counter matches against, when one was issued. */
+  noteNumber?: string | null;
+  /**
+   * Ask whether the printed note was actually on the counter.
+   *
+   * Not the question the release check answers. The check has already said a
+   * live note exists — it refuses everything else — and this is only whether
+   * the customer brought their copy of it. A screen that does not ask records
+   * nothing rather than assuming, which is why the field is nullable.
+   */
+  askAboutNote?: boolean;
 }) {
   const tx = useT();
   const [state, action] = useActionState<ActionState, FormData>(
@@ -71,10 +84,11 @@ export function ReleaseForm({
   );
   const [open, setOpen] = useState(false);
   const [somebodyElse, setSomebodyElse] = useState(false);
+  const [noNote, setNoNote] = useState(false);
 
   if (!open) {
     return (
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setOpen(true)} size="lg" className="h-14 w-full text-base">
         <DoorOpen />
         {tx("Hand it over")}
       </Button>
@@ -84,6 +98,57 @@ export function ReleaseForm({
   return (
     <form action={action} className="space-y-4 rounded-lg border p-4">
       <input type="hidden" name="cargoId" value={cargoId} />
+
+      {/*
+        THE PAPER, ASKED ABOUT SEPARATELY FROM THE PERMISSION.
+
+        Finance's note is what the release check reads, and it has already said
+        yes by the time this form is on screen. What it cannot know is whether
+        the customer walked in holding their printed copy — and they often do
+        not. Ticking this box changes nothing about what may leave; it writes
+        down that no paper was seen, and who decided to hand the boxes over
+        anyway, on the release record and in the audit line.
+      */}
+      {askAboutNote ? (
+        <div className="space-y-3 rounded-lg border border-dashed p-3">
+          {/* An unticked checkbox submits nothing at all, which would leave the
+              server unable to tell "asked, and they had it" from "never
+              asked". This says the question was put. */}
+          <input type="hidden" name="noteAsked" value="1" />
+          <label className="flex items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              name="noteMissing"
+              value="1"
+              className="mt-0.5 size-5"
+              checked={noNote}
+              onChange={(e) => setNoNote(e.target.checked)}
+            />
+            <span>
+              {tx("The customer has no printed pickup note")}
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {noteNumber
+                  ? `${tx("The note on file is")} ${noteNumber}. ${tx("Tick this only if they cannot show it.")}`
+                  : tx("Tick this only if they cannot show it.")}
+              </span>
+            </span>
+          </label>
+          {noNote ? (
+            <div className="space-y-2">
+              <Label htmlFor="noteAbsenceReason">{tx("How did you identify them?")}</Label>
+              <Input
+                id="noteAbsenceReason"
+                name="noteAbsenceReason"
+                required
+                placeholder={tx("National ID checked, known customer, phone matched…")}
+              />
+              <p className="text-xs text-muted-foreground">
+                {tx("This is recorded against the handover with your name on it.")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -177,12 +242,14 @@ export function ReleaseForm({
       </div>
 
       <FormMessage error={state.error} ok={state.ok} />
-      <div className="flex gap-2">
-        <SubmitButton>
+      {/* The last thing a clerk touches, one-handed, with a customer watching:
+          full width and thumb-sized, not a 36px target beside a Cancel. */}
+      <div className="space-y-2">
+        <SubmitButton size="lg" className="h-14 w-full text-base">
           <DoorOpen />
           {tx("Release")}
         </SubmitButton>
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" className="w-full" onClick={() => setOpen(false)}>
           {tx("Cancel")}
         </Button>
       </div>

@@ -47,7 +47,7 @@ const SECTIONS: NavSection[] = [
          is what they do when the label will not read. First item, first
          section. */
       {
-        label: "Scan",
+        label: "Scan & release",
         href: "/app/scan",
         icon: "ScanLine",
         permissions: ["cargo.scan"],

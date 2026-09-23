@@ -131,6 +131,8 @@ const NO_TRAIL_NEEDED: Record<string, string> = {
   "messages.ts:replyToConversation": "the message is the record",
   "messages.ts:logCustomerContact": "the CustomerContact row is the record",
   "requests.ts:updateRequestStatus": "the request carries its own status",
+  "scan.ts:openScan":
+    "opens a screen and changes nothing; every scan, whatever it found, is a ScanEvent row with the code, the person and the result",
   "containers.ts:advanceContainer": "writes a ContainerEvent and an audit row",
   "reconciliation.ts:checkAccount": "a read",
   "reconciliation.ts:reviewRecord": "the review row is the record",
