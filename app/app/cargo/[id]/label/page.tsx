@@ -15,13 +15,13 @@ import { canAny } from "@/lib/rbac";
 import { primeLocale, T } from "@/lib/server-t";
 
 /*
-  ONE SIZE FOR EVERY CONTROL HERE, AND TWO OF THEM FIT A PHONE.
+  ONE SIZE FOR EVERY CONTROL HERE, MEASURED OFF THE SCREEN IT COPIES.
 
-  A counter presses these with a thumb, so they are tall — but not so wide that
-  the pair wraps onto two lines on the screen the Foshan floor actually holds,
-  which turned a row of two into a stack of two.
+  Thirty-two pixels tall, twelve either side, twelve-pixel type: the row of two
+  then sits on one line at 390, which is the phone the Foshan counter holds.
+  Anything larger stacked them.
 */
-const ACTION = "h-11 rounded-xl px-4 text-sm font-semibold";
+const ACTION = "h-8 rounded-lg px-3 text-xs font-semibold";
 /* The plain press beside the blue one: a light face on the dark screen and a
    dark one on the light screen, so it reads as solid rather than as an outline
    somebody forgot to fill. */
@@ -132,7 +132,7 @@ export default async function CargoLabelPage({
             {stickers.length} {stickers.length === 1 ? T("box") : T("boxes")}
             {cargo.deliveryNote ? ` · ${T("delivery note")} ${cargo.deliveryNote.number}` : ""}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2.5">
             {/* Handed over before they leave, not looked for a week later. */}
             {cargo.deliveryNote ? (
               <Button asChild variant="secondary" className={`${ACTION} ${PLAIN}`}>
@@ -160,7 +160,7 @@ export default async function CargoLabelPage({
           One code per physical box — never copy a label onto two. {LABEL_MM.width} ×{" "}
           {LABEL_MM.height} mm.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2.5">
           <PrintButton
             primary
             className={ACTION}

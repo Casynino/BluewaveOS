@@ -20,11 +20,14 @@ export function pillsFor(role: Role): ActionPill[] {
         { label: "Raise an issue", href: "/app/exceptions", icon: "TriangleAlert", tone: "warning" },
       ];
     case "DAR_WAREHOUSE":
+      /* The dock's day in the order it happens: the container is counted off,
+         a box is scanned out, and the customers waiting are read from the
+         list. "Receive at Dar" and "Verify counts" were two pills to the same
+         screen, and arranging a delivery is Support's job, not this floor's. */
       return [
-        { label: "Receive at Dar", href: "/app/receive/dar", icon: "PackageCheck", tone: "success" },
-        { label: "Verify counts", href: "/app/receive/dar", icon: "ClipboardCheck", tone: "brand" },
-        { label: "Hand cargo over", href: "/app/release", icon: "DoorOpen", tone: "marine" },
-        { label: "Deliveries", href: "/app/deliveries", icon: "Truck" },
+        { label: "Verify counts", href: "/app/receive/dar", icon: "ClipboardCheck", tone: "success" },
+        { label: "Scan & release", href: "/app/scan", icon: "ScanLine", tone: "brand" },
+        { label: "Pickup list", href: "/app/release", icon: "Truck" },
         { label: "Inventory", href: "/app/inventory", icon: "Warehouse" },
         { label: "Raise an issue", href: "/app/exceptions", icon: "TriangleAlert", tone: "warning" },
       ];
