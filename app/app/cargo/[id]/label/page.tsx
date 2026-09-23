@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, FileText, Layers, Plus } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -65,6 +65,9 @@ export default async function CargoLabelPage({
     include: {
       sender: { select: { fullName: true, phone: true } },
       chinaReceiving: { select: { receivedAt: true } },
+      /* The other paper made at the same counter: the customer or the driver
+         who brought the boxes is still standing there. */
+      deliveryNote: { select: { number: true } },
       packages: {
         where: { deletedAt: null },
         orderBy: { reference: "asc" },
@@ -106,6 +109,9 @@ export default async function CargoLabelPage({
           <p className="mt-1 text-sm text-muted-foreground">
             Print the labels and stick one on each box — {stickers.length} box
             {stickers.length === 1 ? "" : "es"}.
+            {cargo.deliveryNote
+              ? ` ${T("The delivery note")} ${cargo.deliveryNote.number} ${T("is ready for whoever brought them.")}`
+              : ""}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
             <DocumentActions
@@ -115,6 +121,25 @@ export default async function CargoLabelPage({
               printLabel={`${T("Print")} ${stickers.length} ${stickers.length === 1 ? T("label") : T("labels")}`}
               downloadLabel={T("Download PDF")}
             />
+            {/* Handed over before they leave, not looked for a week later. */}
+            {cargo.deliveryNote ? (
+              <>
+                <Link
+                  href={`/app/cargo/${cargo.id}/delivery-note?print=1`}
+                  className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
+                >
+                  <FileText className="size-4" />
+                  {T("Print delivery note")}
+                </Link>
+                <Link
+                  href={`/app/cargo/${cargo.id}/documents?print=1`}
+                  className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
+                >
+                  <Layers className="size-4" />
+                  {T("Print both")}
+                </Link>
+              </>
+            ) : null}
             <Link
               href="/app/receive/new"
               className="focus-ring inline-flex h-10 items-center justify-center gap-1.5 rounded-md border bg-background px-4 text-sm font-medium hover:bg-secondary"
