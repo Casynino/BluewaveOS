@@ -1106,7 +1106,179 @@ export async function repriceInvoice(
   await refreshInvoiceStatus(invoice.id);
 
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
+  revalidatePath("/app/finance/collections/verify");
   return { ok: `Re-priced at ${invoice.currency} ${next} per CBM.` };
+}
+
+/**
+ * THE LAST CHANGE OF ONE KIND, IF IT IS STILL STANDING.
+ *
+ * A change put back after it was made is no longer on the bill, and putting it
+ * back twice would take the price somewhere nobody asked for. Both halves stay
+ * in the trail; only the newer of the two decides what the bill carries now.
+ */
+async function changeStanding(invoiceId: string, action: string) {
+  const [made, back] = await Promise.all([
+    prisma.auditLog.findFirst({
+      where: { entity: "Invoice", entityId: invoiceId, action },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+    prisma.auditLog.findFirst({
+      where: { entity: "Invoice", entityId: invoiceId, action: `${action}.undo` },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+  ]);
+  if (!made) return null;
+  return back && back.createdAt >= made.createdAt ? null : made;
+}
+
+/**
+ * PUT THE BOOK PRICE BACK.
+ *
+ * The twin of the discount's put-back, for the other way a price moves. Support
+ * re-prices a bill at the counter and Finance meets it later as a figure it is
+ * about to take money against; if Finance does not agree the rate, the bill
+ * goes back to what the rate book says.
+ *
+ * IT IS THE PRICE ENGINE THAT ANSWERS, NOT THIS FILE. The freight lines are
+ * priced again by lib/invoice-draft.ts, exactly as a draft is priced — the same
+ * book, the same per-line rates, the same volume the warehouse measured. No
+ * rate is multiplied here and none is carried over from the bill: an agreed
+ * rate is the thing being taken off. Everything that is not freight — storage,
+ * an added charge, a discount — is kept and re-added, so VAT is taken once over
+ * the whole.
+ *
+ * THE CATEGORY STAYS WHERE THE RE-PRICE PUT IT. A cargo type is what the goods
+ * are, not what they cost; the price that goes back on is the book's price for
+ * the goods as they now stand, which is the figure the badge named beside the
+ * change.
+ */
+export async function undoReprice(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorize("invoice.discount");
+
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const reason =
+    String(formData.get("reason") ?? "").trim() || "Price not agreed by Finance";
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      items: true,
+      cargo: { include: { darReceiving: true, chinaReceiving: true } },
+    },
+  });
+  if (!invoice) return { error: "That invoice no longer exists." };
+  if (invoice.status === "CANCELLED") return { error: "That invoice is cancelled." };
+  const settled = await settledRefusal(actor, invoice);
+  if (settled) return { error: settled };
+
+  const standing = await changeStanding(invoice.id, "invoice.reprice");
+  if (!standing) return { error: "There is no re-price on this bill to put back." };
+  if (!invoice.cargo) return { error: "That bill has no cargo to price." };
+
+  const priced = await priceConsignment(
+    {
+      id: invoice.cargo.id,
+      description: invoice.cargo.description,
+      commodity: invoice.cargo.commodity,
+      service: invoice.cargo.service,
+      receiverId: invoice.cargo.receiverId,
+      ...billingMeasurement(invoice.cargo),
+    },
+    prisma,
+    /* No agreed rate carried forward. The one on the bill is what is coming
+       off, and reading it back would put the same figure on again. */
+    null
+  );
+  if (priced.blockedReason) {
+    return {
+      error: `The rate book has no price for this cargo today — ${priced.blockedReason}. Change the price instead.`,
+    };
+  }
+
+  const kept = invoice.items.filter((i) => i.category !== "Freight");
+  const subtotal = priced.amount.add(
+    kept.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0))
+  );
+  const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+
+  await prisma.$transaction(async (tx) => {
+    /* Old value first, for every figure the customer has been shown. */
+    if (!invoice.total.equals(total)) {
+      await recordFieldChange(
+        { actor, entity: "Invoice", entityId: invoice.id, field: "total", oldValue: invoice.total.toString(), newValue: total.toString(), reason },
+        tx
+      );
+    }
+    const wasRate = invoice.appliedRate?.toString() ?? null;
+    const nowRate = priced.appliedRate?.toString() ?? null;
+    if (wasRate !== nowRate) {
+      await recordFieldChange(
+        { actor, entity: "Invoice", entityId: invoice.id, field: "appliedRate", oldValue: wasRate, newValue: nowRate, reason },
+        tx
+      );
+    }
+    const wasCbm = invoice.billableCbm?.toString() ?? null;
+    const nowCbm = priced.billableCbm?.toString() ?? null;
+    if (wasCbm !== nowCbm) {
+      await recordFieldChange(
+        { actor, entity: "Invoice", entityId: invoice.id, field: "billableCbm", oldValue: wasCbm, newValue: nowCbm, reason },
+        tx
+      );
+    }
+
+    await tx.invoiceItem.deleteMany({
+      where: { invoiceId: invoice.id, category: "Freight" },
+    });
+    await tx.invoiceItem.createMany({
+      data: priced.items.map((item) => ({ ...item, invoiceId: invoice.id })),
+    });
+    await tx.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        billableCbm: priced.billableCbm,
+        billableKg: priced.billableKg,
+        standardRate: priced.standardRate,
+        appliedRate: priced.appliedRate,
+        rateBasis: priced.basis,
+        subtotal,
+        vatAmount,
+        total,
+        totalTzs: invoice.fxRate ? usdToTzs(total, invoice.fxRate) : null,
+      },
+    });
+  });
+
+  const back = priced.appliedRate
+    ? `${invoice.currency} ${priced.appliedRate} per CBM`
+    : `${invoice.currency} ${total}`;
+  await recordAudit({
+    actor,
+    action: "invoice.reprice.undo",
+    entity: "Invoice",
+    entityId: invoice.id,
+    summary: `Put ${invoice.number} back on the rate book at ${back} — ${invoice.currency} ${invoice.total} → ${invoice.currency} ${total}: ${reason}`,
+    metadata: {
+      from: invoice.total.toString(),
+      to: total.toString(),
+      rate: priced.appliedRate?.toString() ?? null,
+      explanation: priced.explanation,
+      reason,
+    },
+  });
+  await tellFinance(actor, invoice, `Re-price taken back — ${back}: ${reason}`);
+
+  await refreshInvoiceStatus(invoice.id);
+
+  revalidatePath(`/app/finance/invoices/${invoice.id}`);
+  revalidatePath("/app/finance/collections/verify");
+  revalidatePath("/app/finance/payments/new", "layout");
+  return { ok: `Back on the rate book at ${back} — ${formatCurrency(total, invoice.currency)}.` };
 }
 
 /**
@@ -1428,6 +1600,116 @@ export async function changeInvoiceRate(
   revalidatePath(`/app/cargo/${invoice.cargoId}`);
   revalidatePath("/app/finance/collections");
   return { ok: `Rate on ${invoice.number} is now ${formatRate(rate)} — ${formatCurrency(totalTzs, "TZS")}.` };
+}
+
+/**
+ * PUT THE RATE BACK.
+ *
+ * The shillings a customer was told to pay moved while the dollar total sat
+ * still, and Finance — meeting the bill on the verify row — may not agree the
+ * rate it moved to. It goes back to the rate pinned before the change, taken
+ * off this bill's own field trail, which is where every other screen reads
+ * "what has this been?" from.
+ *
+ * A BILL WHOSE EARLIER RATE LEFT NO TRAIL IS NOT GUESSED AT. Rather than
+ * inventing a figure, it is refused and today's published rate is offered
+ * instead — and taking that offer is a decision somebody makes on purpose,
+ * which is what `useToday` is. The rate row is re-pinned only when it is
+ * today's: a recovered figure is a figure this bill carried, not a row on the
+ * board, and claiming the board published it would be a second untruth.
+ */
+export async function undoInvoiceRate(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  /* The desk that owns the bill moved it; the same desk moves it back. */
+  const actor = await authorize("invoice.edit");
+
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const useToday = formData.get("useToday") === "1";
+  const reason =
+    String(formData.get("reason") ?? "").trim() || "Rate not agreed by Finance";
+
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice) return { error: "That invoice no longer exists." };
+  if (invoice.status === "CANCELLED") return { error: "That invoice is cancelled." };
+  const settled = await settledRefusal(actor, invoice);
+  if (settled) return { error: settled };
+  if (invoice.currency !== "USD") return { error: "Only a dollar bill has an exchange rate." };
+
+  const standing = await changeStanding(invoice.id, "invoice.rate");
+  if (!standing) return { error: "This bill's rate has not been changed." };
+
+  const was = await prisma.fieldChange.findFirst({
+    where: { entity: "Invoice", entityId: invoice.id, field: "fxRate", oldValue: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { oldValue: true },
+  });
+  const published = was && !useToday ? null : await currentExchangeRate();
+  if (!was && !useToday) {
+    return {
+      error: published
+        ? `This bill does not say what its rate was before it was changed. Put it on today's published rate (${formatRate(published.rate)}) instead.`
+        : "This bill does not say what its rate was before it was changed, and no rate is published today.",
+    };
+  }
+  const rate =
+    was && !useToday ? new Prisma.Decimal(was.oldValue!) : published ? published.rate : null;
+  if (!rate) return { error: "No rate is published today." };
+  if (invoice.fxRate && invoice.fxRate.equals(rate)) {
+    return { error: "That is already the rate on this bill." };
+  }
+
+  const totalTzs = usdToTzs(invoice.total, rate);
+  await prisma.$transaction(async (tx) => {
+    await recordFieldChange(
+      {
+        actor,
+        entity: "Invoice",
+        entityId: invoice.id,
+        field: "fxRate",
+        oldValue: invoice.fxRate,
+        newValue: rate,
+        reason,
+      },
+      tx
+    );
+    await tx.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        fxRate: rate,
+        exchangeRateId: was && !useToday ? null : (published?.id ?? null),
+        totalTzs,
+      },
+    });
+    await recordAudit(
+      {
+        actor,
+        action: "invoice.rate.undo",
+        entity: "Invoice",
+        entityId: invoice.id,
+        summary: `${invoice.number}: ${formatRate(invoice.fxRate)} → ${formatRate(rate)}${
+          was && !useToday ? " — the rate it was pinned at" : " — today's published rate"
+        }: ${reason}`,
+        metadata: {
+          oldValue: invoice.fxRate?.toString() ?? null,
+          newValue: rate.toString(),
+          recovered: Boolean(was && !useToday),
+          reason,
+        },
+      },
+      tx
+    );
+  });
+
+  await tellFinance(actor, invoice, `Rate put back to ${formatRate(rate)}: ${reason}`);
+
+  await refreshInvoiceStatus(invoice.id);
+  revalidatePath(`/app/finance/invoices/${invoice.id}`);
+  revalidatePath(`/app/cargo/${invoice.cargoId}`);
+  revalidatePath("/app/finance/collections", "layout");
+  revalidatePath("/app/finance/payments/new", "layout");
+  return { ok: `Rate on ${invoice.number} is back at ${formatRate(rate)} — ${formatCurrency(totalTzs, "TZS")}.` };
 }
 
 /**

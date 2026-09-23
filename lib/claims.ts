@@ -1,6 +1,7 @@
 import { Prisma, type PaymentStatus } from "@prisma/client";
 
 import type { ClaimRow } from "@/components/app/claim-list";
+import { billChangesFor, mergedWith } from "@/lib/bill-changes";
 import { formatCurrency, formatRate, tzsToUsd } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
 import { balanceOf, paymentTzs } from "@/lib/invoice-balance";
@@ -82,37 +83,20 @@ export async function claimsAt(status: PaymentStatus, query?: string) {
   const todayRate = today ? Number(today.rate) : 0;
 
   /*
-    WHAT WAS TAKEN OFF THE BILL, AND BY WHOM.
+    WHAT WAS DONE TO THE BILL, AND BY WHOM.
 
-    Finance is agreeing money against a figure somebody else may have moved.
-    A bill reduced at the counter looks, on this screen, exactly like a bill
-    that was always that size — so the reduction is named here, with the desk
-    that made it, before anybody presses Verify. The amount is on the invoice;
-    who and why is the audit line that wrote it.
+    Finance is agreeing money against a figure somebody else may have moved —
+    by a discount, by a re-price under the rate book, or by pinning a rate the
+    board never published. A moved bill looks, on this screen, exactly like a
+    bill that was always that size, so every change standing on it is named
+    before anybody presses Verify (lib/bill-changes.ts).
+
+    A MERGED PAYMENT IS THE SAME THING, JUST MERGED. One transfer recorded as a
+    slice per bill is one decision for Finance, so each slice answers for every
+    bill the transfer covers, each change named by its own invoice number.
   */
-  const discounted = payments
-    .filter((p) => new Prisma.Decimal(p.invoice.discount).greaterThan(0))
-    .map((p) => p.invoiceId);
-  const discountLines = discounted.length
-    ? await prisma.auditLog.findMany({
-        where: {
-          entity: "Invoice",
-          entityId: { in: [...new Set(discounted)] },
-          action: { in: ["invoice.discount", "invoice.reprice"] },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { entityId: true, summary: true, createdAt: true, actor: { select: { name: true } }, actorEmail: true },
-      })
-    : [];
-  const discountBy = new Map<string, { by: string; at: Date }>();
-  for (const line of discountLines) {
-    if (line.entityId && !discountBy.has(line.entityId)) {
-      discountBy.set(line.entityId, {
-        by: line.actor?.name ?? line.actorEmail ?? "—",
-        at: line.createdAt,
-      });
-    }
-  }
+  const covers = await mergedWith(payments);
+  const changes = await billChangesFor([...covers.values()].flat());
 
   /* Each payment at the shilling value written onto it when it was taken. */
   const tzsOf = (p: (typeof payments)[number]) =>
@@ -145,14 +129,14 @@ export async function claimsAt(status: PaymentStatus, query?: string) {
       owedLabel: owed.outstandingTzs
         ? `${formatCurrency(owed.outstandingTzs, "TZS")} (${formatCurrency(owed.outstanding, "USD")})`
         : formatCurrency(owed.outstanding, p.invoice.currency),
-      /* Shown beside what is owed: the gap between the rate book and the bill. */
-      discountLabel: new Prisma.Decimal(p.invoice.discount).greaterThan(0)
-        ? formatCurrency(p.invoice.discount, p.invoice.currency)
-        : null,
-      discountBy: discountBy.get(p.invoiceId)?.by ?? null,
-      discountAt: discountBy.get(p.invoiceId)
-        ? formatDateTime(discountBy.get(p.invoiceId)!.at)
-        : null,
+      /* Every change standing on the bills this payment covers, its own first
+         so the row reads about itself before it reads about its neighbours. */
+      changes: [...(covers.get(p.id) ?? [p.invoiceId])]
+        .sort((a, b) => (a === p.invoiceId ? -1 : b === p.invoiceId ? 1 : 0))
+        .flatMap((id) => changes.get(id) ?? []),
+      /* A merged slice carries its neighbours' changes too, so each one has to
+         say which bill it belongs to. */
+      mergedOver: (covers.get(p.id) ?? []).length > 1,
       overpayment: p.overpaymentReason,
       clearingAsked: p.clearShortfallTzs && p.clearShortfallTzs.greaterThan(0)
         ? formatCurrency(p.clearShortfallTzs, "TZS")

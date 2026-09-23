@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import { accountRegister, type AccountEntry } from "@/lib/accounts";
+import { billChangesFor, type BillChange } from "@/lib/bill-changes";
 import { formatCurrency, toBase } from "@/lib/currency";
 import { toCorrectable, type CorrectableExpense } from "@/lib/expense-correction";
 import { t as tr, type Locale } from "@/lib/i18n";
@@ -77,6 +78,17 @@ export type LedgerRow = {
   /** The movement in whole shillings, at its own rate. */
   tzs: number;
   proofHref: string | null;
+  /**
+   * WHAT WAS DONE TO THE BILL THIS MONEY ANSWERED.
+   *
+   * A discount, a re-price or a rate moved is not a movement of money, so it
+   * is never a row of its own and never touches a figure in this column. It is
+   * the fact, on the row the money relates to: a payment against a bill
+   * somebody reduced reads here exactly like a payment against a bill nobody
+   * touched, and the ledger is where that gets noticed. Empty for anything
+   * with no bill behind it — a cost, a transfer, an opening balance.
+   */
+  changes: BillChange[];
   href: string;
   cancelled: boolean;
   cancelledReason: string | null;
@@ -202,10 +214,15 @@ export async function ledgerRows(locale: Locale = "en"): Promise<LedgerRow[]> {
     );
   }
 
+  /* Every bill on the ledger in one question, not one per row: the same
+     derivation the verify list and the merge form read. */
+  const billChanges = await billChangesFor(payments.map((p) => p.invoice.id));
+
   const rows: LedgerRow[] = [];
 
   for (const e of register) {
     const base = {
+      changes: [] as BillChange[],
       id: e.id,
       kind: e.kind,
       at: e.at,
@@ -242,6 +259,7 @@ export async function ledgerRows(locale: Locale = "en"): Promise<LedgerRow[]> {
       const receipt = p.receipts[0] ?? null;
       rows.push({
         ...base,
+        changes: billChanges.get(p.invoice.id) ?? [],
         transport,
         credit: credit && !transport,
         title: p.customer.fullName,

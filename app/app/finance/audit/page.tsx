@@ -102,6 +102,11 @@ const UNDONE_ACTIONS = [
   "payment.reverse",
   "invoice.cancel",
   "invoice.storage.waive",
+  /* A price Finance did not agree, put back: the figure the customer was
+     shown no longer stands, and this is the list that answers for that. */
+  "invoice.discount.undo",
+  "invoice.reprice.undo",
+  "invoice.rate.undo",
   "pickupNote.cancel",
   "expense.cancel",
   "account.transfer.cancel",

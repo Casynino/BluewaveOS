@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BadgePercent, Ban, CheckCircle2, Clock, Paperclip, Pencil, Scale, Tag, Undo2, Upload } from "lucide-react";
+import { ArrowLeftRight, Ban, CheckCircle2, Paperclip, Pencil, Scale, Tag, Undo2, Upload } from "lucide-react";
 
 import {
   cancelClaims,
@@ -11,7 +11,11 @@ import {
   type ClaimState,
 } from "@/lib/actions/claims";
 import { rejectPayment } from "@/lib/actions/payments";
-import { undoDiscount } from "@/lib/actions/invoices";
+import {
+  BillChangeBadges,
+  BillChangeUndo,
+  type BillChange,
+} from "@/components/app/bill-changes";
 import { FormMessage } from "@/components/app/form-message";
 import { Modal } from "@/components/app/modal";
 import { DiscountDialog, ExchangeRateDialog, RateDialog } from "@/components/app/bill-dialogs";
@@ -43,10 +47,12 @@ export type ClaimRow = {
   paidAsLabel: string | null;
   owedLabel: string;
   overpayment: string | null;
-  /** Taken off the bill before this payment: the figure, and who agreed it. */
-  discountLabel?: string | null;
-  discountBy?: string | null;
-  discountAt?: string | null;
+  /** Everything a desk changed on the bills this payment covers — a discount,
+      a re-price, a rate moved — each with who, when and what puts it back. */
+  changes?: BillChange[];
+  /** One slice of a merged transfer: the changes come from several bills, so
+      each one names the bill it belongs to. */
+  mergedOver?: boolean;
   /** The desk asked for the rest of the bill to be written off with this
       payment. Verifying it does that; Finance must see it before pressing. */
   clearingAsked: string | null;
@@ -252,7 +258,6 @@ function ClaimRowItem({
     {}
   );
   const [editState, edit] = useActionState<ClaimState, FormData>(editClaim, {});
-  const [undoState, undo] = useActionState<ClaimState, FormData>(undoDiscount, {});
   const [backState, sendBack] = useActionState<ClaimState, FormData>(
     rejectPayment,
     {}
@@ -319,17 +324,10 @@ function ClaimRowItem({
                 no proof attached
               </span>
             )}
-            {/* A bill somebody reduced is not the bill the rate book wrote.
-                Finance is about to agree money against it, so the reduction is
+            {/* A bill somebody moved is not the bill the rate book wrote.
+                Finance is about to agree money against it, so every change is
                 named here rather than left to be noticed on another screen. */}
-            {row.discountLabel ? (
-              <span className="inline-flex items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning">
-                <BadgePercent className="size-3" />
-                {tx("Discounted")} {row.discountLabel}
-                {row.discountBy ? ` · ${tx("by")} ${row.discountBy}` : ""}
-                {row.discountAt ? ` · ${row.discountAt}` : ""}
-              </span>
-            ) : null}
+            <BillChangeBadges changes={row.changes ?? []} withBill={row.mergedOver} />
             {row.reason ? (
               <span className="text-xs text-warning">Sent back: {row.reason}</span>
             ) : null}
@@ -447,23 +445,15 @@ function ClaimRowItem({
                     {tx("Give a discount")}
                   </button>
                 ) : null}
-                {/* A discount the counter agreed is Finance's to accept or to
-                    take back — before it agrees money against the bill. */}
-                {tools.canChangeBill && row.discountLabel ? (
-                  <form action={undo} className="flex flex-wrap items-center gap-1.5">
-                    <input type="hidden" name="invoiceId" value={row.bill.invoiceId} />
-                    <Input
-                      name="reason"
-                      className="h-7 w-48 text-xs"
-                      placeholder={tx("Why it is not agreed")}
-                      aria-label={tx("Why the discount is not agreed")}
-                    />
-                    <SubmitButton size="sm" variant="ghost" className="h-7 gap-1.5 px-2 text-xs text-warning" pendingLabel={tx("Putting it back…")}>
-                      <Undo2 className="size-3.5" />
-                      {tx("Put the price back")} ({row.discountLabel})
-                    </SubmitButton>
-                  </form>
-                ) : null}
+                {/* What the counter agreed is Finance's to accept or to take
+                    back — before it agrees money against the bill. A merged
+                    transfer offers one control per change, per bill. */}
+                <BillChangeUndo
+                  changes={row.changes ?? []}
+                  tools={tools}
+                  withBill={row.mergedOver}
+                  onDone={() => router.refresh()}
+                />
                 {tools.canChangeBill && row.bill.perCbm ? (
                   <button type="button" onClick={() => setBillDialog("price")} className="inline-flex items-center gap-1.5 text-xs text-brand hover:underline">
                     <Scale className="size-3.5" />
@@ -521,7 +511,6 @@ function ClaimRowItem({
               {tx("Delete this submission instead")}
             </button>
             <FormMessage error={editState.error} />
-            <FormMessage error={undoState.error} ok={undoState.ok} />
             <div className="flex flex-wrap gap-2">
               <SubmitButton size="sm">
                 {mode === "sentback" ? "Fix and send again" : "Save the correction"}

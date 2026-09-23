@@ -10,6 +10,11 @@ import {
 } from "@/lib/actions/merge";
 import { chargeStorage } from "@/lib/actions/invoices";
 import { AskCreditButton } from "@/components/app/ask-for-credit";
+import {
+  BillChangeBadges,
+  BillChangeUndo,
+  type BillChange,
+} from "@/components/app/bill-changes";
 import { CreditButton, DiscountDialog, ExchangeRateDialog, RateDialog } from "@/components/app/bill-dialogs";
 import { FormMessage } from "@/components/app/form-message";
 import { ShortfallNotice } from "@/components/app/shortfall-notice";
@@ -45,6 +50,10 @@ export type MergeBill = {
   category: string | null;
   /** Has a freight line charged per CBM — the only kind the dialog edits. */
   priced: boolean;
+  /** What a desk has already changed on this bill, and what puts it back. A
+      merged payment is the same decision as a single one, so it is shown the
+      same way — on the bill it belongs to. */
+  changes: BillChange[];
 };
 
 export type WaitingBill = {
@@ -313,15 +322,32 @@ export function MergePaymentForm({
                       ) : null}
                     </span>
                   </label>
-                  {canChangeBill && bill.priced ? (
-                    <div className="px-5 pb-3 pl-[3.25rem]">
-                      <button
-                        type="button"
-                        onClick={() => setPricing(bill)}
-                        className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
-                      >
-                        Edit price — category, CBM or rate
-                      </button>
+                  {/* Outside the label: a badge is read, not ticked, and a
+                      press on one must not select the cargo behind it. */}
+                  {bill.changes.length || (canChangeBill && bill.priced) ? (
+                    <div className="space-y-1.5 px-5 pb-3 pl-[3.25rem]">
+                      {bill.changes.length ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <BillChangeBadges changes={bill.changes} />
+                        </div>
+                      ) : null}
+                      <BillChangeUndo
+                        changes={bill.changes}
+                        tools={{ canChangeBill, canChangeRate }}
+                        onDone={() => {
+                          setTyped(null);
+                          router.refresh();
+                        }}
+                      />
+                      {canChangeBill && bill.priced ? (
+                        <button
+                          type="button"
+                          onClick={() => setPricing(bill)}
+                          className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+                        >
+                          Edit price — category, CBM or rate
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </li>

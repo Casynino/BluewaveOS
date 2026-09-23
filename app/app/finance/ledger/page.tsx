@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { CalendarClock, ChevronRight, Layers, Paperclip, Plus, Wallet } from "lucide-react";
 
+import { BillChangeBadges } from "@/components/app/bill-changes";
 import { EmptyState } from "@/components/app/empty-state";
 import { FinanceTabs } from "@/components/app/finance-tabs";
 import { LedgerFilters } from "@/components/app/ledger-filters";
@@ -469,6 +470,14 @@ export default async function LedgerPage({
                           </span>
                         ) : null}
                       </span>
+                      {/* Not money, so not a figure in any column: the fact
+                          that the bill this money answered was moved, on the
+                          row the money is on. */}
+                      {r.changes.length ? (
+                        <span className="mt-1 flex flex-wrap items-center gap-1">
+                          <BillChangeBadges changes={r.changes} />
+                        </span>
+                      ) : null}
                       {r.cancelled && r.cancelledReason ? (
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {t(locale, r.kind === "payment" ? "Reversed" : "Cancelled")} — {r.cancelledReason}

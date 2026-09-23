@@ -13,6 +13,7 @@ import { WhatsAppButton } from "@/components/app/whatsapp-button";
 import { formatMoney } from "@/lib/format";
 import { Prisma } from "@prisma/client";
 
+import { billChangesFor } from "@/lib/bill-changes";
 import { formatCurrency } from "@/lib/currency";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
 import { whatsappNumber } from "@/lib/messages";
@@ -93,6 +94,11 @@ export default async function MergePaymentForCustomer({
 
   const name = customer.businessName || customer.fullName;
 
+  /* Every bill on the screen in one question, not one per row: the same
+     derivation the verify list reads, so a bill somebody moved says so
+     wherever money is being taken against it. */
+  const changes = await billChangesFor(open.map((i) => i.id));
+
   const bills: MergeBill[] = [];
   const waiting: WaitingBill[] = [];
 
@@ -147,6 +153,7 @@ export default async function MergePaymentForCustomer({
       cbm: invoice.billableCbm ? Number(invoice.billableCbm) : null,
       category: categoryOfCargo({ commodity: invoice.cargo.commodity, packages: invoice.cargo.packages }),
       priced: invoice.items.some((i) => i.unit === "CBM"),
+      changes: changes.get(invoice.id) ?? [],
     });
   }
 
