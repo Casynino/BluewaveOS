@@ -733,7 +733,7 @@ export function IntakeForm({
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <PhotoCapture />
+          <PhotoCapture required label={t("Cargo photos")} />
 
           <div className="space-y-2">
             <Label htmlFor="notes">
