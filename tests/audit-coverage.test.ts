@@ -205,6 +205,7 @@ const OWNERS_LIST: [string, string, string][] = [
   ["a bill raised", "invoices.ts", "generateInvoice"],
   ["a bill issued", "invoices.ts", "issueInvoice"],
   ["a bill discounted", "invoices.ts", "discountInvoice"],
+  ["a discount taken back", "invoices.ts", "undoDiscount"],
   ["a bill re-priced", "invoices.ts", "repriceInvoice"],
   ["a bill's rate changed", "invoices.ts", "changeInvoiceRate"],
   ["a bill cancelled", "invoices.ts", "cancelInvoice"],
@@ -252,6 +253,7 @@ describe("an override keeps both values", () => {
     ["containers.ts", "putOnSailedContainer"],
     ["invoices.ts", "changeInvoiceRate"],
     ["invoices.ts", "discountInvoice"],
+    ["invoices.ts", "undoDiscount"],
   ] as [string, string][]) {
     test(`${file}:${name} writes a FieldChange`, () => {
       const action = actions.find((a) => a.file === file && a.name === name);

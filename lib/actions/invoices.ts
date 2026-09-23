@@ -689,6 +689,94 @@ async function settledRefusal(
  * A discount larger than the bill is refused. Forgiving more than somebody owes
  * is not a discount, it is a payment out, and that is a different act.
  */
+/**
+ * PUT THE PRICE BACK.
+ *
+ * A discount agreed at the counter reaches Finance as part of a bill it is
+ * about to take money against, and Finance may not agree with it. Taking it
+ * off again is the same act as giving it, in reverse and by the same
+ * authority: the lines come off, the bill returns to what the rate book said,
+ * and what was undone — with who undid it and why — is written before it takes
+ * effect. An issued bill a customer has already settled is refused, as every
+ * other change to a settled bill is.
+ */
+export async function undoDiscount(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorize("invoice.discount");
+
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim() || "Discount not agreed by Finance";
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { items: true, payments: true },
+  });
+  if (!invoice) return { error: "That invoice no longer exists." };
+  if (invoice.status === "CANCELLED") return { error: "That invoice is cancelled." };
+  const settled = await settledRefusal(actor, invoice);
+  if (settled) return { error: settled };
+
+  const lines = invoice.items.filter((i) => i.category === "Discount");
+  if (lines.length === 0 && invoice.discount.lessThanOrEqualTo(0)) {
+    return { error: "There is no discount on this bill." };
+  }
+
+  /* The lines are the record of what came off; a bill discounted before the
+     lines existed is put back by the figure stored on it. */
+  const off = lines.length
+    ? lines.reduce((sum, i) => sum.add(i.amount.abs()), new Prisma.Decimal(0))
+    : invoice.discount;
+
+  await prisma.$transaction(async (tx) => {
+    const subtotal = invoice.subtotal.add(off);
+    const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+
+    await recordFieldChange(
+      {
+        actor,
+        entity: "Invoice",
+        entityId: invoice.id,
+        field: "total",
+        oldValue: invoice.total.toString(),
+        newValue: total.toString(),
+        reason,
+      },
+      tx
+    );
+    if (lines.length) {
+      await tx.invoiceItem.deleteMany({ where: { id: { in: lines.map((i) => i.id) } } });
+    }
+    await tx.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        discount: Prisma.Decimal.max(new Prisma.Decimal(0), invoice.discount.sub(off)),
+        subtotal,
+        vatAmount,
+        total,
+        totalTzs: invoice.fxRate ? usdToTzs(total, invoice.fxRate) : null,
+      },
+    });
+  });
+
+  await recordAudit({
+    actor,
+    action: "invoice.discount.undo",
+    entity: "Invoice",
+    entityId: invoice.id,
+    summary: `Put ${invoice.currency} ${off} back onto ${invoice.number}: ${reason}`,
+    metadata: { amount: off.toString(), reason },
+  });
+  await tellFinance(actor, invoice, `Discount of ${invoice.currency} ${off} taken back: ${reason}`);
+
+  await refreshInvoiceStatus(invoice.id);
+
+  revalidatePath(`/app/finance/invoices/${invoice.id}`);
+  revalidatePath("/app/finance/collections/verify");
+  return { ok: `${invoice.currency} ${off} put back on the bill.` };
+}
+
 export async function discountInvoice(
   _prev: ActionState,
   formData: FormData

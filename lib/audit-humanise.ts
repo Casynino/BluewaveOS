@@ -443,6 +443,7 @@ const ACTION_LABELS: Record<string, string> = {
   "invoice.adjust": "Invoice adjusted",
   "invoice.cancel": "Invoice cancelled",
   "invoice.discount": "Discount given",
+  "invoice.discount.undo": "Discount taken back",
   "invoice.reprice": "Invoice re-priced",
   "invoice.rate": "Invoice rate changed",
   "invoice.charge": "Charge added",

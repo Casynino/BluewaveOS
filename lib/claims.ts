@@ -81,6 +81,39 @@ export async function claimsAt(status: PaymentStatus, query?: string) {
 
   const todayRate = today ? Number(today.rate) : 0;
 
+  /*
+    WHAT WAS TAKEN OFF THE BILL, AND BY WHOM.
+
+    Finance is agreeing money against a figure somebody else may have moved.
+    A bill reduced at the counter looks, on this screen, exactly like a bill
+    that was always that size — so the reduction is named here, with the desk
+    that made it, before anybody presses Verify. The amount is on the invoice;
+    who and why is the audit line that wrote it.
+  */
+  const discounted = payments
+    .filter((p) => new Prisma.Decimal(p.invoice.discount).greaterThan(0))
+    .map((p) => p.invoiceId);
+  const discountLines = discounted.length
+    ? await prisma.auditLog.findMany({
+        where: {
+          entity: "Invoice",
+          entityId: { in: [...new Set(discounted)] },
+          action: { in: ["invoice.discount", "invoice.reprice"] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { entityId: true, summary: true, createdAt: true, actor: { select: { name: true } }, actorEmail: true },
+      })
+    : [];
+  const discountBy = new Map<string, { by: string; at: Date }>();
+  for (const line of discountLines) {
+    if (line.entityId && !discountBy.has(line.entityId)) {
+      discountBy.set(line.entityId, {
+        by: line.actor?.name ?? line.actorEmail ?? "—",
+        at: line.createdAt,
+      });
+    }
+  }
+
   /* Each payment at the shilling value written onto it when it was taken. */
   const tzsOf = (p: (typeof payments)[number]) =>
     paymentTzs(p, p.invoice) ??
@@ -112,6 +145,14 @@ export async function claimsAt(status: PaymentStatus, query?: string) {
       owedLabel: owed.outstandingTzs
         ? `${formatCurrency(owed.outstandingTzs, "TZS")} (${formatCurrency(owed.outstanding, "USD")})`
         : formatCurrency(owed.outstanding, p.invoice.currency),
+      /* Shown beside what is owed: the gap between the rate book and the bill. */
+      discountLabel: new Prisma.Decimal(p.invoice.discount).greaterThan(0)
+        ? formatCurrency(p.invoice.discount, p.invoice.currency)
+        : null,
+      discountBy: discountBy.get(p.invoiceId)?.by ?? null,
+      discountAt: discountBy.get(p.invoiceId)
+        ? formatDateTime(discountBy.get(p.invoiceId)!.at)
+        : null,
       overpayment: p.overpaymentReason,
       clearingAsked: p.clearShortfallTzs && p.clearShortfallTzs.greaterThan(0)
         ? formatCurrency(p.clearShortfallTzs, "TZS")
