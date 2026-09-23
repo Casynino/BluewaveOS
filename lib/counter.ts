@@ -54,8 +54,12 @@ export type CounterHandover = {
    * counter is shown while holding the box.
    */
   weightKg: number | null;
+  /** The same two-measurements rule, for the volume the bill is priced on. */
+  cbm: number | null;
   /** The container these boxes crossed in, for the customer who asks. */
   containerRef: string | null;
+  /** Its id, so the dock's own check-in screen is one press from a refusal. */
+  containerId: string | null;
   /** The day the boxes landed in Dar, which is also day one of free storage. */
   arrivedInDar: Date | null;
   check: {
@@ -126,16 +130,17 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
           discrepancy: true,
           packagesCount: true,
           weightKg: true,
+          cbm: true,
           receivedAt: true,
         },
       },
-      chinaReceiving: { select: { weightKg: true } },
+      chinaReceiving: { select: { weightKg: true, cbm: true } },
       /* The last container the consignment was loaded into. A consignment can
          be re-loaded after a container is opened again, and the box on the
          floor came off the most recent one. */
       containerLines: {
         orderBy: { createdAt: "asc" },
-        select: { container: { select: { reference: true } } },
+        select: { container: { select: { id: true, reference: true } } },
       },
       receiver: { select: { id: true, fullName: true, phone: true } },
       sender: { select: { id: true, fullName: true } },
@@ -173,6 +178,7 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
      ever prints this. Dar's figure first: it is the one measured against the
      box that is actually on the floor. */
   const weight = cargo.darReceiving?.weightKg ?? cargo.chinaReceiving?.weightKg ?? null;
+  const volume = cargo.darReceiving?.cbm ?? cargo.chinaReceiving?.cbm ?? null;
 
   /* Only fetched when something is actually blocking — the counter reads a
      list of phone numbers when it needs one, not on every handover. */
@@ -202,7 +208,9 @@ export async function counterHandover(cargoId: string): Promise<CounterHandover 
     boxesShort: live.filter((b) => !here.includes(b)).map((b) => b.sequence),
     darPackages: cargo.darReceiving?.packagesCount ?? null,
     weightKg: weight === null ? null : Number(weight),
+    cbm: volume === null ? null : Number(volume),
     containerRef: cargo.containerLines.at(-1)?.container.reference ?? null,
+    containerId: cargo.containerLines.at(-1)?.container.id ?? null,
     arrivedInDar: cargo.darArrivedAt ?? cargo.darReceiving?.receivedAt ?? null,
     check: { ok: check.ok, conditions: check.conditions, blockedBy: check.blockedBy },
     note: cargo.pickupNote

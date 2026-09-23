@@ -8198,6 +8198,7 @@ const ZH: Record<string, string> = {
     "案件已开立。案件关闭之前这票货不得放行；经理和达累斯萨拉姆仓库已收到通知，客户也已被告知我们正在追查他们的货物。",
   "e.g. Not in bay C where the check-in put it, not on the overflow rack, not in the Dar office van.":
     "例如：入库记录写的 C 区没有，备用货架上没有，达累斯萨拉姆办公室的车上也没有。",
+  "Do not release this": "不要放行这票货",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

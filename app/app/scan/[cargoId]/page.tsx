@@ -58,6 +58,9 @@ export default async function HandoverPage({
         /* Opening this screen is `cargo.scan`; handing the boxes over is a
            second authority, and both server actions check it themselves. */
         mayRelease={can(actor.role, "release.execute")}
+        /* The commonest refusal here is "nobody has booked these boxes in",
+           and this is the floor that can. */
+        mayCheckIn={can(actor.role, "receiving.dar")}
         scannedBoxId={scannedBoxId}
       />
     </div>

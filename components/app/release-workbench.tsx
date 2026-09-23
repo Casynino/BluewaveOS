@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, PackageCheck, PhoneCall, TriangleAlert } from "lucide-react";
+import { CheckCircle2, PackageCheck, TriangleAlert } from "lucide-react";
 
 import { scanBoxForRelease } from "@/lib/actions/boxes";
 import { raiseException, type ActionState as ExceptionState } from "@/lib/actions/exceptions";
@@ -12,11 +12,10 @@ import { useT } from "@/components/app/locale-provider";
 import { UnableToLocateForm } from "@/components/app/missing-cargo-report";
 import { PhotoCapture } from "@/components/app/photo-capture";
 import { QrScanner } from "@/components/app/qr-scanner";
-import { ReleaseChecklist } from "@/components/app/release-panel";
 import { ScanVerdict } from "@/components/app/scan-verdict";
 import { CargoStatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
-import { Tm, Tx } from "@/components/app/tx";
+import { Tm } from "@/components/app/tx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +51,7 @@ export function ReleaseWorkbench({
   handover,
   goods,
   mayRelease,
+  mayCheckIn,
   scannedBoxId,
 }: {
   handover: CounterHandover;
@@ -59,6 +59,8 @@ export function ReleaseWorkbench({
   goods: string;
   /** Opening this screen is `cargo.scan`; handing boxes over is a second authority. */
   mayRelease: boolean;
+  /** Booking the boxes in is a third — the Dar floor's `receiving.dar`. */
+  mayCheckIn: boolean;
   /** The carton actually in the clerk's hands, when a sticker opened this. */
   scannedBoxId?: string;
 }) {
@@ -126,7 +128,7 @@ export function ReleaseWorkbench({
       : !handover.check.ok
         ? {
             tone: "block",
-            headline: t("These boxes may not go"),
+            headline: t("Do not release this"),
             detail: t(handover.check.blockedBy ?? "This cargo cannot be released."),
           }
         : waitingOnScan
@@ -164,7 +166,7 @@ export function ReleaseWorkbench({
           onScannedOut={setScannedOut}
         />
       ) : (
-        <BlockedActions handover={handover} mayRelease={mayRelease} />
+        <BlockedActions handover={handover} mayRelease={mayRelease} mayCheckIn={mayCheckIn} />
       )}
 
       {/*
@@ -253,6 +255,10 @@ function CargoFacts({
           }
         />
         <Fact label={t("Weight")} value={formatWeight(handover.weightKg)} />
+        <Fact
+          label={t("Volume")}
+          value={handover.cbm === null ? "—" : `${handover.cbm.toFixed(4)} CBM`}
+        />
         {/* BlueWave consolidates into containers, not into a master packing
             carton, so this consignment has no carton to look inside. The cell
             stays: an empty fact a clerk can see is not the same as a fact the
@@ -260,7 +266,11 @@ function CargoFacts({
         <Fact label={t("Packing carton")} value="—" />
         <Fact label={t("Container")} value={handover.containerRef ?? "—"} />
         <Fact label={t("Arrived in Dar")} value={formatDate(handover.arrivedInDar)} />
+        {/* Seven facts in a three-wide grid leave a hole at the end of the
+            last row, and a hole reads as a fact somebody forgot to fill in.
+            The paper takes the whole line instead. */}
         <Fact
+          className="col-span-2 sm:col-span-3"
           label={t("Pickup note")}
           value={note ? note.noteNumber : t("Not issued")}
           tone={note?.status === "ACTIVE" ? "ok" : note ? "bad" : undefined}
@@ -369,15 +379,17 @@ function Fact({
   value,
   tone,
   note,
+  className,
 }: {
   label: string;
   value: string;
   tone?: "ok" | "bad";
   /** A second line, for a fact that needs qualifying. */
   note?: string;
+  className?: string;
 }) {
   return (
-    <div className="bg-card p-3 sm:p-4">
+    <div className={cn("bg-card p-3 sm:p-4", className)}>
       <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </dt>
@@ -402,17 +414,19 @@ function Fact({
  * What to do instead, for cargo that cannot go.
  *
  * A refusal with no route out is a screen the clerk has to leave and re-solve
- * somewhere else, with a customer watching. The check's own sentences say what
- * is missing; these say whose job it is, with a number to ring, because a clerk
- * who cannot name a department is a clerk who decides it is easier to hand the
- * boxes over and sort the paperwork out afterwards.
+ * somewhere else, with a customer watching. The verdict above says what is
+ * missing in the check's own words; this says what to do about it, and states
+ * plainly that nothing on the record moved.
  */
 function BlockedActions({
   handover,
   mayRelease,
+  mayCheckIn,
 }: {
   handover: CounterHandover;
   mayRelease: boolean;
+  /** The Dar floor's own right to book the boxes in — `receiving.dar`. */
+  mayCheckIn: boolean;
 }) {
   const t = useT();
 
@@ -434,6 +448,23 @@ function BlockedActions({
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
+          {/* The commonest refusal on this screen is "nobody has booked these
+              boxes in", and the screen that answers it is one press away —
+              the container's own check-in where the box came off, or the dock
+              when the manifest does not say which container. */}
+          {mayCheckIn && !handover.released && !handover.arrivedInDar ? (
+            <Button asChild className="h-11">
+              <Link
+                href={
+                  handover.containerId
+                    ? `/app/receive/dar/${handover.containerId}`
+                    : "/app/receive/dar"
+                }
+              >
+                {t("Check the cargo in")}
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild variant="outline" className="h-11">
             <Link href={`/app/cargo/${handover.cargoId}`}>{t("Open the cargo")}</Link>
           </Button>
@@ -447,51 +478,7 @@ function BlockedActions({
             {t("You may open this screen but not hand cargo over. Ask the Dar counter.")}
           </p>
         ) : null}
-
-        <div className="mt-4 border-t pt-4">
-          <ReleaseChecklist conditions={handover.check.conditions} />
-        </div>
       </div>
-
-      {handover.remedies.length > 0 ? (
-        <div className="panel p-4 sm:p-6">
-          <h3 className="text-sm font-semibold">{t("Who can put this right")}</h3>
-          <div className="mt-3 space-y-3">
-            {handover.remedies.map((remedy) => (
-              <div key={`${remedy.desk}-${remedy.what}`} className="rounded-xl border p-4">
-                <p className="text-sm font-semibold">
-                  <Tx>{remedy.label}</Tx>
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  <Tx>{remedy.what}</Tx>
-                </p>
-                {remedy.staff.filter((s) => s.phone).length > 0 ? (
-                  <ul className="mt-3 space-y-2">
-                    {remedy.staff
-                      .filter((s) => s.phone)
-                      .map((person) => (
-                        <li key={person.phone} className="flex items-center gap-2">
-                          <span className="min-w-0 flex-1 truncate text-sm">{person.name}</span>
-                          <a
-                            href={`tel:${person.phone}`}
-                            className="inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-secondary"
-                          >
-                            <PhoneCall className="h-4 w-4" />
-                            {t("Call")}
-                          </a>
-                        </li>
-                      ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t("No phone number on file for that desk — use the staff list.")}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
