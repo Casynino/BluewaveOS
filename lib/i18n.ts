@@ -8269,6 +8269,7 @@ const ZH: Record<string, string> = {
   "Cargo appears here as soon as Dar checks it in. What Foshan has measured is priced from Cargo in China.":
     "货物在达累斯萨拉姆入库后即出现在此。佛山已量好的货物请在“在华货物”页面确认价格。",
   "The rate book has no price for this yet": "价格表暂无此类货物的价格",
+  "price": "个价格",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

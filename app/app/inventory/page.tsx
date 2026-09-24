@@ -9,7 +9,7 @@ import {
   Warehouse,
 } from "lucide-react";
 
-import { ConfirmPriceRow } from "@/components/app/confirm-price-row";
+import { CargoTypeOnRow, ConfirmAllPrices, ConfirmPriceRow } from "@/components/app/confirm-price-row";
 import { EmptyState } from "@/components/app/empty-state";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ListCap } from "@/components/app/list-cap";
@@ -330,11 +330,11 @@ export default async function InventoryPage({
   const mayConfirm = seesPrice && can(user.role, "invoice.priceConfirm");
   /* Keyed by consignment, so each row can show what the book makes it without
      the list below and the figures beside it being two different reads. */
-  const priced = seesPrice
-    ? new Map(
-        (await priceListForChinaFloor()).rows.map((row) => [row.cargoId, row])
-      )
-    : new Map();
+  const chinaPrices = seesPrice ? await priceListForChinaFloor() : null;
+  const priced = new Map((chinaPrices?.rows ?? []).map((row) => [row.cargoId, row]));
+  /* Only what the book has actually priced: one press cannot confirm a row
+     that is still waiting for a rate. */
+  const confirmable = (chinaPrices?.rows ?? []).filter((row) => row.totalLabel).length;
 
   return (
     <div className="space-y-6">
@@ -466,9 +466,12 @@ export default async function InventoryPage({
       </form>
 
       <section>
-        <SectionLabel count={held}>
-          {inChina ? "Received cargo" : "Landed cargo"}
-        </SectionLabel>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionLabel count={held}>
+            {inChina ? "Received cargo" : "Landed cargo"}
+          </SectionLabel>
+          {mayConfirm && confirmable > 0 ? <ConfirmAllPrices waiting={confirmable} /> : null}
+        </div>
         <Card>
           {cargo.length === 0 ? (
             <EmptyState
@@ -632,7 +635,25 @@ export default async function InventoryPage({
                       {mayNotify ? (
                         <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
                           {item.shippingMark ? <span className="block font-medium text-foreground">{item.shippingMark}</span> : null}
-                          {[...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))].join(", ") || "—"}
+                          {(() => {
+                            const types = [...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))];
+                            const row = priced.get(item.id);
+                            /* The book prices on this word, so where a price is
+                               still waiting it is changed here rather than on a
+                               screen somebody has to go and find. One type only:
+                               a consignment charged at several is corrected line
+                               by line on its own page. */
+                            return mayConfirm && row && types.length < 2 ? (
+                              <CargoTypeOnRow
+                                cargoId={item.id}
+                                reference={item.reference}
+                                current={types[0] ?? ""}
+                                cargoTypes={categories}
+                              />
+                            ) : (
+                              types.join(", ") || "—"
+                            );
+                          })()}
                           {receiving?.weightKg ? <span className="tnum block">{formatWeight(receiving.weightKg)}</span> : null}
                         </TableCell>
                       ) : null}
@@ -660,9 +681,8 @@ export default async function InventoryPage({
                             }
                             return (
                               <ConfirmPriceRow
-                                cargoId={item.id}
-                                amount={row.totalLabel}
-                                tzs={row.totalTzsLabel}
+                                row={row}
+                                vatPercent={Number(chinaPrices?.vatPercent ?? 0)}
                                 canConfirm={mayConfirm}
                               />
                             );
