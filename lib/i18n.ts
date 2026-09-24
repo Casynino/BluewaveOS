@@ -8271,6 +8271,11 @@ const ZH: Record<string, string> = {
   "The rate book has no price for this yet": "价格表暂无此类货物的价格",
   "price": "个价格",
   "Still in China, not yet on a container": "仍在中国，尚未装柜",
+  "What Foshan has measured and nobody has billed. The rate book has already worked each one out; correct anything wrong on its row, then confirm the rest in one press.":
+    "佛山已量好但尚未开账单的货物。价格表已算好每一票；在对应行更正有误之处，其余一次确认即可。",
+  "A consignment appears here as soon as Foshan measures it. Cargo already on a sailing is priced from its own container.":
+    "佛山一量好，货物便出现在这里。已上船的货物请在其所属货柜中确认价格。",
+  "Cargo already on a container is priced from": "已装柜的货物请在此确认价格：",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

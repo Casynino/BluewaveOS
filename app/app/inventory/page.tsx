@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import type { CargoStatus } from "@prisma/client";
 import {
   Boxes,
-  ChevronRight,
+  ClipboardCheck,
   Container as ContainerIcon,
   Download,
   Package,
@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { PriceList } from "@/components/app/price-list";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
@@ -93,13 +92,11 @@ export default async function InventoryPage({
     from?: string;
     to?: string;
     at?: string;
-    /** "prices" opens the price list straight away — see the menu entry. */
-    view?: string;
   }>;
 }) {
   const locale = await primeLocale();
   const user = await requirePermission("inventory.view");
-  const { q, state, type, from, to, at, view } = await searchParams;
+  const { q, state, type, from, to, at } = await searchParams;
   const query = q?.trim() ?? "";
   const category = type?.trim() ?? "";
 
@@ -330,7 +327,6 @@ export default async function InventoryPage({
     by one that may confirm a price.
   */
   const seesPrice = inChina && can(user.role, "finance.view");
-  const mayConfirm = seesPrice && can(user.role, "invoice.priceConfirm");
   /* Keyed by consignment, so each row can show what the book makes it without
      the list below and the figures beside it being two different reads. */
   const chinaPrices = seesPrice ? await priceListForChinaFloor() : null;
@@ -482,45 +478,29 @@ export default async function InventoryPage({
         The same list, the same one press and the same row editor the container
         screens carry — asked of the floor the goods are standing on.
       */}
-      {chinaPrices && chinaPrices.rows.length > 0 ? (
-        /*
-          SHUT UNTIL SOMEBODY ASKS.
+      {/*
+        A SHORTCUT, NOT THE LIST.
 
-          On a busy week this list is ninety rows, and a floor screen that
-          opens with ninety rows of money above the boxes is a screen nobody
-          scrolls. Closed it is one line — how many are waiting and what they
-          come to — and it opens on the press, or straight away when the menu
-          entry that asks for it was the way in.
-        */
-        <details
-          open={view === "prices"}
-          className="group overflow-hidden rounded-xl border border-signal/40 bg-signal/5"
+        Confirming prices is a job somebody sits down to do, and it has its own
+        screen. What belongs on the floor list is the fact that money is
+        waiting and the way to it — one line, however long the queue behind it.
+      */}
+      {chinaPrices && chinaPrices.ready > 0 ? (
+        <Link
+          href="/app/finance/prices"
+          className="focus-ring flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-signal/40 bg-signal/5 px-5 py-3 transition-colors hover:border-signal/70"
         >
-          <summary className="focus-ring flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 [&::-webkit-details-marker]:hidden">
-            <ChevronRight className="size-4 shrink-0 text-signal transition-transform group-open:rotate-90" />
-            <span className="font-semibold">
-              {chinaPrices.ready}{" "}
-              {T(chinaPrices.ready === 1 ? "price to confirm" : "prices to confirm")}
-            </span>
-            <span className="tnum text-sm text-muted-foreground">
-              {chinaPrices.totalUsdLabel}
-              {chinaPrices.totalTzsLabel ? ` · ${chinaPrices.totalTzsLabel}` : ""}
-            </span>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {T("Still in China, not yet on a container")}
-            </span>
-          </summary>
-          <div className="border-t border-signal/30">
-            <PriceList
-              containerId={null}
-              scope="china"
-              list={chinaPrices}
-              cargoTypes={categories}
-              canConfirm={mayConfirm}
-              locale={locale}
-            />
-          </div>
-        </details>
+          <ClipboardCheck className="size-4 shrink-0 text-signal" />
+          <span className="font-semibold">
+            {chinaPrices.ready}{" "}
+            {T(chinaPrices.ready === 1 ? "price to confirm" : "prices to confirm")}
+          </span>
+          <span className="tnum text-sm text-muted-foreground">
+            {chinaPrices.totalUsdLabel}
+            {chinaPrices.totalTzsLabel ? ` · ${chinaPrices.totalTzsLabel}` : ""}
+          </span>
+          <span className="ml-auto text-sm font-medium text-signal">{T("Confirm prices")} →</span>
+        </Link>
       ) : null}
 
       <section>
