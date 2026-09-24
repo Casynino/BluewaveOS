@@ -4,6 +4,7 @@ import { Clock, Phone, QrCode, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { FinanceTabs } from "@/components/app/finance-tabs";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { WhatsAppButton } from "@/components/app/whatsapp-button";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ export default async function PickupNotesPage({
       : {}),
   };
 
-  const [notes, counts] = await Promise.all([
+  const [notes, counts, matching, standing] = await Promise.all([
     prisma.pickupNote.findMany({
       where,
       orderBy: { issuedAt: "desc" },
@@ -113,6 +114,15 @@ export default async function PickupNotesPage({
       },
     }),
     prisma.pickupNote.groupBy({ by: ["status"], _count: true }),
+    prisma.pickupNote.count({ where }),
+    /* The oldest note still standing, asked of the register rather than read
+       off the page. The page is the newest hundred, so on a busy month the
+       note actually worth the phone call is the one not on it. */
+    prisma.pickupNote.findFirst({
+      where: { ...where, status: "ACTIVE" },
+      orderBy: { issuedAt: "asc" },
+      select: { issuedAt: true },
+    }),
   ]);
   const pickupAt = await pickupAddress(prisma);
 
@@ -132,13 +142,7 @@ export default async function PickupNotesPage({
       ? counts.reduce((sum, row) => sum + row._count, 0)
       : (counts.find((row) => row.status === key)?._count ?? 0);
 
-  // The oldest note still standing is the one worth a phone call.
-  const oldest = notes
-    .filter((note) => note.status === "ACTIVE")
-    .reduce<Date | null>(
-      (worst, note) => (!worst || note.issuedAt < worst ? note.issuedAt : worst),
-      null
-    );
+  const oldest = standing?.issuedAt ?? null;
 
   return (
     <div className="space-y-5">
@@ -197,10 +201,7 @@ export default async function PickupNotesPage({
         </form>
         {query ? (
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {/* A full page means there may be more behind it, so it says
-                "100+" rather than claiming exactly a hundred matched. */}
-            {notes.length === PAGE_SIZE ? `${PAGE_SIZE}+` : notes.length}{" "}
-            {t(locale, "of")} {countFor(active)} {t(locale, "match")}
+            {matching} {t(locale, "of")} {countFor(active)} {t(locale, "match")}
             {" · "}
             <Link
               href={pillHref(active).replace(/[?&]q=[^&]*/, "").replace(/\?$/, "")}
@@ -390,6 +391,7 @@ export default async function PickupNotesPage({
           </Table>
         </div>
       )}
+      <ListCap shown={notes.length} total={matching} />
     </div>
   );
 }

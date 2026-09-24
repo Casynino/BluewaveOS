@@ -104,7 +104,7 @@ export default async function CargoLabelPage({
   /* ?box= reprints one sticker — the one that was torn or went missing —
      without printing the whole consignment again. */
   const { box, received } = await searchParams;
-  const stickers: StickerData[] = await stickersFor([cargo.id], box ?? null);
+  const stickers: StickerData[] = await stickersFor([cargo.id], box ?? null, "svg");
   if (stickers.length === 0) notFound();
 
   return (

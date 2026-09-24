@@ -14,7 +14,7 @@ import {
   setWaitingPrice,
   setWaitingRate,
 } from "@/lib/price-confirmation";
-import { WAITING_ON_CONTAINER } from "@/lib/price-list";
+import { PRICE_LIST_PAGE, WAITING_ON_CONTAINER } from "@/lib/price-list";
 import { refreshInvoiceStatus } from "@/lib/invoice-status";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
@@ -62,11 +62,14 @@ export async function confirmPrices(
   }
 
   /* An explicit selection narrows the list; it can never widen it past what is
-     actually waiting on this container. */
+     actually waiting on this container. With none — a caller with no page in
+     front of it — the press takes the same window the list draws, in the same
+     order, so it can never issue a bill nobody read. */
   const picked = formData.getAll("cargoIds").map(String).filter(Boolean);
   const waiting = await prisma.cargo.findMany({
     where: picked.length ? { AND: [where, { id: { in: picked } }] } : where,
     orderBy: { createdAt: "asc" },
+    ...(picked.length ? {} : { take: PRICE_LIST_PAGE }),
     select: { id: true },
   });
   if (waiting.length === 0) {

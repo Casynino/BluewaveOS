@@ -12,6 +12,7 @@ import {
 
 import { EmptyState } from "@/components/app/empty-state";
 import { KpiCard } from "@/components/app/kpi-card";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,9 @@ const VIEWS = {
 
 type View = keyof typeof VIEWS;
 
+/** How many rows one look at this list draws; the rest is reached by filter. */
+const PAGE = 80;
+
 export default async function ContainersPage({
   searchParams,
 }: {
@@ -146,37 +150,45 @@ export default async function ContainersPage({
   ) as Record<View, number>;
   const allCount = await prisma.container.count({ where: { deletedAt: null } });
 
-  const containers = await prisma.container.findMany({
-    where: {
-      deletedAt: null,
-      ...(filter ? { status: { in: filter } } : {}),
-      ...(query
-        ? {
-            OR: [
-              { reference: { contains: query, mode: "insensitive" as const } },
-              { containerNumber: { contains: query, mode: "insensitive" as const } },
-              { sealNumber: { contains: query, mode: "insensitive" as const } },
-              { shipment: { vessel: { contains: query, mode: "insensitive" as const } } },
-              { shipment: { voyage: { contains: query, mode: "insensitive" as const } } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 80,
-    include: {
-      shipment: true,
-      packingList: { select: { number: true } },
-      cargoLines: {
-        select: {
-          cbm: true,
-          weightKg: true,
-          packagesCount: true,
-          cargo: { select: { senderId: true, status: true } },
+  const listed = {
+    deletedAt: null,
+    ...(filter ? { status: { in: filter } } : {}),
+    ...(query
+      ? {
+          OR: [
+            { reference: { contains: query, mode: "insensitive" as const } },
+            { containerNumber: { contains: query, mode: "insensitive" as const } },
+            { sealNumber: { contains: query, mode: "insensitive" as const } },
+            { shipment: { vessel: { contains: query, mode: "insensitive" as const } } },
+            { shipment: { voyage: { contains: query, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [matching, containers] = await Promise.all([
+    /* A chip counts every container in that state; this counts what the table
+       would have drawn, so the eightieth row is not read as the last sailing
+       this company ever made. */
+    prisma.container.count({ where: listed }),
+    prisma.container.findMany({
+      where: listed,
+      orderBy: { createdAt: "desc" },
+      take: PAGE,
+      include: {
+        shipment: true,
+        packingList: { select: { number: true } },
+        cargoLines: {
+          select: {
+            cbm: true,
+            weightKg: true,
+            packagesCount: true,
+            cargo: { select: { senderId: true, status: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -475,6 +487,7 @@ export default async function ContainersPage({
           </Table>
         )}
       </Card>
+      <ListCap shown={containers.length} total={matching} />
     </div>
   );
 }

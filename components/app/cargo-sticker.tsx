@@ -110,12 +110,15 @@ export function CargoSticker({ data }: { data: StickerData }) {
         className="flex flex-1 flex-col items-center justify-center"
         style={{ paddingTop: "2mm" }}
       >
-        <Image
+        {/* A plain img, not next/image: the code is already a data URL, so the
+            optimiser has nothing to do and its per-element work is paid two
+            thousand times over on a container's worth of stickers. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={data.qr}
           alt=""
           width={520}
           height={520}
-          unoptimized
           style={{ width: "58mm", height: "58mm" }}
         />
         <p

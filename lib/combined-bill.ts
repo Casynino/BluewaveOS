@@ -425,8 +425,21 @@ function totalsOf(rows: MergedBillRow[]): MergedTotals {
   let outstandingUsd: Prisma.Decimal | null = null;
   let unconvertedOutstanding = ZERO();
 
-  const usd = (own: Prisma.Decimal, row: MergedBillRow, tzs: Prisma.Decimal) =>
-    row.currency === "USD" ? own : fromBase(tzs, "USD", row.rate);
+  /* A bill raised in shillings needs no rate and many carry none, so it has no
+     dollar equivalent to give. Asking for one threw and took the whole merged
+     document with it, and adding the rest of the group up without it would
+     print a dollar line one bill short of the shillings beside it. The
+     shillings are exact either way, so they stand and the group's dollar line
+     is left off. */
+  let dollarsComplete = true;
+  const usd = (own: Prisma.Decimal, row: MergedBillRow, tzs: Prisma.Decimal) => {
+    if (row.currency === "USD") return own;
+    if (!row.rate) {
+      dollarsComplete = false;
+      return ZERO();
+    }
+    return fromBase(tzs, "USD", row.rate);
+  };
 
   for (const row of rows) {
     if (row.totalTzs === null || row.paidTzs === null || row.outstandingTzs === null) {
@@ -445,9 +458,9 @@ function totalsOf(rows: MergedBillRow[]): MergedTotals {
     billedTzs,
     paidTzs,
     outstandingTzs,
-    billedUsd,
-    paidUsd,
-    outstandingUsd,
+    billedUsd: dollarsComplete ? billedUsd : null,
+    paidUsd: dollarsComplete ? paidUsd : null,
+    outstandingUsd: dollarsComplete ? outstandingUsd : null,
     unconvertedOutstanding,
   };
 }

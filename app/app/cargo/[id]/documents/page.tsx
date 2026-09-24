@@ -71,7 +71,7 @@ export default async function CargoDocumentsPage({
   const [company, qr, stickers] = await Promise.all([
     prisma.companySetting.findUnique({ where: { id: "singleton" } }),
     qrDataUrl(qrPayload(cargo.qrToken), 520).catch(() => null),
-    mayLabel ? stickersFor([cargo.id], null) : Promise.resolve([] as StickerData[]),
+    mayLabel ? stickersFor([cargo.id], null, "svg") : Promise.resolve([] as StickerData[]),
   ]);
 
   /* Opening this page is the only signal we have that labels were printed —

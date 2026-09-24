@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionTabs } from "@/components/app/section-tabs";
 import { CargoStatusBadge } from "@/components/app/status-badge";
@@ -38,6 +39,9 @@ import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Cargo" };
 
 const STATUSES = Object.keys(CARGO_STATUS_META) as CargoStatus[];
+
+/** How many rows one look at this list draws; the rest is reached by filter. */
+const PAGE = 100;
 
 /**
  * THE JOURNEY IN FIVE PLACES.
@@ -122,46 +126,53 @@ export default async function CargoPage({
     ? (status as CargoStatus)
     : null;
 
-  const cargo = await prisma.cargo.findMany({
-    where: {
-      deletedAt: null,
-      ...(statusFilter
-        ? { status: statusFilter }
-        : stageFilter
-          ? { status: { in: [...STAGES[stageFilter].statuses] } }
-          : {}),
-      ...(query
-        ? {
-            OR: [
-              { reference: { contains: query, mode: "insensitive" as const } },
-              { shippingMark: { contains: query, mode: "insensitive" as const } },
-              { description: { contains: query, mode: "insensitive" as const } },
-              { supplierRef: { contains: query, mode: "insensitive" as const } },
-              {
-                sender: {
-                  OR: [
-                    { fullName: { contains: query, mode: "insensitive" as const } },
-                    { phone: { contains: query } },
-                    { code: { contains: query, mode: "insensitive" as const } },
-                  ],
-                },
-              },
-            ],
-          }
+  const where = {
+    deletedAt: null,
+    ...(statusFilter
+      ? { status: statusFilter }
+      : stageFilter
+        ? { status: { in: [...STAGES[stageFilter].statuses] } }
         : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: {
-      sender: { select: { fullName: true, code: true } },
-      chinaReceiving: { select: { packagesCount: true, cbm: true } },
-      /* The column prints one reference. `include` brought the whole
-         commercial line — rate, volume, currency — down with it. */
-      containerLines: {
-        select: { container: { select: { reference: true } } },
+    ...(query
+      ? {
+          OR: [
+            { reference: { contains: query, mode: "insensitive" as const } },
+            { shippingMark: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } },
+            { supplierRef: { contains: query, mode: "insensitive" as const } },
+            {
+              sender: {
+                OR: [
+                  { fullName: { contains: query, mode: "insensitive" as const } },
+                  { phone: { contains: query } },
+                  { code: { contains: query, mode: "insensitive" as const } },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [matching, cargo] = await Promise.all([
+    /* What the filter actually matched, so the hundredth row is not read as
+       the last consignment on record. */
+    prisma.cargo.count({ where }),
+    prisma.cargo.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: PAGE,
+      include: {
+        sender: { select: { fullName: true, code: true } },
+        chinaReceiving: { select: { packagesCount: true, cbm: true } },
+        /* The column prints one reference. `include` brought the whole
+           commercial line — rate, volume, currency — down with it. */
+        containerLines: {
+          select: { container: { select: { reference: true } } },
+        },
       },
-    },
-  });
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -295,6 +306,7 @@ export default async function CargoPage({
           </Table>
         )}
       </Card>
+      <ListCap shown={cargo.length} total={matching} />
     </div>
   );
 }

@@ -26,11 +26,26 @@ export const UNSAILED_TO_PRICE = {
   invoices: { none: { status: { notIn: ["DRAFT", "CANCELLED"] } } },
 } satisfies Prisma.CargoWhereInput;
 
+/**
+ * How many of them one look at the screen draws.
+ *
+ * Oldest first, because the one that has been standing longest is the one
+ * somebody is waiting on. What is behind the window is counted separately —
+ * `unsailedWaiting` — so the chip above the list never quotes the size of the
+ * page as the size of the backlog.
+ */
+export const UNSAILED_PAGE = 200;
+
+/** Everything in Dar with no sailing and no live bill, however long the list. */
+export async function unsailedWaiting(client: TxClient | typeof prisma = prisma) {
+  return client.cargo.count({ where: UNSAILED_TO_PRICE });
+}
+
 export async function unsailedToPrice(client: TxClient | typeof prisma = prisma) {
   return client.cargo.findMany({
     where: UNSAILED_TO_PRICE,
     orderBy: { createdAt: "asc" },
-    take: 200,
+    take: UNSAILED_PAGE,
     select: {
       id: true,
       reference: true,

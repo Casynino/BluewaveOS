@@ -110,20 +110,32 @@ export type PriceList = {
   vatIncluded: boolean;
   /** Rows that can be confirmed now. */
   ready: number;
+  /** Everything waiting, whether or not this list drew it. */
+  waitingInAll: number;
   totalUsdLabel: string;
   totalTzsLabel: string | null;
   fxRate: string | null;
 };
 
+/**
+ * How many consignments one list holds.
+ *
+ * A confirmer reads the list and presses once for what is on it, so the press
+ * and the page have to be the same set — `confirmPrices` takes the same window
+ * in the same order. Anything behind it comes up on the next pass, which is
+ * what "a list at a time" means.
+ */
+export const PRICE_LIST_PAGE = 300;
+
 export async function priceListFor(
   where: Prisma.CargoWhereInput,
   client: TxClient | typeof prisma = prisma
 ): Promise<PriceList> {
-  const [cargo, settings, fx] = await Promise.all([
+  const [cargo, settings, fx, matching] = await Promise.all([
     client.cargo.findMany({
       where,
       orderBy: { createdAt: "asc" },
-      take: 300,
+      take: PRICE_LIST_PAGE,
       include: {
         receiver: { select: { code: true, fullName: true } },
         darReceiving: true,
@@ -156,6 +168,7 @@ export async function priceListFor(
     }),
     companySettings(client),
     currentExchangeRate(client),
+    client.cargo.count({ where }),
   ]);
   const vatPercent = new Prisma.Decimal(settings?.vatPercent ?? 0);
   const tzsOf = (usd: Prisma.Decimal) => (fx ? usdToTzs(usd, fx.rate) : null);
@@ -361,6 +374,7 @@ export async function priceListFor(
     vatPercent: vatPercent.toString(),
     vatIncluded: settings?.pricesIncludeVat ?? true,
     ready: ready.length,
+    waitingInAll: matching,
     totalUsdLabel: formatCurrency(sumUsd, "USD"),
     totalTzsLabel: sumTzs === null ? null : formatCurrency(sumTzs, "TZS"),
     fxRate: fx?.rate.toString() ?? null,

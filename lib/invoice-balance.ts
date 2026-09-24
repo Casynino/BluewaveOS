@@ -253,6 +253,11 @@ export function impliedStatus(
  * own dollar balance added up — an equivalent, not a conversion of the total at
  * any one rate. A dollar bill with no rate cannot be counted in shillings and is
  * kept apart, never added to them.
+ *
+ * A bill raised in shillings needs no rate at all, and many carry none. Its
+ * shillings are exact and are counted; the dollar echo beside them is the only
+ * thing missing, and asking for one threw — out of a dashboard, a customer's
+ * balance and the release check, all of which add balances up through here.
  */
 export function owedAcross(invoices: InvoiceLike[]) {
   let tzs = ZERO();
@@ -262,7 +267,8 @@ export function owedAcross(invoices: InvoiceLike[]) {
     const b = balanceOf(invoice);
     if (b.outstandingTzs) {
       tzs = tzs.add(b.outstandingTzs);
-      usd = usd.add(invoice.currency === "USD" ? b.outstanding : fromBase(b.outstandingTzs, "USD", b.rate));
+      if (invoice.currency === "USD") usd = usd.add(b.outstanding);
+      else if (b.rate) usd = usd.add(fromBase(b.outstandingTzs, "USD", b.rate));
     } else {
       unconverted = unconverted.add(b.outstanding);
     }

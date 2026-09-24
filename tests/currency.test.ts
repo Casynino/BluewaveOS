@@ -10,7 +10,7 @@ import {
   tzsToUsd,
   usdToTzs,
 } from "@/lib/currency";
-import { balanceOf, impliedStatus } from "@/lib/invoice-balance";
+import { balanceOf, impliedStatus, owedAcross } from "@/lib/invoice-balance";
 import {
   parseAmount,
   paymentRate,
@@ -145,6 +145,42 @@ describe("invoice balances", () => {
   test("pending claims reduce what may still be taken", () => {
     const invoice = bill("13.50", [pay("30000", "TZS", RATE, "PENDING")]);
     assert.equal(stillTakeableTzs(invoice)!.toString(), "6450");
+  });
+});
+
+describe("a bill raised in shillings, with no rate pinned on it", () => {
+  /* Nothing about a shilling bill needs a dollar rate and plenty carry none.
+     Every screen that adds balances up — a dashboard, a customer's page, the
+     check that decides whether cargo may be released — goes through
+     owedAcross, which asked for the dollar equivalent anyway and threw. */
+  const tzsBill = (total: string, payments: Pay[] = []) => ({
+    total: D(total),
+    currency: "TZS",
+    fxRate: null,
+    status: "ISSUED",
+    payments,
+  });
+
+  test("its shillings are exact and it is counted", () => {
+    const b = balanceOf(tzsBill("36450"));
+    assert.equal(b.outstandingTzs!.toString(), "36450");
+    assert.equal(b.outstanding.toString(), "36450");
+  });
+
+  test("owedAcross counts it instead of throwing", () => {
+    const owed = owedAcross([tzsBill("36450")]);
+    assert.equal(owed.tzs.toString(), "36450");
+    assert.ok(owed.owes);
+    /* No rate, so no dollar echo — and none invented from today's board. */
+    assert.equal(owed.usd.toString(), "0");
+    assert.equal(owed.equivalent, "");
+  });
+
+  test("beside a dollar bill, the shillings still add up", () => {
+    const owed = owedAcross([tzsBill("36450"), bill("13.50")]);
+    assert.equal(owed.tzs.toString(), "72900");
+    assert.equal(owed.usd.toFixed(2), "13.50");
+    assert.equal(owed.unconverted.toString(), "0");
   });
 });
 
