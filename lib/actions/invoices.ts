@@ -12,8 +12,8 @@ import { impliedStatus, outstandingOf } from "@/lib/invoice-balance";
 import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
 import { announceCargoEvent } from "@/lib/cargo-events";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
-import { prisma } from "@/lib/prisma";
-import { storagePosition } from "@/lib/storage-fee";
+import { prisma, type TxClient } from "@/lib/prisma";
+import { storageOnCargo } from "@/lib/storage-fee";
 import {
   applyVat,
   companySettings,
@@ -26,7 +26,6 @@ import { authorize } from "@/lib/session";
 import { refreshInvoiceStatus } from "@/lib/invoice-status";
 import { paymentSnapshotNow } from "@/lib/invoice-accounts";
 import { confirmPrices } from "@/lib/actions/price-list";
-import { storageStart } from "@/lib/storage-clock";
 
 
 /**
@@ -53,6 +52,53 @@ function issueSnapshot(
 
 /** A second bill for the same boxes, caught inside the lock. Never shown raw. */
 class DuplicateInvoice extends Error {}
+
+/**
+ * THE BILL HELD STILL WHILE ITS MONEY IS RESTATED.
+ *
+ * Every change to what a customer owes is a read and then a write: take the
+ * subtotal off the row, work the new one out, put it back. Nothing about a
+ * transaction makes those two one act — the read is an ordinary SELECT and
+ * anybody may write between them. Two desks on the same bill in the same
+ * minute, which is the ordinary case here (Support gives a little off on the
+ * phone while Finance takes the floor rent back off), each subtract from the
+ * figure they read, and whichever commits second writes the other's change
+ * back out of a bill the customer has already been shown.
+ *
+ * Locking the row first means the second desk waits and then works from the
+ * first desk's figure. Called at the top of the transaction, before anything
+ * is read from the row, and never outside one — a lock taken outside a
+ * transaction is released before the write it was meant to cover.
+ */
+async function billForUpdate(tx: TxClient, invoiceId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Invoice" WHERE id = ${invoiceId} FOR UPDATE`;
+  return tx.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
+    select: {
+      subtotal: true,
+      total: true,
+      discount: true,
+      vatPercent: true,
+      vatInclusive: true,
+      fxRate: true,
+    },
+  });
+}
+
+/**
+ * A bill that moved while it was being re-priced.
+ *
+ * The other half of the rule above, for the changes that rebuild the whole
+ * bill out of the lines they read rather than adding to or subtracting from
+ * its subtotal. Holding the row still does not help those: their lines were
+ * read before the lock could exist. So the write is made conditional on the
+ * total they were worked out from, and a bill that has moved since is refused
+ * and reopened rather than quietly restated — the same guard the price list
+ * uses (lib/price-confirmation.ts).
+ */
+class BillMoved extends Error {}
+
+const MOVED = "That bill changed a moment ago. Open it again and make the change on what it says now.";
 
 /** "TZS 36,450 (USD 13.50 at 1 USD = 2,700 TZS)" */
 function amountDueLine(totalUsd: Prisma.Decimal, rate: Prisma.Decimal) {
@@ -730,8 +776,9 @@ export async function undoDiscount(
     : invoice.discount;
 
   await prisma.$transaction(async (tx) => {
-    const subtotal = invoice.subtotal.add(off);
-    const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+    const live = await billForUpdate(tx, invoice.id);
+    const subtotal = live.subtotal.add(off);
+    const { vatAmount, total } = applyVat(subtotal, live.vatPercent, live.vatInclusive);
 
     await recordFieldChange(
       {
@@ -739,7 +786,7 @@ export async function undoDiscount(
         entity: "Invoice",
         entityId: invoice.id,
         field: "total",
-        oldValue: invoice.total.toString(),
+        oldValue: live.total.toString(),
         newValue: total.toString(),
         reason,
       },
@@ -751,11 +798,11 @@ export async function undoDiscount(
     await tx.invoice.update({
       where: { id: invoice.id },
       data: {
-        discount: Prisma.Decimal.max(new Prisma.Decimal(0), invoice.discount.sub(off)),
+        discount: Prisma.Decimal.max(new Prisma.Decimal(0), live.discount.sub(off)),
         subtotal,
         vatAmount,
         total,
-        totalTzs: invoice.fxRate ? usdToTzs(total, invoice.fxRate) : null,
+        totalTzs: live.fxRate ? usdToTzs(total, live.fxRate) : null,
       },
     });
   });
@@ -819,10 +866,13 @@ export async function discountInvoice(
     };
   }
 
-  const subtotal = invoice.subtotal.sub(off);
-  const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
+  const total = await prisma.$transaction(async (tx) => {
+    /* Worked out from the bill as it stands under the lock, never from the
+       copy the press was read against. */
+    const live = await billForUpdate(tx, invoice.id);
+    const subtotal = live.subtotal.sub(off);
+    const money = applyVat(subtotal, live.vatPercent, live.vatInclusive);
 
-  await prisma.$transaction(async (tx) => {
     /* Written before it takes effect, like every other change to a figure
        somebody has been shown. */
     await recordFieldChange(
@@ -831,8 +881,8 @@ export async function discountInvoice(
         entity: "Invoice",
         entityId: invoice.id,
         field: "total",
-        oldValue: invoice.total.toString(),
-        newValue: total.toString(),
+        oldValue: live.total.toString(),
+        newValue: money.total.toString(),
         reason,
       },
       tx
@@ -854,15 +904,14 @@ export async function discountInvoice(
     await tx.invoice.update({
       where: { id: invoice.id },
       data: {
-        discount: invoice.discount.add(off),
+        discount: live.discount.add(off),
         subtotal,
-        vatAmount,
-        total,
-        totalTzs: invoice.fxRate
-          ? usdToTzs(total, invoice.fxRate)
-          : null,
+        vatAmount: money.vatAmount,
+        total: money.total,
+        totalTzs: live.fxRate ? usdToTzs(money.total, live.fxRate) : null,
       },
     });
+    return money.total;
   });
 
   await recordAudit({
@@ -871,6 +920,7 @@ export async function discountInvoice(
     entity: "Invoice",
     entityId: invoice.id,
     summary: `Took ${invoice.currency} ${off} off ${invoice.number}: ${reason}`,
+    metadata: { amount: off.toString(), nowTotal: total.toString(), reason },
   });
   await tellFinance(actor, invoice, `Discount of ${invoice.currency} ${off}: ${reason}`);
 
@@ -1001,7 +1051,7 @@ export async function repriceInvoice(
   const repriceInclusive = (await companySettings())?.pricesIncludeVat ?? true;
   const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, repriceInclusive);
 
-  await prisma.$transaction(async (tx) => {
+  const refused = await prisma.$transaction(async (tx) => {
     /* The total can move at an unchanged rate — a bill issued with VAT on top
        re-priced the way prices are now — so it is written on its own. */
     if (!invoice.total.equals(total)) {
@@ -1073,8 +1123,12 @@ export async function repriceInvoice(
       });
     }
 
-    await tx.invoice.update({
-      where: { id: invoice.id },
+    /* Every line on this bill was read before the transaction opened, so the
+       new subtotal is only right while the bill has not moved since. A
+       storage charge or a discount landing in between is money this would
+       otherwise write back out of the bill. */
+    const claim = await tx.invoice.updateMany({
+      where: { id: invoice.id, total: invoice.total },
       data: {
         ...(newCbm !== undefined ? { billableCbm: newCbm } : {}),
         ...(newStandard !== undefined ? { standardRate: newStandard } : {}),
@@ -1088,7 +1142,12 @@ export async function repriceInvoice(
           : null,
       },
     });
+    if (claim.count === 0) throw new BillMoved();
+  }).catch((error) => {
+    if (error instanceof BillMoved) return MOVED;
+    throw error;
   });
+  if (refused) return { error: refused };
 
   await recordAudit({
     actor,
@@ -1207,7 +1266,7 @@ export async function undoReprice(
   );
   const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
 
-  await prisma.$transaction(async (tx) => {
+  const refused = await prisma.$transaction(async (tx) => {
     /* Old value first, for every figure the customer has been shown. */
     if (!invoice.total.equals(total)) {
       await recordFieldChange(
@@ -1238,8 +1297,10 @@ export async function undoReprice(
     await tx.invoiceItem.createMany({
       data: priced.items.map((item) => ({ ...item, invoiceId: invoice.id })),
     });
-    await tx.invoice.update({
-      where: { id: invoice.id },
+    /* Priced again from the lines this bill carried when it was read, so it
+       goes back only onto the bill it was read from. */
+    const claim = await tx.invoice.updateMany({
+      where: { id: invoice.id, total: invoice.total },
       data: {
         billableCbm: priced.billableCbm,
         billableKg: priced.billableKg,
@@ -1252,7 +1313,12 @@ export async function undoReprice(
         totalTzs: invoice.fxRate ? usdToTzs(total, invoice.fxRate) : null,
       },
     });
+    if (claim.count === 0) throw new BillMoved();
+  }).catch((error) => {
+    if (error instanceof BillMoved) return MOVED;
+    throw error;
   });
+  if (refused) return { error: refused };
 
   const back = priced.appliedRate
     ? `${invoice.currency} ${priced.appliedRate} per CBM`
@@ -1330,15 +1396,31 @@ export async function chargeStorage(
 
   if (remove) {
     if (existing.length === 0) return { error: "There is no storage on it." };
-    const off = existing.reduce(
-      (sum, i) => sum.add(i.amount),
-      new Prisma.Decimal(0)
-    );
-    const subtotal = invoice.subtotal.sub(off);
-    const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
     const why = reason || "Storage taken off at the counter";
 
-    await prisma.$transaction(async (tx) => {
+    /*
+      WORKED OUT AGAIN INSIDE THE TRANSACTION, LIKE THE CHARGE BELOW.
+
+      The lines and the bill above were read before the permission check ran.
+      Taking the waiver off a copy that old subtracts from a subtotal another
+      desk has since discounted or added a charge to, and writes that desk's
+      figure back out of the bill along with the storage. What comes off here
+      is the storage that is on the row nobody else can be writing, and what
+      goes back is that row's own subtotal less exactly those lines.
+    */
+    const waived = await prisma.$transaction(async (tx) => {
+      const live = await billForUpdate(tx, invoice.id);
+      const lines = await tx.invoiceItem.findMany({
+        where: { invoiceId: invoice.id, category: "Storage" },
+        select: { id: true, amount: true, quantity: true },
+      });
+      if (lines.length === 0) return null;
+      const off = lines.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0));
+      const days = lines.reduce((sum, i) => sum.add(i.quantity), new Prisma.Decimal(0));
+
+      const subtotal = live.subtotal.sub(off);
+      const { vatAmount, total } = applyVat(subtotal, live.vatPercent, live.vatInclusive);
+
       /* The lines come off the bill, so what the waiver was worth and who
          decided it lives where every other change to a figure a customer has
          been shown lives — written before it takes effect. */
@@ -1348,14 +1430,14 @@ export async function chargeStorage(
           entity: "Invoice",
           entityId: invoice.id,
           field: "total",
-          oldValue: invoice.total.toString(),
+          oldValue: live.total.toString(),
           newValue: total.toString(),
           reason: why,
         },
         tx
       );
       await tx.invoiceItem.deleteMany({
-        where: { id: { in: existing.map((i) => i.id) } },
+        where: { id: { in: lines.map((i) => i.id) } },
       });
       await tx.invoice.update({
         where: { id: invoice.id },
@@ -1363,21 +1445,33 @@ export async function chargeStorage(
           subtotal,
           vatAmount,
           total,
-          totalTzs: invoice.fxRate
-            ? usdToTzs(total, invoice.fxRate)
-            : null,
+          totalTzs: live.fxRate ? usdToTzs(total, live.fxRate) : null,
         },
       });
+
+      /* Written with the money it describes: a waiver nobody can name is the
+         one thing worse than a waiver nobody agreed. */
+      await recordAudit(
+        {
+          actor,
+          action: "invoice.storage.waive",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `Waived ${invoice.currency} ${off} of storage on ${invoice.number}: ${why}`,
+          metadata: {
+            amount: off.toString(),
+            days: days.toString(),
+            wasTotal: live.total.toString(),
+            nowTotal: total.toString(),
+            reason: why,
+          },
+        },
+        tx
+      );
+      return { off };
     });
 
-    await recordAudit({
-      actor,
-      action: "invoice.storage.waive",
-      entity: "Invoice",
-      entityId: invoice.id,
-      summary: `Waived ${invoice.currency} ${off} of storage on ${invoice.number}: ${why}`,
-      metadata: { amount: off.toString(), days: chargedDays.toString(), reason: why },
-    });
+    if (!waived) return { error: "There is no storage on it." };
 
     await refreshInvoiceStatus(invoice.id);
 
@@ -1386,13 +1480,7 @@ export async function chargeStorage(
   }
 
   const settings = await companySettings();
-  const position = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
-    collectedAt: invoice.cargo.release?.releasedAt ?? null,
-    freeDays: settings?.freeStorageDays ?? 7,
-    perDay: settings?.storagePerDay ?? 0,
-    currency: settings?.storageCurrency ?? "USD",
-  });
+  const position = storageOnCargo(invoice.cargo, settings);
 
   if (!position.configured) {
     return {
@@ -1439,6 +1527,9 @@ export async function chargeStorage(
     and a day that has been charged is never charged again.
   */
   const charged = await prisma.$transaction(async (tx) => {
+    /* The bill as it stands now, not as it stood before the settings were
+       read: another desk may have discounted it in between. */
+    const live = await billForUpdate(tx, invoice.id);
     const billed = await tx.invoiceItem.aggregate({
       where: { invoiceId: invoice.id, category: "Storage" },
       _sum: { quantity: true },
@@ -1447,12 +1538,6 @@ export async function chargeStorage(
     const owed = new Prisma.Decimal(position.chargeableDays).sub(billedDays);
     if (owed.lessThanOrEqualTo(0)) return null;
 
-    /* The bill as it stands now, not as it stood before the settings were
-       read: another desk may have discounted it in between. */
-    const live = await tx.invoice.findUniqueOrThrow({
-      where: { id: invoice.id },
-      select: { subtotal: true, total: true, vatPercent: true, vatInclusive: true, fxRate: true },
-    });
     const owedAmount = position.perDay.mul(owed).toDecimalPlaces(2);
     const liveSubtotal = live.subtotal.add(owedAmount);
     const money = applyVat(liveSubtotal, live.vatPercent, live.vatInclusive);
@@ -1493,29 +1578,37 @@ export async function chargeStorage(
         totalTzs: live.fxRate ? usdToTzs(money.total, live.fxRate) : null,
       },
     });
+    /* Written with the line it describes. The calculation is on it — the days
+       the clock had run, the days already billed, and the rate they were
+       charged at — because the question a customer asks is never "what is the
+       total" but "what are these dollars for". */
+    await recordAudit(
+      {
+        actor,
+        action: "invoice.storage.charge",
+        entity: "Invoice",
+        entityId: invoice.id,
+        summary: `Added ${invoice.currency} ${owedAmount} storage to ${invoice.number} (${owed} day(s)${
+          billedDays.greaterThan(0) ? `, ${billedDays} already billed` : ""
+        })`,
+        metadata: {
+          amount: owedAmount.toString(),
+          days: owed.toString(),
+          daysAlreadyBilled: billedDays.toString(),
+          chargeableDays: position.chargeableDays,
+          perDay: position.perDay.toString(),
+          wasTotal: live.total.toString(),
+          nowTotal: money.total.toString(),
+        },
+      },
+      tx
+    );
     return { days: owed, amount: owedAmount, billedDays };
   });
 
   if (!charged) {
     return { ok: `Storage to day ${position.chargeableDays} is already on this bill.` };
   }
-
-  await recordAudit({
-    actor,
-    action: "invoice.storage.charge",
-    entity: "Invoice",
-    entityId: invoice.id,
-    summary: `Added ${invoice.currency} ${charged.amount} storage to ${invoice.number} (${charged.days} day(s)${
-      charged.billedDays.greaterThan(0) ? `, ${charged.billedDays} already billed` : ""
-    })`,
-    metadata: {
-      amount: charged.amount.toString(),
-      days: charged.days.toString(),
-      daysAlreadyBilled: charged.billedDays.toString(),
-      chargeableDays: position.chargeableDays,
-      perDay: position.perDay.toString(),
-    },
-  });
 
   await refreshInvoiceStatus(invoice.id);
 
@@ -1559,8 +1652,12 @@ export async function changeInvoiceRate(
   if (invoice.currency !== "USD") return { error: "Only a dollar bill has an exchange rate." };
   if (invoice.fxRate && invoice.fxRate.equals(rate)) return { error: "That is already the rate on this bill." };
 
-  const totalTzs = usdToTzs(invoice.total, rate);
-  await prisma.$transaction(async (tx) => {
+  const totalTzs = await prisma.$transaction(async (tx) => {
+    /* The shillings follow the dollar total the bill carries now, not the one
+       this press was read against: a discount landing in between would leave
+       the two figures on the bill saying different things. */
+    const live = await billForUpdate(tx, invoice.id);
+    const shillings = usdToTzs(live.total, rate);
     await recordFieldChange(
       {
         actor,
@@ -1576,7 +1673,7 @@ export async function changeInvoiceRate(
     await tx.invoice.update({
       where: { id: invoice.id },
       /* No longer the published row: this bill carries a rate of its own. */
-      data: { fxRate: rate, exchangeRateId: null, totalTzs },
+      data: { fxRate: rate, exchangeRateId: null, totalTzs: shillings },
     });
     await recordAudit(
       {
@@ -1593,6 +1690,7 @@ export async function changeInvoiceRate(
       },
       tx
     );
+    return shillings;
   });
 
   await refreshInvoiceStatus(invoice.id);
@@ -1660,8 +1758,10 @@ export async function undoInvoiceRate(
     return { error: "That is already the rate on this bill." };
   }
 
-  const totalTzs = usdToTzs(invoice.total, rate);
-  await prisma.$transaction(async (tx) => {
+  const totalTzs = await prisma.$transaction(async (tx) => {
+    /* The shillings follow the dollar total the bill carries now. */
+    const live = await billForUpdate(tx, invoice.id);
+    const shillings = usdToTzs(live.total, rate);
     await recordFieldChange(
       {
         actor,
@@ -1679,7 +1779,7 @@ export async function undoInvoiceRate(
       data: {
         fxRate: rate,
         exchangeRateId: was && !useToday ? null : (published?.id ?? null),
-        totalTzs,
+        totalTzs: shillings,
       },
     });
     await recordAudit(
@@ -1700,6 +1800,7 @@ export async function undoInvoiceRate(
       },
       tx
     );
+    return shillings;
   });
 
   await tellFinance(actor, invoice, `Rate put back to ${formatRate(rate)}: ${reason}`);
@@ -1839,10 +1940,12 @@ async function addInvoiceCharge(formData: FormData): Promise<ActionState> {
   if (settled) return { error: settled };
 
   const value = new Prisma.Decimal(amount).toDecimalPlaces(2);
-  const subtotal = invoice.subtotal.add(value);
-  const { vatAmount, total } = applyVat(subtotal, invoice.vatPercent, invoice.vatInclusive);
 
   await prisma.$transaction(async (tx) => {
+    const live = await billForUpdate(tx, invoice.id);
+    const subtotal = live.subtotal.add(value);
+    const { vatAmount, total } = applyVat(subtotal, live.vatPercent, live.vatInclusive);
+
     await tx.invoiceItem.create({
       data: {
         invoiceId: invoice.id,
@@ -1861,7 +1964,7 @@ async function addInvoiceCharge(formData: FormData): Promise<ActionState> {
         subtotal,
         vatAmount,
         total,
-        totalTzs: invoice.fxRate ? usdToTzs(total, invoice.fxRate) : null,
+        totalTzs: live.fxRate ? usdToTzs(total, live.fxRate) : null,
       },
     });
     await recordAudit(
@@ -1871,7 +1974,7 @@ async function addInvoiceCharge(formData: FormData): Promise<ActionState> {
         entity: "Invoice",
         entityId: invoice.id,
         summary: `Added ${formatCurrency(value, invoice.currency)} to ${invoice.number}: ${description}${reason ? ` — ${reason}` : ""}`,
-        metadata: { oldValue: invoice.total.toString(), newValue: total.toString(), reason },
+        metadata: { oldValue: live.total.toString(), newValue: total.toString(), reason },
       },
       tx
     );

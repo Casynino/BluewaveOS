@@ -45,9 +45,8 @@ function chaseLetter(status: CargoStatus, contacted: boolean): ContactKind {
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { storagePosition } from "@/lib/storage-fee";
+import { storageOnCargo } from "@/lib/storage-fee";
 import { cn } from "@/lib/utils";
-import { storageStart } from "@/lib/storage-clock";
 
 import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
@@ -227,6 +226,9 @@ export default async function CollectionsPage({
           pickupNote: { select: { status: true, onCredit: true } },
           darArrivedAt: true,
           darReceiving: { select: { receivedAt: true, cbm: true } },
+          /* A bill chased after the goods went — released on credit — still
+             shows floor rent, and the clock stopped the day they left. */
+          release: { select: { releasedAt: true } },
           contacts: {
             orderBy: { createdAt: "desc" },
             take: 1,
@@ -345,15 +347,7 @@ export default async function CollectionsPage({
            arrived, which is a different conversation from an ordinary debt. */
         credit: Boolean(invoice.cargo.pickupNote?.onCredit),
         rate: rateOf(invoice.fxRate),
-        storage: Number(
-          storagePosition({
-            receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
-            collectedAt: null,
-            freeDays: settings?.freeStorageDays ?? 0,
-            perDay: settings?.storagePerDay ?? 0,
-            currency: settings?.storageCurrency ?? "USD",
-          }).amount
-        ),
+        storage: Number(storageOnCargo(invoice.cargo, settings).amount),
         dueDays:
           invoice.dueAt
             ? Math.ceil((invoice.dueAt.getTime() - now) / 86_400_000)

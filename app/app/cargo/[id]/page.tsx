@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -39,7 +40,7 @@ import {
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
 import { formatCurrency } from "@/lib/currency";
 import { prisma } from "@/lib/prisma";
-import { storagePosition } from "@/lib/storage-fee";
+import { storageOnCargo } from "@/lib/storage-fee";
 import { receiverLockReason } from "@/lib/cargo-corrections";
 import { t } from "@/lib/i18n";
 import { can, canAmendCargo, cargoCustody } from "@/lib/rbac";
@@ -57,7 +58,6 @@ import {
 } from "@/lib/messages";
 import { cargoTypeOptions, cargoTypeUnits, valueLines } from "@/lib/valuation";
 import { distinctMark } from "@/lib/customer-name";
-import { storageStart } from "@/lib/storage-clock";
 import { noticeSubject, pickupAddress, whatsappNotice } from "@/lib/cargo-events";
 import { CARGO_EVENT_ACTION, isCargoEvent } from "@/lib/cargo-notices";
 import { BLUEWAVE_STAGES, BLUEWAVE_STAGE_LABEL, bluewaveStageOf } from "@/lib/tracking-stage";
@@ -270,17 +270,11 @@ export default async function CargoDetailPage({
   /* What the floor space has cost, against what is actually on the bill. The
      two are deliberately different figures — a clerk who waived half of it last
      week needs to see both, or they will waive it again. */
-  const storage = storagePosition({
-    receivedAt: storageStart(dar?.receivedAt, cargo.darArrivedAt),
-    collectedAt: cargo.release?.releasedAt ?? null,
-    freeDays: money?.freeStorageDays ?? 7,
-    perDay: money?.storagePerDay ?? 0,
-    currency: money?.storageCurrency ?? "USD",
-  });
+  const storage = storageOnCargo(cargo, money);
   /* Read separately rather than joined onto the invoice: the cargo query is
      shared with screens that must never see a money figure. */
-  const storageOnBill = billHere
-    ? Number(
+  const storageBilled = billHere
+    ? new Prisma.Decimal(
         (
           await prisma.invoiceItem.aggregate({
             where: { invoiceId: billHere.id, category: "Storage" },
@@ -288,11 +282,12 @@ export default async function CargoDetailPage({
           })
         )._sum.amount ?? 0
       )
-    : 0;
+    : new Prisma.Decimal(0);
+  const storageOnBill = Number(storageBilled);
   /* What another press would put on the bill: the run so far, less what is
      already charged for. Naming the whole calculated figure on the button is
      how the first week gets charged twice. */
-  const storageToAdd = Math.max(0, Number(storage.amount) - storageOnBill);
+  const storageToAdd = Number(Prisma.Decimal.max(0, storage.amount.sub(storageBilled)));
 
   const otherUnpaid = otherBills.filter((i) => !balanceOf(i).settled).length;
 

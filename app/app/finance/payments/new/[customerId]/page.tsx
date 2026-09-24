@@ -15,13 +15,13 @@ import { Prisma } from "@prisma/client";
 
 import { billChangesFor } from "@/lib/bill-changes";
 import { mergeLetterContextFor, mergedBillFor } from "@/lib/combined-bill";
-import { formatCurrency } from "@/lib/currency";
+import { convert, formatCurrency } from "@/lib/currency";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
 import { composeMessage, mergeBillLetter, whatsappNumber } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { storagePosition } from "@/lib/storage-fee";
+import { storageOnCargo } from "@/lib/storage-fee";
 import { SmartBack } from "@/components/app/smart-back";
 import { storageStart } from "@/lib/storage-clock";
 
@@ -68,6 +68,9 @@ export default async function MergePaymentForCustomer({
                 packages: { where: { deletedAt: null }, select: { cargoType: true } },
                 darArrivedAt: true,
                 darReceiving: { select: { receivedAt: true, cbm: true, packagesCount: true } },
+                /* The floor clock stops the day the boxes went, and a bill
+                   being paid after a credit release is exactly the case. */
+                release: { select: { releasedAt: true } },
                 chinaReceiving: { select: { cbm: true, packagesCount: true } },
                 containerLines: {
                   take: 1,
@@ -121,22 +124,21 @@ export default async function MergePaymentForCustomer({
     /* Storage accrued against what is already on the bill. The difference is
        named on the row rather than folded in: folding it in would promise a
        total the payment would then be refused for. */
-    const accrued = storagePosition({
-      receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
-      collectedAt: null,
-      freeDays: settings?.freeStorageDays ?? 0,
-      perDay: settings?.storagePerDay ?? 0,
-      currency: settings?.storageCurrency ?? "USD",
-    });
+    const accrued = storageOnCargo(invoice.cargo, settings);
     const onBill = invoice.items
       .filter((i) => i.category === "Storage")
-      .reduce((s, i) => s + Number(i.amount), 0);
+      .reduce((s, i) => s.add(i.amount), new Prisma.Decimal(0));
     const rate = Number(invoice.fxRate) > 1 ? Number(invoice.fxRate) : null;
-    let accruedInBill = Number(accrued.amount);
-    if (accrued.currency !== invoice.currency && rate) {
-      accruedInBill =
-        accrued.currency === "TZS" ? accruedInBill / rate : accruedInBill * rate;
-    }
+    /* The rate the bill was pinned at, through the one place money changes
+       currency — a shilling worked out in a double here and to the shilling
+       in the action is a row that refuses the figure it printed. */
+    const accruedInBill =
+      accrued.currency === invoice.currency
+        ? accrued.amount
+        : invoice.fxRate && invoice.fxRate.greaterThan(1)
+          ? convert(accrued.amount, accrued.currency, invoice.currency, invoice.fxRate)
+          : null;
+    const uncharged = accruedInBill ? Prisma.Decimal.max(0, accruedInBill.sub(onBill)) : null;
 
     bills.push({
       invoiceId: invoice.id,
@@ -150,7 +152,7 @@ export default async function MergePaymentForCustomer({
       outstanding: Number(outstandingOf(invoice)),
       outstandingTzs: balanceOf(invoice).outstandingTzs?.toNumber() ?? null,
       rate,
-      storageUncharged: Math.max(0, accruedInBill - onBill),
+      storageUncharged: uncharged ? Number(uncharged) : 0,
       standardRate: invoice.standardRate ? Number(invoice.standardRate) : null,
       appliedRate: invoice.appliedRate ? Number(invoice.appliedRate) : null,
       cbm: invoice.billableCbm ? Number(invoice.billableCbm) : null,
