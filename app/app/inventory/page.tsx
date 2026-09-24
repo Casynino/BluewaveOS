@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCbm, formatDate, formatWeight } from "@/lib/format";
+import { formatCbm, formatDate } from "@/lib/format";
 import { NotifyRow } from "@/components/app/notify-row";
 import { CARGO_EVENT_ACTION } from "@/lib/cargo-notices";
 import { composeMessage, composeNotice, whatsappNumber } from "@/lib/messages";
@@ -332,6 +332,16 @@ export default async function InventoryPage({
      the list below and the figures beside it being two different reads. */
   const chinaPrices = seesPrice ? await priceListForChinaFloor() : null;
 
+  /*
+    A COLUMN OF NOTHING IS NOT A COLUMN.
+
+    On the Foshan floor a consignment is on the floor — that is what the page
+    means — so "Container" was one dash repeated down the list. It is drawn
+    where it says something: the loaded view, Dar's own floor, or a China list
+    that actually has a box in it.
+  */
+  const anyContainer = cargo.some((item) => item.containerLines.length > 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -535,8 +545,10 @@ export default async function InventoryPage({
                       is the whole reason somebody opened the list, and Dar keeps
                       it always: there, the box it came off is how a consignment
                       is found. */}
-                  {!inChina || loadedView || allChina ? <TableHead>{T("Container")}</TableHead> : null}
-                  {mayNotify ? <TableHead className="hidden md:table-cell">{T("Mark · type · weight")}</TableHead> : null}
+                  {!inChina || loadedView || (allChina && anyContainer) ? (
+                    <TableHead>{T("Container")}</TableHead>
+                  ) : null}
+                  {mayNotify ? <TableHead className="hidden md:table-cell">{T("Type")}</TableHead> : null}
                   {/* Which warehouse it is in is the title of the page, and a
                       shelf number nobody fills in was two lines of nothing. The
                       date it came in is the fact a clerk actually wants. */}
@@ -634,7 +646,7 @@ export default async function InventoryPage({
                           <CargoStatusBadge status={item.status} />
                         </TableCell>
                       )}
-                      {!inChina || loadedView || allChina ? (
+                      {!inChina || loadedView || (allChina && anyContainer) ? (
                         <TableCell>
                           {container ? (
                             <Link
@@ -648,11 +660,17 @@ export default async function InventoryPage({
                           )}
                         </TableCell>
                       ) : null}
+                      {/* THE TYPE, AND NOTHING ELSE.
+
+                          The mark is the customer's own name on nearly every
+                          box, so it was the same word twice on one row; the
+                          weight is not what this floor is sold or planned on,
+                          and a kilo figure beside a cubic metre invites
+                          somebody to price on the wrong one. Both are on the
+                          consignment, where a claim needs them. */}
                       {mayNotify ? (
                         <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
-                          {item.shippingMark ? <span className="block font-medium text-foreground">{item.shippingMark}</span> : null}
                           {[...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))].join(", ") || "—"}
-                          {receiving?.weightKg ? <span className="tnum block">{formatWeight(receiving.weightKg)}</span> : null}
                         </TableCell>
                       ) : null}
                       <TableCell className="tnum hidden whitespace-nowrap text-sm text-muted-foreground xl:table-cell">
