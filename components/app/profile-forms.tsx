@@ -13,6 +13,7 @@ import {
   updateMyProfile,
   type ProfileState,
 } from "@/lib/actions/profile";
+import { LOCALES, LOCALE_LABELS, localeOf } from "@/lib/locale";
 
 import { useT } from "@/components/app/locale-provider";
 export function PersonalDetailsForm({
@@ -52,13 +53,19 @@ export function PersonalDetailsForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="locale">{tx("Language")}</Label>
-        <NativeSelect id="locale" name="locale" defaultValue={locale}>
-          <option value="en">{tx("English")}</option>
-          <option value="sw">{tx("Kiswahili")}</option>
-          <option value="zh">中文</option>
+        {/* The languages the screens are actually written in, each named in its
+            own — the list is read by somebody who cannot currently read the
+            interface. A third option would save a choice the next screen
+            quietly ignores, and the sidebar switch would refuse it anyway. */}
+        <NativeSelect id="locale" name="locale" defaultValue={localeOf(locale)}>
+          {LOCALES.map((option) => (
+            <option key={option} value={option}>
+              {LOCALE_LABELS[option]}
+            </option>
+          ))}
         </NativeSelect>
         <p className="text-xs text-muted-foreground">
-          {tx("The screens are English today. Choosing here is what tells us which desk needs its own language first.")}
+          {tx("It changes what every screen says, and nothing about what you may do.")}
         </p>
       </div>
 

@@ -39,6 +39,7 @@ import { can } from "@/lib/rbac";
 import { localeOf } from "@/lib/viewer-locale";
 import { cn } from "@/lib/utils";
 import { storageStart } from "@/lib/storage-clock";
+import { CARGO_CONDITION_LABELS } from "@/lib/constants";
 
 import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
@@ -422,7 +423,7 @@ export async function ContainerMoney({
       damaged:
         !!c.darReceiving && c.darReceiving.condition !== "GOOD",
       conditionLabel: c.darReceiving
-        ? (CONDITION_LABEL[c.darReceiving.condition] ?? null)
+        ? (CARGO_CONDITION_LABELS[c.darReceiving.condition] ?? null)
         : null,
       /*
         THE PRICE STAYS CORRECTABLE UNTIL MONEY LANDS.
@@ -777,14 +778,6 @@ export async function ContainerMoney({
   );
 }
 
-/** What the Dar floor wrote on the receiving row, said in words. */
-const CONDITION_LABEL: Record<string, string> = {
-  GOOD: "Good",
-  MINOR_DAMAGE: "Minor damage",
-  DAMAGED: "Damaged",
-  WET: "Wet",
-  REPACKED: "Repacked",
-};
 
 /**
  * WHAT THE GOODS ARE, IN BOTH LANGUAGES THAT HAVE TO READ IT.

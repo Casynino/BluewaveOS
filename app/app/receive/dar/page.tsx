@@ -244,20 +244,20 @@ function Queue({
                         <>
                           {formatDate(since)}
                           <span className="block text-xs">
-                            {here ? "landed" : "departed"}
+                            {here ? T("landed") : T("departed")}
                           </span>
                         </>
                       ) : (
                         <>
                           {formatDate(container.shipment?.eta)}
-                          <span className="block text-xs">expected</span>
+                          <span className="block text-xs">{T("expected")}</span>
                         </>
                       )}
                     </TableCell>
                     <TableCell className="tnum text-right text-sm">
                       {total}
                       <span className="block text-xs text-muted-foreground">
-                        {packages} pkg · {formatCbm(cbm)}
+                        {packages} {T("pkg")} · {formatCbm(cbm)}
                       </span>
                     </TableCell>
                     <TableCell className="tnum text-sm">
@@ -295,7 +295,7 @@ function Queue({
                           </div>
                           {gone > 0 ? (
                             <span className="mt-1 block text-xs text-destructive">
-                              {gone} missing
+                              {gone} {T("missing")}
                             </span>
                           ) : null}
                         </div>
@@ -317,7 +317,7 @@ function Queue({
                       {here ? `${arrivedPkgs} / ${packages}` : "—"}
                     </TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">
-                      {checkers.length > 0 ? checkers.join(", ") : "Nobody yet"}
+                      {checkers.length > 0 ? checkers.join(", ") : T("Nobody yet")}
                     </TableCell>
                     <TableCell className="tnum hidden text-right text-sm text-muted-foreground sm:table-cell">
                       {waited === null ? "—" : `${waited}d`}
@@ -619,8 +619,8 @@ export default async function DarReceivePage({
         <Queue
           rows={matching}
           query={query}
-          emptyTitle="Nothing inbound"
-          emptyDescription="No container is on the water or waiting to be checked in."
+          emptyTitle={T("Nothing inbound")}
+          emptyDescription={T("No container is on the water or waiting to be checked in.")}
         />
       </Card>
 

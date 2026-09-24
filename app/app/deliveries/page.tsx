@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { SectionTabs } from "@/components/app/section-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { DELIVERY_STATUS_LABELS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -74,7 +75,7 @@ export default async function DeliveriesPage() {
                         {request.cargo.reference}
                       </Link>
                       <Badge tone={TONE[request.status]}>
-                        {request.status.replace(/_/g, " ").toLowerCase()}
+                        {T(DELIVERY_STATUS_LABELS[request.status])}
                       </Badge>
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -138,7 +139,7 @@ export default async function DeliveriesPage() {
                   </span>
                 </span>
                 <Badge tone={TONE[request.status]}>
-                  {request.status.toLowerCase()}
+                  {T(DELIVERY_STATUS_LABELS[request.status])}
                 </Badge>
               </li>
             ))}

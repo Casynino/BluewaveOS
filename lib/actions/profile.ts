@@ -7,6 +7,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireCustomer, requireUser } from "@/lib/session";
+import { LOCALES } from "@/lib/locale";
 import { normaliseAnyPhone } from "@/lib/phone";
 
 export type ProfileState = { error?: string; ok?: string };
@@ -26,7 +27,10 @@ export type ProfileState = { error?: string; ok?: string };
 const detailsSchema = z.object({
   name: z.string().trim().min(2, "Your name is needed."),
   phone: z.string().trim().max(30).optional(),
-  locale: z.enum(["en", "sw", "zh"]),
+  /* The languages the screens are written in, and no more: a locale nothing
+     renders is stored, reads back as English and leaves somebody certain they
+     chose a language the system then ignores. */
+  locale: z.enum(LOCALES),
 });
 
 export async function updateMyProfile(
@@ -136,7 +140,9 @@ export async function changeMyPassword(
  */
 export async function setLanguage(locale: string): Promise<ProfileState> {
   const user = await requireUser();
-  if (locale !== "en" && locale !== "zh") return { error: "That is not a language this system speaks." };
+  if (!(LOCALES as readonly string[]).includes(locale)) {
+    return { error: "That is not a language this system speaks." };
+  }
   await prisma.user.update({ where: { id: user.id }, data: { locale } });
   await recordAudit({
     actor: user,

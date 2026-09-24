@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CONTAINER_STATUS_LABELS } from "@/lib/constants";
 import { monthlyVolume, warehouseFlow } from "@/lib/dashboard";
 import { formatCbm, formatDate, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -190,7 +191,7 @@ export default async function ReportsPage() {
                       {fill !== null ? `${fill}%` : "—"}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {container.status.toLowerCase()}
+                      {T(CONTAINER_STATUS_LABELS[container.status])}
                     </TableCell>
                   </TableRow>
                 );

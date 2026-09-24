@@ -4,6 +4,8 @@ import { after, before, describe, test } from "node:test";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   WHO MAY REACH WHAT, DRIVEN THROUGH THE REAL SERVER ACTIONS.
 
@@ -12,15 +14,12 @@ import { Prisma, PrismaClient } from "@prisma/client";
   lib/rbac.ts, and only the session is stood in for — see tests/stubs — so a
   refusal proved here is the refusal production gives.
 
-  Rows are committed and removed again in `after`. Run it only against a
-  bluewave_test database.
+  Rows are committed and removed again in `after`, so it needs a throwaway
+  database — the same name check every other committing test makes, kept in one
+  place so a second copy cannot drift and lock this file out of a database the
+  rest of the suite happily writes to.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
-  throw new Error(
-    `Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`
-  );
-}
+requireScratchDatabase();
 
 const load = createRequire(import.meta.url);
 load("./stubs/hook.cjs");

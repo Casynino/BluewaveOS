@@ -16,7 +16,7 @@ import {
 import { SectionLabel } from "@/components/app/section-label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ROLE_LABELS, SERVICE_LABEL } from "@/lib/constants";
+import { ROLE_LABELS, SERVICE_LABEL, SERVICE_TYPE_LABEL } from "@/lib/constants";
 import { formatCurrency } from "@/lib/currency";
 import { formatCbm, formatDate, formatRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -398,7 +398,8 @@ export default async function RequestsPage() {
                         {quote.contactEmail ? ` · ${quote.contactEmail}` : ""}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {quote.service} · {quote.commodity ?? "unspecified goods"}
+                        {T(SERVICE_TYPE_LABEL[quote.service])} ·{" "}
+                        {quote.commodity ?? T("unspecified goods")}
                         {quote.estimatedCbm ? ` · ${formatCbm(quote.estimatedCbm)}` : ""}
                         {quote.hazardous ? " · hazardous" : ""}
                         {quote.fragile ? " · fragile" : ""}

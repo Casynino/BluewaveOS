@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cargoById } from "@/lib/cargo";
 import { variance } from "@/lib/cbm";
-import { CARGO_STATUS_META, INVOICE_STATUS_LABELS } from "@/lib/constants";
+import { CARGO_CONDITION_LABELS, CARGO_STATUS_META, INVOICE_STATUS_LABELS } from "@/lib/constants";
 import {
   formatCbm,
   formatDate,
@@ -357,7 +357,7 @@ export default async function CargoDetailPage({
      anything else is the fact about these boxes, whatever else is true. */
   const damageTag =
     dar && dar.condition !== "GOOD"
-      ? CONDITION_LABEL[dar.condition] ?? "Damaged"
+      ? CARGO_CONDITION_LABELS[dar.condition] ?? "Damaged"
       : null;
 
   return (
@@ -750,20 +750,25 @@ export default async function CargoDetailPage({
           can(user.role, "cargo.viewInternal") ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">China receiving</CardTitle>
+                <CardTitle className="text-base">{T("China receiving")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {china ? (
                   <dl className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <Field
-                      label="Received"
+                      label={T("Received")}
                       value={formatDateTime(china.receivedAt)}
                     />
-                    <Field label="By" value={china.receivedBy?.name} />
-                    <Field label="Warehouse" value={china.warehouse.name} />
-                    <Field label="Condition" value={china.condition} />
-                    <Field label="Location" value={china.location} />
-                    <Field label="Notes" value={china.notes} />
+                    <Field label={T("By")} value={china.receivedBy?.name} />
+                    <Field label={T("Warehouse")} value={china.warehouse.name} />
+                    {/* The stored value is an enum; the counter never wrote
+                        "MINOR_DAMAGE" on anything. */}
+                    <Field
+                      label={T("Condition")}
+                      value={T(CARGO_CONDITION_LABELS[china.condition])}
+                    />
+                    <Field label={T("Location")} value={china.location} />
+                    <Field label={T("Notes")} value={china.notes} />
                   </dl>
                 ) : null}
                 {/* Custody says whose record it is; the permission says who may
@@ -1094,10 +1099,3 @@ export default async function CargoDetailPage({
   );
 }
 
-/** What the Dar floor wrote on the receiving row, said in words. */
-const CONDITION_LABEL: Record<string, string> = {
-  MINOR_DAMAGE: "Minor damage",
-  DAMAGED: "Damaged",
-  WET: "Arrived wet",
-  REPACKED: "Repacked",
-};

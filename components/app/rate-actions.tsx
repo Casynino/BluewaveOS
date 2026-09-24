@@ -19,6 +19,9 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 
 import { useT } from "@/components/app/locale-provider";
+import type { ServiceType } from "@prisma/client";
+
+import { SERVICE_TYPE_LABEL } from "@/lib/constants";
 import { RateBasisOptions } from "@/components/app/rate-basis-options";
 import { SLASH_UNIT, displayRate, entryOfBasis, type Basis } from "@/lib/rate-basis";
 type Mode = "idle" | "edit" | "remove";
@@ -134,7 +137,7 @@ function RemoveForm({
 
 export type EditableRate = {
   id: string;
-  service: string;
+  service: ServiceType;
   cargoType: string | null;
   basis: Basis;
   rate: string;
@@ -170,7 +173,7 @@ export function RateCardActions({ rate, cargoTypes }: { rate: EditableRate; carg
       {mode === "edit" ? (
         <Modal
           title={`Edit ${rate.cargoType ?? "general rate"}`}
-          subtitle={`${rate.service} · currently USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
+          subtitle={`${tx(SERVICE_TYPE_LABEL[rate.service])} · ${tx("currently")} USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
           onClose={() => setMode("idle")}
         >
         <form action={editAction} className="space-y-3">
@@ -233,7 +236,7 @@ export function RateCardActions({ rate, cargoTypes }: { rate: EditableRate; carg
       {mode === "remove" ? (
         <Modal
           title={`Remove ${rate.cargoType ?? "general rate"}`}
-          subtitle={`${rate.service} · USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
+          subtitle={`${tx(SERVICE_TYPE_LABEL[rate.service])} · USD ${displayRate(rate.rate, rate.basis)} / ${SLASH_UNIT[rate.basis]}`}
           onClose={() => setMode("idle")}
         >
         <RemoveForm

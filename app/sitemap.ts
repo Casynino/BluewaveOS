@@ -16,6 +16,7 @@ const PAGES: [path: string, priority: number, frequency: MetadataRoute.Sitemap[n
   ["/calculator", 0.9, "weekly"],
   ["/how-it-works", 0.8, "monthly"],
   ["/explore", 0.8, "weekly"],
+  ["/cities", 0.7, "weekly"],
   ["/markets", 0.7, "weekly"],
   ["/factories", 0.7, "weekly"],
   ["/sourcing", 0.8, "monthly"],

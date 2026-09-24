@@ -27,6 +27,7 @@ import {
 
 import { useT } from "@/components/app/locale-provider";
 import { Tx } from "@/components/app/tx";
+import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
 import {
   LINE_UNITS,
   LINE_UNIT_LABEL,
@@ -61,16 +62,9 @@ type Line = {
   chargeUnit?: string | null;
 };
 
-const TYPES = [
-  "CARTON",
-  "BALE",
-  "BAG",
-  "PALLET",
-  "CRATE",
-  "DRUM",
-  "PIECE",
-  "OTHER",
-];
+/* The words the counter picks from, and the words the table reads back — the
+   stored value is an enum and nobody wrote CARTON on a box. */
+const TYPES = Object.entries(PACKAGE_TYPE_LABELS);
 
 /**
  * The measured lines — what is in this consignment, and what it measures.
@@ -187,7 +181,9 @@ export function PackageEditor({
                     );
                   })()}
                 </TableCell>
-                <TableCell className="text-sm">{line.packageType}</TableCell>
+                <TableCell className="text-sm">
+                  {tx(PACKAGE_TYPE_LABELS[line.packageType as keyof typeof PACKAGE_TYPE_LABELS] ?? line.packageType)}
+                </TableCell>
                 <TableCell className="tnum text-right text-sm">
                   {line.quantity}
                 </TableCell>
@@ -321,9 +317,9 @@ export function PackageEditor({
                 name="packageType"
                 defaultValue={editing?.packageType ?? "CARTON"}
               >
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0) + t.slice(1).toLowerCase()}
+                {TYPES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {tx(label)}
                   </option>
                 ))}
               </NativeSelect>

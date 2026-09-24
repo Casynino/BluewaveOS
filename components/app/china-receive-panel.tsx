@@ -13,13 +13,12 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useT } from "@/components/app/locale-provider";
-const CONDITIONS = [
-  ["GOOD", "Good"],
-  ["MINOR_DAMAGE", "Minor damage"],
-  ["DAMAGED", "Damaged"],
-  ["WET", "Wet"],
-  ["REPACKED", "Repacked"],
-] as const;
+import { CARGO_CONDITION_LABELS } from "@/lib/constants";
+
+/* The counter picks from the same words the Dar bench and every screen that
+   reads the row back use — one list, so a condition cannot be named one thing
+   where it is written and another where it is read. */
+const CONDITIONS = Object.entries(CARGO_CONDITION_LABELS);
 
 export function ChinaReceivePanel({
   cargoId,
@@ -87,7 +86,7 @@ export function ChinaReceivePanel({
           >
             {CONDITIONS.map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {tx(label)}
               </option>
             ))}
           </NativeSelect>

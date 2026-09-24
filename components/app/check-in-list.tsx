@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
 import { distinctMark } from "@/lib/customer-name";
+import { CARGO_CONDITION_LABELS } from "@/lib/constants";
 import { useT } from "@/components/app/locale-provider";
 import {
   VERIFICATION_LABEL,
@@ -762,7 +763,10 @@ function CheckInRowView({
           </Badge>
           {row.verification === "DAMAGED" && row.condition ? (
             <span className="ml-1 text-xs text-muted-foreground">
-              {tx(CONDITION_LABEL[row.condition] ?? CONDITION_LABEL.DAMAGED)}
+              {tx(
+                CARGO_CONDITION_LABELS[row.condition as keyof typeof CARGO_CONDITION_LABELS] ??
+                  CARGO_CONDITION_LABELS.DAMAGED
+              )}
             </span>
           ) : row.verification === "PENDING" ? (
             <span className="ml-1 text-xs text-muted-foreground">
@@ -1033,11 +1037,3 @@ function CargoTypeCell({
   );
 }
 
-/** What the Dar floor wrote on the receiving row, said in words. */
-const CONDITION_LABEL: Record<string, string> = {
-  GOOD: "Good",
-  MINOR_DAMAGE: "Minor damage",
-  DAMAGED: "Damaged",
-  WET: "Wet",
-  REPACKED: "Repacked",
-};

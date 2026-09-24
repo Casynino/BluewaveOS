@@ -17,6 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ReleaseMethod } from "@prisma/client";
+
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -24,7 +26,7 @@ import { requirePermission } from "@/lib/session";
 import { primeLocale, T } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Collected cargo" };
 
-const METHOD_LABELS: Record<string, string> = {
+const METHOD_LABELS: Record<ReleaseMethod, string> = {
   COLLECTION: "Collected at the counter",
   DELIVERY: "Delivered",
 };
@@ -197,7 +199,7 @@ export default async function CollectedCargoPage({
                   </TableCell>
                   <TableCell>
                     <Badge tone="neutral">
-                      {METHOD_LABELS[release.method] ?? release.method}
+                      {T(METHOD_LABELS[release.method])}
                     </Badge>
                   </TableCell>
                   <TableCell className="tnum text-sm text-muted-foreground">

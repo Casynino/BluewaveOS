@@ -12,6 +12,7 @@ import {
   EXCEPTION_PRIORITY_LABELS,
   EXCEPTION_STATUS_LABELS,
 } from "@/lib/constants";
+import { EXCEPTION_TYPE_LABELS } from "@/lib/exception-groups";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -88,7 +89,7 @@ export default async function ExceptionPage({
                     : "neutral"
               }
             >
-              {EXCEPTION_PRIORITY_LABELS[item.priority]}
+              {T(EXCEPTION_PRIORITY_LABELS[item.priority])}
             </Badge>
             <Badge
               tone={
@@ -97,7 +98,7 @@ export default async function ExceptionPage({
                   : "progress"
               }
             >
-              {EXCEPTION_STATUS_LABELS[item.status]}
+              {T(EXCEPTION_STATUS_LABELS[item.status])}
             </Badge>
           </>
         }
@@ -151,7 +152,7 @@ export default async function ExceptionPage({
                       {formatDateTime(event.createdAt)}
                       {event.actor ? ` · ${event.actor.name}` : ""}
                       {event.to
-                        ? ` · ${EXCEPTION_STATUS_LABELS[event.to]}`
+                        ? ` · ${T(EXCEPTION_STATUS_LABELS[event.to])}`
                         : ""}
                     </p>
                   </li>
@@ -186,14 +187,11 @@ export default async function ExceptionPage({
             </CardHeader>
             <CardContent>
               <dl className="grid gap-4">
-                <Field
-                  label={T("Type")}
-                  value={item.type.replace(/_/g, " ").toLowerCase()}
-                />
+                <Field label={T("Type")} value={T(EXCEPTION_TYPE_LABELS[item.type])} />
                 <Field
                   label={T("Department")}
                   value={
-                    item.department ? DEPARTMENT_LABELS[item.department] : null
+                    item.department ? T(DEPARTMENT_LABELS[item.department]) : null
                   }
                 />
                 <Field label={T("Assigned to")} value={item.assignedTo?.name} />

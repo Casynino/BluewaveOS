@@ -134,9 +134,11 @@ export default async function HomePage() {
                       className="bw-photo -z-20 object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                     <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/40 to-transparent" />
+                    {/* Both halves are optional on the row, so the separator is
+                        built from whichever survive — a province nobody filled
+                        in must not leave a Chinese name trailing a dot. */}
                     <p className="bw-mono text-xs uppercase tracking-[0.16em] text-white/70">
-                      {city.nameZh ? `${city.nameZh} · ` : ""}
-                      {city.province}
+                      {[city.nameZh, city.province].filter(Boolean).join(" · ")}
                     </p>
                     <p className={cn("bw-display mt-1 uppercase", i === 0 ? "text-6xl sm:text-7xl" : "text-4xl")}>{city.name}</p>
                     {city.tagline ? <p className="mt-2 text-white/80">{city.tagline}</p> : null}

@@ -31,6 +31,7 @@ import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { SLASH_UNIT, displayRate } from "@/lib/rate-basis";
 
+import { SERVICE_TYPE_LABEL } from "@/lib/constants";
 import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Rate book" };
@@ -258,7 +259,7 @@ export default async function RateBookPage() {
                         <div className="min-w-0">
                           <p className="truncate font-medium">{r.cargoType ?? "General rate"}</p>
                           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            <Badge tone="neutral">{r.service}</Badge>
+                            <Badge tone="neutral">{T(SERVICE_TYPE_LABEL[r.service])}</Badge>
                             since {formatDate(r.effectiveFrom)}
                             {r.published ? <Badge tone="progress">public</Badge> : null}
                           </div>
@@ -327,7 +328,8 @@ export default async function RateBookPage() {
                           {c.customer.businessName || c.customer.fullName}
                         </Link>
                         <p className="text-xs text-muted-foreground">
-                          {c.cargoType ?? "Every cargo type"} · {c.service} · since {formatDate(c.effectiveFrom)}
+                          {c.cargoType ?? T("Every cargo type")} · {T(SERVICE_TYPE_LABEL[c.service])} ·{" "}
+                          {T("since")} {formatDate(c.effectiveFrom)}
                           {c.reason ? ` · ${c.reason}` : ""}
                         </p>
                       </div>
@@ -363,7 +365,7 @@ export default async function RateBookPage() {
                 {superseded.map((r) => (
                   <li key={r.id} className="flex justify-between px-5 py-2.5 text-sm text-muted-foreground">
                     <span>
-                      {r.cargoType ?? "General rate"} · {r.service}
+                      {r.cargoType ?? T("General rate")} · {T(SERVICE_TYPE_LABEL[r.service])}
                       {r.notes ? <span className="block text-[11px]">{r.notes}</span> : null}
                     </span>
                     <span className="tnum">{usd(shown(r))} / {PER[r.basis]} · from {formatDate(r.effectiveFrom)}{r.effectiveTo ? ` to ${formatDate(r.effectiveTo)}` : ""}</span>

@@ -541,7 +541,7 @@ export function RowPriceEditor({
                      rate for them; the rate box is the way in. */
                   readOnly={rateNeeded && box.name === "freight"}
                   placeholder={box.placeholder}
-                  aria-label={`$<Tx>{box.label}</Tx> — ${reference}`}
+                  aria-label={`${box.label} — ${reference}`}
                 />
               </label>
             ))}

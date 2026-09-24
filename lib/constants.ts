@@ -1,8 +1,11 @@
 import type {
   BookingType,
+  CargoCondition,
   CargoStatus,
   ContainerStatus,
+  DeliveryStatus,
   Department,
+  PackageType,
   ExceptionPriority,
   ExceptionStatus,
   InvoiceStatus,
@@ -10,6 +13,7 @@ import type {
   RequestStatus,
   Role,
   SailingStatus,
+  ServiceType,
   ShipmentStatus,
 } from "@prisma/client";
 
@@ -164,6 +168,33 @@ export const CARGO_STATUS_META: Record<CargoStatus, StatusMeta> = {
   },
 };
 
+/**
+ * What a floor wrote on a receiving row, said in words.
+ *
+ * Both counters record it and four screens read it back, so it is written once:
+ * the same boxes were reading "Wet" on one page and "Arrived wet" on another,
+ * off two copies of this map that had drifted apart.
+ */
+export const CARGO_CONDITION_LABELS: Record<CargoCondition, string> = {
+  GOOD: "Good",
+  MINOR_DAMAGE: "Minor damage",
+  DAMAGED: "Damaged",
+  WET: "Wet",
+  REPACKED: "Repacked",
+};
+
+/** How a line is packed, as the counter says it rather than as it is stored. */
+export const PACKAGE_TYPE_LABELS: Record<PackageType, string> = {
+  CARTON: "Carton",
+  BALE: "Bale",
+  BAG: "Bag",
+  PALLET: "Pallet",
+  CRATE: "Crate",
+  DRUM: "Drum",
+  PIECE: "Piece",
+  OTHER: "Other",
+};
+
 export const CONTAINER_STATUS_LABELS: Record<ContainerStatus, string> = {
   OPEN: "Open",
   LOADING: "Loading",
@@ -252,6 +283,17 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
+/** Where a delivery request has got to, as the desk arranging it reads it. */
+export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  REQUESTED: "Requested",
+  CONFIRMED: "Confirmed",
+  ASSIGNED: "Assigned to a driver",
+  OUT_FOR_DELIVERY: "Out for delivery",
+  DELIVERED: "Delivered",
+  FAILED: "Delivery failed",
+  CANCELLED: "Cancelled",
+};
+
 export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
   OPEN: "Open",
   INVESTIGATING: "Investigating",
@@ -296,6 +338,18 @@ export const COMPANY = {
  * holds; "loose cargo" is what the business says out loud. The label lives here
  * so the two never have to be the same string.
  */
+/**
+ * The two services the rate book is kept in, said rather than abbreviated.
+ *
+ * LCL and FCL are the trade's own shorthand and the column stores them that
+ * way, but a rate row and a quote are read by people who did not grow up in
+ * freight.
+ */
+export const SERVICE_TYPE_LABEL: Record<ServiceType, string> = {
+  LCL: "Loose cargo",
+  FCL: "Full container",
+};
+
 export const SERVICE_LABEL: Record<BookingType, string> = {
   FULL_CONTAINER: "Full container",
   SHARED_CARGO: "Loose cargo",

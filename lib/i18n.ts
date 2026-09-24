@@ -919,10 +919,10 @@ const ZH: Record<string, string> = {
   "Delivery photo": "提货照片",
   "Delivery record": "提货记录",
   "Delivery to customer": "送货上门",
-  "Departed": "已起飞",
-  "departed": "已起飞",
+  "Departed": "已开航",
+  "departed": "已开航",
   "Departed / arrived": "起飞／到达",
-  "Departed / landed": "起飞／到达",
+  "Departed / landed": "开航／到港",
   "Departed China on a confirmed flight.": "已搭乘确认航班离开中国。",
   "Departing today": "今天发运",
   "Department": "部门",
@@ -1448,8 +1448,8 @@ const ZH: Record<string, string> = {
     "张标签，一个文件放不下这么多。",
   "Labels printed": "已打印标签",
   "Ladies' clothing": "女装",
-  "Landed": "已落地",
-  "landed": "落地",
+  "Landed": "已到港",
+  "landed": "已到港",
   "Landed and checked in against the batch manifest.":
     "已落地并按批次舱单核对入库。",
   "Landed in": "到账账户",
@@ -1457,7 +1457,7 @@ const ZH: Record<string, string> = {
   "Landed today or yesterday": "今天或昨天落地",
   "Landed — not checked in": "已落地，未核收",
   "Landed, not yet checked in": "已落地，尚未入库核对",
-  "Landed, not yet closed off": "已落地，尚未收尾",
+  "Landed, not yet closed off": "已到港，尚未收尾",
   "Lands": "落地时间",
   "Language": "语言",
   "Last 7 days": "最近 7 天",
@@ -1817,7 +1817,7 @@ const ZH: Record<string, string> = {
   "not in any account": "未归入任何账户",
   "Not invoiced": "未开单",
   "Not issued": "未开具",
-  "Not landed": "未落地",
+  "Not landed": "未到港",
   /*
     THE CARGO TYPES, in the language of the desk that types them.
 
@@ -3101,6 +3101,7 @@ const ZH: Record<string, string> = {
   "Inside the free window": "在免费期内",
   "It goes to the boss to confirm, and nothing more can be recorded against it until he does.": "将提交老板确认，确认之前不能再对其记录任何内容。",
   "It is already on that batch.": "它已在该批次上。",
+  "It changes what every screen says, and nothing about what you may do.": "它只改变每个页面的显示语言，不会改变你的权限。",
   "Its bill and history move with it. Both batches' figures follow.": "其账单和历史记录会一并转移，两个批次的数字随之更新。",
   "Kg": "公斤",
   "Landed, not finished": "已落地，未结清",
@@ -3651,7 +3652,7 @@ const ZH: Record<string, string> = {
     "用于仓库现场从未登记过的货物。它将加入该航班，记录为已抵达，并直接交财务确认价格。",
   "Flights already finished": "已完成的航班",
   "Open one to add a consignment that turned up after it was closed.":
-    "打开航班，可添加在其关闭后才出现的货物。",
+    "打开货柜，可添加在其关闭后才出现的货物。",
   "Add cargo to": "添加货物至",
   "Back to the check-in": "返回入库核对",
   "For a box that came off this flight and was not on the manifest. It joins the flight and is checked in with the rest.":
@@ -7044,7 +7045,6 @@ const ZH: Record<string, string> = {
   "The reason": "原因",
   "The register says": "账簿显示",
   "The sailing": "航次",
-  "The screens are English today. Choosing here is what tells us which desk needs its own language first.": "目前界面为英文。在此选择可告诉我们哪个部门最先需要自己的语言。",
   "The standard rate stays where it is — it is what this discount is measured against, and every invoice will show both.": "标准单价保持不变——以此衡量折扣，每张发票都会显示两者。",
   "The terms still say": "条款仍写着",
   "The volume": "体积",
@@ -8201,6 +8201,29 @@ const ZH: Record<string, string> = {
   "Do not release this": "不要放行这票货",
   "Count in": "清点入库",
   "Something is wrong with": "有问题的是",
+
+  /* How a line is packed, and what shape the boxes were in — one set of words
+     for the counter that writes them and every screen that reads them back. */
+  "Bag": "袋",
+  "Pallet": "托盘",
+  "Crate": "木箱",
+  "Drum": "桶",
+  "Good": "完好",
+  "Minor damage": "轻微破损",
+  "Wet": "受潮",
+  "Repacked": "已重新包装",
+  "China receiving": "中国收货",
+  "Assigned to a driver": "已指派司机",
+  "Out for delivery": "派送中",
+  "Delivery failed": "派送失败",
+  "Collected at the counter": "已在柜台提货",
+  "General rate": "通用费率",
+  "Every cargo type": "所有货物类别",
+  "unspecified goods": "未注明货物",
+  "since": "自",
+  "currently": "当前",
+  "No container is on the water or waiting to be checked in.":
+    "没有货柜在海上，也没有货柜等待入库核对。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

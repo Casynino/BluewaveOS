@@ -8,6 +8,7 @@ import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { formatCurrency, formatRate } from "@/lib/currency";
 import { formatDateTime } from "@/lib/format";
+import { PAYMENT_STATUS_LABELS } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import { ledgerRows, methodLabel } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { localeOf } from "@/lib/viewer-locale";
 
-import { primeLocale } from "@/lib/server-t";
+import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
 export const metadata: Metadata = { title: "Ledger entry" };
 
@@ -209,7 +210,9 @@ export default async function LedgerEntryPage({ params }: { params: Promise<{ id
                 : offs
                     .map(
                       (w) =>
-                        `${w.reference} · ${formatCurrency(w.amount, w.currency)} · ${w.status}${
+                        `${w.reference} · ${formatCurrency(w.amount, w.currency)} · ${T(
+                          PAYMENT_STATUS_LABELS[w.status]
+                        )}${
                           w.reversedReason ? ` (${w.reversedReason})` : ""
                         }`
                     )

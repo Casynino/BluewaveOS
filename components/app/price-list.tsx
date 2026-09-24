@@ -16,18 +16,11 @@ import {
 } from "@/lib/actions/price-list";
 import { t, type Locale } from "@/lib/i18n";
 import type { PriceList as PriceListData, PriceListRow } from "@/lib/price-list";
+import { CARGO_CONDITION_LABELS } from "@/lib/constants";
 import { PER_UNIT, displayRate } from "@/lib/rate-basis";
 import { cn } from "@/lib/utils";
 
 import { Tx } from "@/components/app/tx";
-/** What the Dar floor wrote on the receiving row, said in words. */
-const CONDITION_LABEL: Record<string, string> = {
-  GOOD: "Good",
-  MINOR_DAMAGE: "Minor damage",
-  DAMAGED: "Damaged",
-  WET: "Wet",
-  REPACKED: "Repacked",
-};
 
 const cbm = (value: string | null) => (value === null ? "—" : `${Number(value).toFixed(3)} CBM`);
 const usd = (value: string | null) =>
@@ -244,7 +237,7 @@ function PriceRow({
              It follows the cargo to whoever prices it, so nobody quotes a clean
              bill for a bale that arrived soaked. */
           <Badge tone="bad" className="ml-2 align-middle">
-            {CONDITION_LABEL[row.condition ?? "DAMAGED"]}
+            {CARGO_CONDITION_LABELS[row.condition ?? "DAMAGED"]}
           </Badge>
         ) : null}
         {row.darFlagged && !row.damaged ? (
