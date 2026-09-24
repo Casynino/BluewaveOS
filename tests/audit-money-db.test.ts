@@ -225,7 +225,12 @@ describe("the reports say what the database says", () => {
   });
 
   test("three payments of a thousand are three thousand, not two or four", async () => {
-    const books = await report.loadBooks();
+    /* One snapshot, for the reason its sibling above gives: the books read a
+       bill and the customer it belongs to, and another suite tearing its own
+       fixtures down between the two reads leaves a required relation null. */
+    const books = await prisma.$transaction((tx) => report.loadBooks(tx), {
+      isolationLevel: "RepeatableRead",
+    });
     /* A window no other suite writes into. 2030 was one until the website
        requests began dating their fixtures there, and a shared database makes
        any occupied window a test that fails for somebody else's reason. */

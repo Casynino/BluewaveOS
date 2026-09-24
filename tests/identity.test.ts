@@ -20,7 +20,12 @@ import { LOCALES } from "@/lib/locale";
  */
 
 const ROOT = process.cwd();
-const SKIP = new Set(["node_modules", ".git", ".next", ".next-prod", ".next-check", ".next-verify", "storage", "public"]);
+/* `.claude` holds the worktrees other sessions work in — copies of this same
+   tree. Reading them means this suite fails for a line somebody else has not
+   finished writing yet. */
+const SKIP = new Set([
+  "node_modules", ".git", ".claude", ".next", ".next-prod", ".next-check", ".next-verify", "storage", "public",
+]);
 
 function tree(dir: string, keep: RegExp): string[] {
   const out: string[] = [];
