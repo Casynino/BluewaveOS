@@ -9,8 +9,8 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { ConfirmPriceRow } from "@/components/app/confirm-price-row";
 import { EmptyState } from "@/components/app/empty-state";
-import { PriceList } from "@/components/app/price-list";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
@@ -94,7 +94,7 @@ export default async function InventoryPage({
     at?: string;
   }>;
 }) {
-  const locale = await primeLocale();
+  await primeLocale();
   const user = await requirePermission("inventory.view");
   const { q, state, type, from, to, at } = await searchParams;
   const query = q?.trim() ?? "";
@@ -326,14 +326,15 @@ export default async function InventoryPage({
     are standing on. Read only by a desk that may see money, and pressed only
     by one that may confirm a price.
   */
-  const pricing =
-    inChina && can(user.role, "finance.view")
-      ? await (async () => {
-          const mayConfirm = can(user.role, "invoice.priceConfirm");
-          const list = await priceListForChinaFloor();
-          return list.rows.length > 0 ? { list, mayConfirm } : null;
-        })()
-      : null;
+  const seesPrice = inChina && can(user.role, "finance.view");
+  const mayConfirm = seesPrice && can(user.role, "invoice.priceConfirm");
+  /* Keyed by consignment, so each row can show what the book makes it without
+     the list below and the figures beside it being two different reads. */
+  const priced = seesPrice
+    ? new Map(
+        (await priceListForChinaFloor()).rows.map((row) => [row.cargoId, row])
+      )
+    : new Map();
 
   return (
     <div className="space-y-6">
@@ -464,22 +465,6 @@ export default async function InventoryPage({
         </Button>
       </form>
 
-      {pricing ? (
-        <PriceList
-          heading={
-            <span className="font-medium text-foreground">
-              {T("Waiting for a price in Foshan")}
-            </span>
-          }
-          containerId={null}
-          scope="china"
-          list={pricing.list}
-          cargoTypes={categories}
-          canConfirm={pricing.mayConfirm}
-          locale={locale}
-        />
-      ) : null}
-
       <section>
         <SectionLabel count={held}>
           {inChina ? "Received cargo" : "Landed cargo"}
@@ -536,6 +521,7 @@ export default async function InventoryPage({
                       shelf number nobody fills in was two lines of nothing. The
                       date it came in is the fact a clerk actually wants. */}
                   <TableHead className="hidden xl:table-cell">{T("Received")}</TableHead>
+                  {seesPrice ? <TableHead className="text-right">{T("Price")}</TableHead> : null}
                   {mayNotify ? <TableHead>{T("Customer told")}</TableHead> : null}
                 </TableRow>
               </TableHeader>
@@ -653,6 +639,36 @@ export default async function InventoryPage({
                       <TableCell className="tnum hidden text-sm text-muted-foreground xl:table-cell">
                         {formatDate(receiving?.receivedAt)}
                       </TableCell>
+                      {/* WHAT THE BOOK MAKES IT, AND THE PRESS THAT AGREES IT.
+
+                          A consignment with a live bill has left this question
+                          behind; one the book cannot price yet says so on its
+                          own row rather than being quietly left out. */}
+                      {seesPrice ? (
+                        <TableCell className="text-right">
+                          {(() => {
+                            const row = priced.get(item.id);
+                            if (!row) {
+                              return <Badge tone="good">{T("Price confirmed")}</Badge>;
+                            }
+                            if (!row.totalLabel) {
+                              return (
+                                <span className="text-xs text-warning">
+                                  {row.blockedReason ?? T("The rate book has no price for this yet")}
+                                </span>
+                              );
+                            }
+                            return (
+                              <ConfirmPriceRow
+                                cargoId={item.id}
+                                amount={row.totalLabel}
+                                tzs={row.totalTzsLabel}
+                                canConfirm={mayConfirm}
+                              />
+                            );
+                          })()}
+                        </TableCell>
+                      ) : null}
                       {mayNotify
                         ? (() => {
                             const event =
