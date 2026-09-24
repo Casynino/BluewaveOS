@@ -145,6 +145,13 @@ export async function priceWaitingCargo(
   if (!cargo || (!cargo.darReceiving && !cargo.chinaReceiving)) {
     return { kind: "not-counted", reference: cargo?.reference ?? null };
   }
+  /* Nobody is billed for boxes nobody found. Foshan measured them, so the rate
+     book can price them and every caller here would — the price list leaves
+     them out of what it draws, and that alone left a draft standing on the
+     record for Finance to issue from the consignment page. */
+  if (cargo.status === "MISSING_AT_DAR") {
+    return { kind: "not-counted", reference: cargo.reference };
+  }
   if (cargo.invoices.some((i) => i.status !== "DRAFT")) {
     return { kind: "billed", reference: cargo.reference };
   }

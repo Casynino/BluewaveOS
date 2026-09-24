@@ -227,6 +227,10 @@ export async function generateContainerInvoices(
       cargo: {
         deletedAt: null,
         OR: [{ chinaReceiving: { isNot: null } }, { darReceiving: { isNot: null } }],
+        /* Nobody is billed for boxes nobody found. Foshan's measurement alone
+           is enough to price a consignment, so without this a press meant for
+           the rest of the box bills the one that never came off it. */
+        status: { notIn: ["MISSING_AT_DAR", "CANCELLED"] },
         invoices: { none: { status: { not: "CANCELLED" } } },
       },
     },
@@ -363,6 +367,7 @@ export async function issueInvoice(
         select: {
           reference: true,
           senderId: true,
+          status: true,
           darReceiving: { select: { verified: true, discrepancy: true } },
           chinaReceiving: { select: { id: true } },
         },
@@ -372,6 +377,14 @@ export async function issueInvoice(
   if (!invoice) return { error: "That invoice no longer exists." };
   if (invoice.status !== "DRAFT") {
     return { error: "That invoice has already been issued." };
+  }
+  /* Nobody is billed for boxes nobody found. A draft raised when the container
+     landed outlives the floor's report that this consignment never came off
+     it, and issuing it is a demand for money and a letter to the customer. */
+  if (invoice.cargo.status === "MISSING_AT_DAR") {
+    return {
+      error: `${invoice.cargo.reference} did not come off the container. Settle the case before billing it.`,
+    };
   }
   /* Something must have been measured — China's counter is enough. */
   const gap = darConfirmationGap(invoice.cargo);

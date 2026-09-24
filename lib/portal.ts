@@ -22,8 +22,11 @@ export const CUSTOMER_STATUS_WORDS: Record<CargoStatus, string> = {
   CONTAINER_LOADED: "Loaded into the container",
   DEPARTED_CHINA: "Left China",
   IN_TRANSIT: "At sea",
-  ARRIVED_TANZANIA: "Arrived at Dar es Salaam port",
-  RECEIVED_DAR: "Received at our Dar warehouse",
+  /* The box landing is the goods landing — the owner's rule, and what the
+     customer was written to about that day. Calling it the port here and
+     "Arrived in Dar es Salaam" on the tracking page is one event told twice. */
+  ARRIVED_TANZANIA: "Arrived in Dar es Salaam",
+  RECEIVED_DAR: "Checked in at our Dar warehouse",
   READY_FOR_RELEASE: "Ready for pickup",
   COLLECTED: "Collected",
   DELIVERED: "Delivered",

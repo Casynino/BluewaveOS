@@ -114,18 +114,24 @@ export const CARGO_STATUS_META: Record<CargoStatus, StatusMeta> = {
     tone: "progress",
   },
   ARRIVED_TANZANIA: {
-    /* At the port, not yet confirmed on our floor: the customer's stage is
-       still in transit (lib/tracking-stage.ts). */
-    label: "Ship at Dar port",
-    publicLabel: "In transit — at Dar port",
-    where: "Dar es Salaam port",
+    /* The box landed, so its goods landed — the owner's rule, and the same
+       answer lib/tracking-stage.ts gives the customer, who was told that day
+       and whose free storage started on it. The check-in afterwards is a
+       separate answer about the same boxes (lib/verification.ts), so this
+       status must not claim it and must not say "in transit" either: telling a
+       customer their goods are still at sea a week after we wrote to say they
+       had arrived is the system contradicting its own letter. */
+    label: "Arrived in Dar",
+    publicLabel: "Arrived in Dar es Salaam",
+    where: "Dar es Salaam — not checked in yet",
     tone: "progress",
   },
   RECEIVED_DAR: {
-    /* The Dar check-in: the customer's "Arrived in Dar es Salaam", and the
-       first day of free storage. */
-    label: "Arrived in Dar",
-    publicLabel: "Arrived in Dar",
+    /* The Dar check-in: the floor has the boxes counted onto its own shelves.
+       The customer's stage is still "Arrived in Dar es Salaam" — arriving is
+       what the container did, and counting is what we did. */
+    label: "Checked in at Dar",
+    publicLabel: "Arrived in Dar es Salaam",
     where: "Dar es Salaam warehouse",
     tone: "progress",
   },

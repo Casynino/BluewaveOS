@@ -4,6 +4,8 @@ import { after, before, describe, test } from "node:test";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { requireScratchDatabase } from "./scratch-db";
+
 /*
   THE DOORS MONEY COMES THROUGH, TRIED THE WAY SOMEBODY WOULD TRY THEM.
 
@@ -13,15 +15,11 @@ import { Prisma, PrismaClient } from "@prisma/client";
   is the real one, and only the session and the request headers are stood in
   for — see tests/stubs.
 
-  Rows are committed and removed again in `after`. Run it only against a
-  bluewave_test database.
+  Rows are committed and removed again in `after`, so this needs the same
+  throwaway database every committing test insists on — one guard, in one
+  place, or which databases a run may touch depends on which file you opened.
 */
-const url = process.env.DATABASE_URL ?? "";
-if (!/\/bluewave_test[\w-]*(\?|$)/.test(url)) {
-  throw new Error(
-    `Refusing to run: DATABASE_URL must point at a bluewave_test database (got ${url || "nothing"}).`
-  );
-}
+requireScratchDatabase();
 
 const load = createRequire(import.meta.url);
 load("./stubs/hook.cjs");
