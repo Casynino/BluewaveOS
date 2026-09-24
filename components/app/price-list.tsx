@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 
 import { FormMessage } from "@/components/app/form-message";
@@ -57,6 +57,19 @@ export function PriceList({
   canConfirm: boolean;
   locale: Locale;
 }) {
+  /*
+    THE PRESS IS FOR WHAT IS TICKED.
+
+    Everything the book has priced is ticked to start with, because agreeing
+    the lot is the ordinary morning. Untick the two being argued about and the
+    button follows — a desk that wants three of twenty-two out of the door
+    should not have to open three consignments one at a time.
+  */
+  const pickable = list.rows.filter((r) => !r.blockedReason && r.darConfirmed).map((r) => r.cargoId);
+  const [picked, setPicked] = useState<string[]>(pickable);
+  const chosen = picked.filter((id) => pickable.includes(id));
+  const allPicked = pickable.length > 0 && chosen.length === pickable.length;
+
   if (list.rows.length === 0) return null;
 
   return (
@@ -67,11 +80,24 @@ export function PriceList({
       list={list}
       canConfirm={canConfirm}
       locale={locale}
+      selected={chosen}
     >
       <div className="overflow-x-auto border-t bg-card">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+              {canConfirm ? (
+                <th className="w-10 px-4 py-2">
+                  <input
+                    type="checkbox"
+                    className="size-4 align-middle"
+                    checked={allPicked}
+                    disabled={pickable.length === 0}
+                    onChange={() => setPicked(allPicked ? [] : pickable)}
+                    aria-label={t(locale, allPicked ? "Untick every price" : "Tick every price")}
+                  />
+                </th>
+              ) : null}
               <th className="px-4 py-2 font-medium">{t(locale, "Cargo")}</th>
               <th className="px-4 py-2 font-medium">{t(locale, "Cargo type")}</th>
               <th className="px-4 py-2 text-right font-medium">{t(locale, "CBM")}</th>
@@ -88,6 +114,18 @@ export function PriceList({
                 canEdit={canConfirm}
                 vatPercent={list.vatIncluded ? 0 : Number(list.vatPercent)}
                 locale={locale}
+                picked={chosen.includes(row.cargoId)}
+                onPick={
+                  canConfirm && pickable.includes(row.cargoId)
+                    ? () =>
+                        setPicked((current) =>
+                          current.includes(row.cargoId)
+                            ? current.filter((id) => id !== row.cargoId)
+                            : [...current, row.cargoId]
+                        )
+                    : undefined
+                }
+                showTick={canConfirm}
               />
             ))}
           </tbody>
@@ -117,6 +155,7 @@ export function ConfirmPricesBanner({
   list,
   canConfirm,
   locale,
+  selected,
   children,
 }: {
   heading?: React.ReactNode;
@@ -125,6 +164,11 @@ export function ConfirmPricesBanner({
   list: PriceListData;
   canConfirm: boolean;
   locale: Locale;
+  /**
+   * The rows the press is for, when the list beneath lets a desk pick.
+   * Absent on a container page, where the press is for everything ready.
+   */
+  selected?: string[];
   children?: React.ReactNode;
 }) {
   const [state, action] = useActionState<PriceListState, FormData>(confirmPrices, {});
@@ -134,6 +178,8 @@ export function ConfirmPricesBanner({
      and telling a desk to look at a row it cannot act on wastes its morning. */
   const waiting = list.rows.filter((r) => !r.darConfirmed).length;
   const blocked = list.rows.length - list.ready - waiting;
+  const ready = list.rows.filter((r) => !r.blockedReason && r.darConfirmed).map((r) => r.cargoId);
+  const ids = selected ?? ready;
   if (list.rows.length === 0) return null;
 
   return (
@@ -200,21 +246,26 @@ export function ConfirmPricesBanner({
           <form action={action} className="shrink-0">
             {containerId ? <input type="hidden" name="containerId" value={containerId} /> : null}
             {scope ? <input type="hidden" name="scope" value={scope} /> : null}
-            {/* Exactly the rows the button counts. Without them the press would
-                reach the whole container and come back reporting the rows still
-                with Dar as failures, which reads as a fault rather than as the
-                floor not having finished. The server narrows this against what
-                is actually waiting and re-checks each one, so a stale list can
+            {/* Exactly the rows the button counts — everything ready, or the
+                ones a desk has ticked. Without them the press would reach the
+                whole container and come back reporting the rows still with Dar
+                as failures, which reads as a fault rather than as the floor not
+                having finished. The server narrows this against what is
+                actually waiting and re-checks each one, so a stale list can
                 only ask for less than it should, never more. */}
-            {list.rows
-              .filter((row) => !row.blockedReason && row.darConfirmed)
-              .map((row) => (
-                <input key={row.cargoId} type="hidden" name="cargoIds" value={row.cargoId} />
-              ))}
-            <SubmitButton variant="accent" pendingLabel={t(locale, "Confirming…")}>
-              {list.ready === 1
+            {ids.map((id) => (
+              <input key={id} type="hidden" name="cargoIds" value={id} />
+            ))}
+            <SubmitButton
+              variant="accent"
+              disabled={ids.length === 0}
+              pendingLabel={t(locale, "Confirming…")}
+            >
+              {ids.length === 1
                 ? t(locale, "Confirm 1 price")
-                : `${t(locale, "Confirm all")} ${list.ready} ${t(locale, "prices")}`}
+                : ids.length === list.ready
+                  ? `${t(locale, "Confirm all")} ${ids.length} ${t(locale, "prices")}`
+                  : `${t(locale, "Confirm")} ${ids.length} ${t(locale, "prices")}`}
             </SubmitButton>
           </form>
         ) : null}
@@ -236,15 +287,34 @@ function PriceRow({
   canEdit,
   vatPercent,
   locale,
+  picked,
+  onPick,
+  showTick,
 }: {
   row: PriceListRow;
   cargoTypes: string[];
   canEdit: boolean;
   vatPercent: number;
   locale: Locale;
+  picked: boolean;
+  /** Absent on a row the press cannot take: blocked, or still with Dar. */
+  onPick?: () => void;
+  showTick: boolean;
 }) {
   return (
     <tr className={cn("border-b align-top last:border-0", row.blockedReason && "bg-warning/[0.04]")}>
+      {showTick ? (
+        <td className="px-4 py-3">
+          <input
+            type="checkbox"
+            className="size-4 align-middle"
+            checked={picked}
+            disabled={!onPick}
+            onChange={() => onPick?.()}
+            aria-label={`${t(locale, "Confirm")} ${row.reference}`}
+          />
+        </td>
+      ) : null}
       <td className="px-4 py-3">
         <Link href={`/app/cargo/${row.cargoId}`} className="tnum font-medium hover:underline">
           {row.reference}
