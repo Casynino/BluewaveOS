@@ -44,6 +44,29 @@ export async function packageQrDataUrl(token: string, size = 500) {
 }
 
 /**
+ * THE SAME CODE, DRAWN RATHER THAN PHOTOGRAPHED.
+ *
+ * Encoding one 520-pixel PNG costs about twenty-five milliseconds — nothing on
+ * a delivery note, and minutes of a blank screen on a container of two
+ * thousand boxes, which is what a full sailing's labels are. The same code as
+ * vector geometry is under a millisecond and a third of the bytes, and a
+ * printer lays it down at its own resolution instead of scaling a bitmap.
+ *
+ * PNG stays where it is needed: jsPDF places raster images, so every document
+ * this system draws still asks for `packageQrDataUrl`.
+ */
+export async function packageQrSvgDataUrl(token: string, size = 500) {
+  const svg = await QRCode.toString(qrPayload(token), {
+    type: "svg",
+    errorCorrectionLevel: "M",
+    margin: 4,
+    width: size,
+    color: { dark: "#0f172aff", light: "#ffffffff" },
+  });
+  return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+}
+
+/**
  * Read a scanned string.
  *
  * A warehouse scanner emulates a keyboard, so what lands in the box is whatever

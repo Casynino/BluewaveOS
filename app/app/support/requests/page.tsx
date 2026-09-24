@@ -13,6 +13,7 @@ import {
   RequestFiles,
   ScheduleControl,
 } from "@/components/app/request-desk";
+import { ListCap } from "@/components/app/list-cap";
 import { SectionLabel } from "@/components/app/section-label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -74,16 +75,20 @@ function Facts({ items }: { items: [string, string | null | undefined][] }) {
  * control that writes it was hidden, which is not a permission — the action
  * itself asks the same question again.
  */
+/** How many of each kind one look at this desk draws. */
+const PAGE = 50;
+
 export default async function RequestsPage() {
   await primeLocale();
   const viewer = await requirePermission("request.view");
   const mayQuote = can(viewer.role, "rate.view");
 
-  const [quotes, pickups, bookings, staff] = await Promise.all([
-    prisma.quoteRequest.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+  const [quotes, pickups, bookings, staff, quoteCount, pickupCount, bookingCount] =
+    await Promise.all([
+    prisma.quoteRequest.findMany({ orderBy: { createdAt: "desc" }, take: PAGE }),
     prisma.pickupRequest.findMany({
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: PAGE,
       include: {
         assignedTo: { select: { name: true } },
         cargo: { select: { reference: true } },
@@ -95,7 +100,7 @@ export default async function RequestsPage() {
     }),
     prisma.containerBooking.findMany({
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: PAGE,
       include: {
         assignedTo: { select: { name: true } },
         convertedCustomer: { select: { code: true, fullName: true } },
@@ -111,6 +116,11 @@ export default async function RequestsPage() {
       select: { id: true, name: true, role: true },
       take: 100,
     }),
+    /* What came in against what each section draws. A request that nobody
+       ever sees is a customer nobody ever answers. */
+    prisma.quoteRequest.count(),
+    prisma.pickupRequest.count(),
+    prisma.containerBooking.count(),
   ]);
 
   const staffOptions = staff.map((person) => ({
@@ -227,6 +237,7 @@ export default async function RequestsPage() {
             ))}
           </ul>
         )}
+        <ListCap shown={pickups.length} total={pickupCount} />
       </section>
 
       <section>
@@ -370,6 +381,7 @@ export default async function RequestsPage() {
             ))}
           </ul>
         )}
+        <ListCap shown={bookings.length} total={bookingCount} />
       </section>
 
       <section>
@@ -427,6 +439,7 @@ export default async function RequestsPage() {
             ))}
           </ul>
         )}
+        <ListCap shown={quotes.length} total={quoteCount} />
       </section>
 
       <p className="text-xs text-muted-foreground">

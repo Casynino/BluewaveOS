@@ -178,6 +178,16 @@ export function ConfirmPricesBanner({
               )}
             </p>
           ) : null}
+          {/* The press is for the rows on this page, and the total above is
+              their money. A confirmer who is not told there is more behind it
+              reads a part of the book as the whole of it. */}
+          {list.waitingInAll > list.rows.length ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t(locale, "This is the first {shown} of {total} waiting; the rest come up on the next press.")
+                .replace("{shown}", String(list.rows.length))
+                .replace("{total}", String(list.waitingInAll))}
+            </p>
+          ) : null}
         </div>
 
         {canConfirm && list.ready > 0 ? (

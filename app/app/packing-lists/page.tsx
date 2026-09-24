@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import {
@@ -19,33 +20,39 @@ import { requirePermission } from "@/lib/session";
 import { primeLocale, T } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Packing lists" };
 
+/** How many lists one look at this register draws. */
+const PAGE = 100;
+
 export default async function PackingListsPage() {
   await primeLocale();
   await requirePermission("packingList.view");
 
-  const lists = await prisma.packingList.findMany({
-    orderBy: { issuedAt: "desc" },
-    take: 100,
-    include: {
-      container: {
-        select: { id: true, reference: true, containerNumber: true, sealNumber: true },
+  const [lists, issued] = await Promise.all([
+    prisma.packingList.findMany({
+      orderBy: { issuedAt: "desc" },
+      take: PAGE,
+      include: {
+        container: {
+          select: { id: true, reference: true, containerNumber: true, sealNumber: true },
+        },
+        issuedBy: { select: { name: true } },
       },
-      issuedBy: { select: { name: true } },
-    },
-  });
+    }),
+    prisma.packingList.count(),
+  ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Packing lists"
-        description="One per container, frozen at the moment it was issued."
+        title={T("Packing lists")}
+        description={T("One per container, frozen at the moment it was issued.")}
       />
       <Card>
         {lists.length === 0 ? (
           <EmptyState
             icon="ClipboardList"
-            title="Nothing issued yet"
-            description="A packing list is issued from the container it describes."
+            title={T("Nothing issued yet")}
+            description={T("A packing list is issued from the container it describes.")}
           />
         ) : (
           <Table>
@@ -87,6 +94,7 @@ export default async function PackingListsPage() {
           </Table>
         )}
       </Card>
+      <ListCap shown={lists.length} total={issued} />
     </div>
   );
 }

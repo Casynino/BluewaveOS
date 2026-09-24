@@ -10,6 +10,7 @@ import {
 } from "@/components/app/account-tools";
 import { RecordCostPanel, type UsualCost } from "@/components/app/expense-form";
 import { EmptyState } from "@/components/app/empty-state";
+import { ListCap } from "@/components/app/list-cap";
 import { CorrectExpenseDialog } from "@/components/app/correct-expense-dialog";
 import { LedgerRowActions } from "@/components/app/ledger-row-actions";
 import { PageHeader } from "@/components/app/page-header";
@@ -34,6 +35,9 @@ import { localeOf } from "@/lib/viewer-locale";
 
 import { primeLocale } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
+/** How many movements one look at a register draws. */
+const REGISTER_PAGE = 100;
+
 const KIND = {
   BANK: { label: "Bank account", icon: Building2, tile: "bg-brand/10 text-brand" },
   MOBILE_MONEY: {
@@ -118,15 +122,27 @@ export default async function AccountPage({
   const position = positions.find((p) => p.id === id);
   if (!position) notFound();
 
+  /*
+    THE BALANCE IS THE WHOLE REGISTER; THE TABLE IS A PAGE OF IT.
+
+    The figure at the top and the month's net are still every movement added
+    up — `positions` counts them all and nothing here softens that. What the
+    table draws is the newest page, because drawing every movement an account
+    has ever had grew the register to megabytes of one screen and only ever
+    gets worse. The annotations below follow the rows that are drawn, so the
+    two queries that decorate them are asked about a page, not a decade.
+  */
+  const shown = entries.slice(0, REGISTER_PAGE);
+
   const [correctable, correction] = mayRecordCost
     ? await Promise.all([
-        correctableExpenses(entries.filter((e) => e.kind === "expense" && !e.cancelled).map((e) => e.recordId)),
+        correctableExpenses(shown.filter((e) => e.kind === "expense" && !e.cancelled).map((e) => e.recordId)),
         correctionOptions(),
       ])
     : [new Map(), { accounts: [], categories: [] }];
 
   const isCash = account.kind === "CASH";
-  const paymentIds = entries
+  const paymentIds = shown
     .filter((e) => e.kind === "payment" && e.direction === "IN")
     .map((e) => e.recordId);
 
@@ -433,7 +449,7 @@ export default async function AccountPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => {
+              {shown.map((entry) => {
                 const writtenOff =
                   entry.kind === "payment" && entry.direction === "IN"
                     ? writtenOffOn.get(entry.recordId)
@@ -544,6 +560,9 @@ export default async function AccountPage({
             </TableBody>
           </Table>
         )}
+        <div className="px-5 pb-4">
+          <ListCap shown={shown.length} total={entries.length} />
+        </div>
       </section>
 
       {isCash && counts.length > 0 ? (

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
+import type { ContainerStatus, Prisma } from "@prisma/client";
 import { Boxes, ChevronRight, Package, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { ListCap } from "@/components/app/list-cap";
 import { PriceList } from "@/components/app/price-list";
 import { ContainerTabs } from "@/components/app/container-tabs";
 import { PageHeader } from "@/components/app/page-header";
@@ -31,7 +32,7 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { priceListForContainer, priceListWithoutContainer } from "@/lib/price-list";
 import { requirePermission } from "@/lib/session";
-import { unsailedToPrice } from "@/lib/unsailed-pricing";
+import { unsailedToPrice, unsailedWaiting } from "@/lib/unsailed-pricing";
 import { cn } from "@/lib/utils";
 import { cargoTypeOptions } from "@/lib/valuation";
 import { delayFor, expectedArrival } from "@/lib/sailing-schedule";
@@ -78,6 +79,9 @@ const VIEWS = {
   pricing: "Waiting for prices",
 } as const;
 type View = keyof typeof VIEWS;
+
+/** How many sailings one look at this board draws. */
+const PAGE = 60;
 
 /*
   ACTIVE IS WHAT HAS LANDED AND IS NOT FINISHED WITH.
@@ -135,32 +139,39 @@ export default async function ArrivedContainersPage({
   const today = liveRate?.rate ?? null;
   const hasRate = isUsableRate(today);
 
-  const containers = await prisma.container.findMany({
-    where: {
-      deletedAt: null,
-      status: { in: ["DEPARTED", "IN_TRANSIT", "ARRIVED", "CLOSED"] },
-      /*
-        SEARCHED IN THE DATABASE, NOT OVER THE PAGE.
+  const sailed = {
+    deletedAt: null,
+    status: { in: ["DEPARTED", "IN_TRANSIT", "ARRIVED", "CLOSED"] as ContainerStatus[] },
+    /*
+      SEARCHED IN THE DATABASE, NOT OVER THE PAGE.
 
-        Sifted in memory it could only ever find a box among the newest sixty,
-        so a search for a sailing from three months ago came back empty and
-        read as "no such container" rather than "not on this page". The same
-        five fields, asked of the whole table.
-      */
-      ...(query
-        ? {
-            OR: [
-              { reference: { contains: query, mode: "insensitive" as const } },
-              { containerNumber: { contains: query, mode: "insensitive" as const } },
-              { sealNumber: { contains: query, mode: "insensitive" as const } },
-              { shipment: { vessel: { contains: query, mode: "insensitive" as const } } },
-              { shipment: { voyage: { contains: query, mode: "insensitive" as const } } },
-            ],
-          }
-        : {}),
-    },
+      Sifted in memory it could only ever find a box among the newest sixty,
+      so a search for a sailing from three months ago came back empty and
+      read as "no such container" rather than "not on this page". The same
+      five fields, asked of the whole table.
+    */
+    ...(query
+      ? {
+          OR: [
+            { reference: { contains: query, mode: "insensitive" as const } },
+            { containerNumber: { contains: query, mode: "insensitive" as const } },
+            { sealNumber: { contains: query, mode: "insensitive" as const } },
+            { shipment: { vessel: { contains: query, mode: "insensitive" as const } } },
+            { shipment: { voyage: { contains: query, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  /* Every sailing that has left China, against the page's sixty. The chips and
+     the money band below both describe the rows on screen; without this figure
+     nothing on the page says the rows are a slice. */
+  const matching = await prisma.container.count({ where: sailed });
+
+  const containers = await prisma.container.findMany({
+    where: sailed,
     orderBy: { createdAt: "desc" },
-    take: 60,
+    take: PAGE,
     include: {
       shipment: {
         select: {
@@ -210,8 +221,13 @@ export default async function ArrivedContainersPage({
 
   /* Counted at Dar with no container behind it — cargo that was already on the
      Dar floor when this system started. The container rows below can never
-     hold it, and the dashboards count it all the same. */
-  const unsailed = await unsailedToPrice();
+     hold it, and the dashboards count it all the same. The table draws a
+     window of it; the chip has to count the whole backlog or it is quoting
+     the size of a page as the size of the work. */
+  const [unsailed, unsailedTotal] = await Promise.all([
+    unsailedToPrice(),
+    unsailedWaiting(),
+  ]);
 
   /* A bill's own pinned rate first: one agreed at 2,650 is still 2,650 after
      the board moves. Today's rate only fills in for a row raised before this
@@ -361,7 +377,7 @@ export default async function ArrivedContainersPage({
        open and confirm prices on before anybody can be asked for money. */
     /* Plus each consignment with no container behind it: every one of those
        is opened and priced on its own, so each is a thing on the list. */
-    pricing: matched.filter((r) => r.toPrice > 0).length + unsailed.length,
+    pricing: matched.filter((r) => r.toPrice > 0).length + unsailedTotal,
     history: matched.filter((r) => r.state === "history").length,
     all: matched.length,
   };
@@ -491,7 +507,7 @@ export default async function ArrivedContainersPage({
 
   const waitingOnFinance =
     rows.filter((r) => r.toPrice > 0).reduce((sum, r) => sum + r.toPrice, 0) +
-    unsailed.length;
+    unsailedTotal;
 
   const chips: View[] =
     chosen === "pricing" ? [...CHIPS, "pricing"] : CHIPS;
@@ -742,6 +758,9 @@ export default async function ArrivedContainersPage({
               ))}
             </TableBody>
           </Table>
+          <div className="px-4 py-2">
+            <ListCap shown={unsailed.length} total={unsailedTotal} order="oldest" />
+          </div>
         </Card>
       ) : null}
 
@@ -927,6 +946,8 @@ export default async function ArrivedContainersPage({
         ) : null}
       </Card>
       )}
+
+      <ListCap shown={containers.length} total={matching} />
 
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Boxes className="size-4" />

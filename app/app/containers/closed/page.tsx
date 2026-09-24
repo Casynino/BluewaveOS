@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { ContainerTabs } from "@/components/app/container-tabs";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { Card } from "@/components/ui/card";
 import {
@@ -35,14 +36,23 @@ export const metadata: Metadata = { title: "Closed containers" };
  * Money still owed on a closed container is named rather than netted away. It
  * is the number that decides whether this sailing actually made what it says.
  */
+/** How many sailings one look at this history draws. */
+const PAGE = 60;
+
 export default async function ClosedContainersPage() {
   await primeLocale();
   await requirePermission("accounting.view");
 
+  const closed = { deletedAt: null, status: "CLOSED" as const };
+  /* Every sailing this company has finished with, against the sixty the table
+     draws: a history that stops without saying so reads as a history that ends
+     there. */
+  const matching = await prisma.container.count({ where: closed });
+
   const containers = await prisma.container.findMany({
-    where: { deletedAt: null, status: "CLOSED" },
+    where: closed,
     orderBy: { updatedAt: "desc" },
-    take: 60,
+    take: PAGE,
     include: {
       shipment: { select: { vessel: true, actualArrival: true } },
       expenses: {
@@ -238,6 +248,7 @@ export default async function ClosedContainersPage() {
           </Table>
         )}
       </Card>
+      <ListCap shown={containers.length} total={matching} />
     </div>
   );
 }

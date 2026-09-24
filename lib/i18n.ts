@@ -8048,6 +8048,14 @@ const ZH: Record<string, string> = {
   "Nothing waiting matches that.": "没有匹配的待装货物。",
   "Showing the {shown} oldest of {total} waiting. Search for the rest.":
     "共 {total} 票待装货物，显示最早的 {shown} 票。其余请搜索。",
+  "This page draws the first {shown} of {total}. Download the PDF for every label on the sailing.":
+    "本页只显示 {total} 张中的前 {shown} 张。请下载 PDF 获取本航次全部标签。",
+  "This is the first {shown} of {total} waiting; the rest come up on the next press.":
+    "这是待确认的 {total} 票中的前 {shown} 票；其余将在下次确认时出现。",
+  "Showing the newest {shown} of {total}. Search or filter to reach the rest.":
+    "共 {total} 条，显示最新的 {shown} 条。其余请用搜索或筛选查看。",
+  "Showing the oldest {shown} of {total}. Search or filter to reach the rest.":
+    "共 {total} 条，显示最早的 {shown} 条。其余请用搜索或筛选查看。",
   "it keeps its number and gains a version each time the cargo on this box changes, because a number already on paper at a port must not change under somebody's hand.":
     "每次本柜货物变动，它保留原单号并新增一个版本，因为已经打印送到港口的单号不能在别人手里悔改。",
 

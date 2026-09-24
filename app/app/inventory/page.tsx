@@ -11,6 +11,7 @@ import {
 
 import { EmptyState } from "@/components/app/empty-state";
 import { KpiCard } from "@/components/app/kpi-card";
+import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionTabs } from "@/components/app/section-tabs";
 import { SectionLabel } from "@/components/app/section-label";
@@ -54,6 +55,9 @@ export const metadata: Metadata = { title: "Warehouse floor" };
   is that question, and it is the only view in which Foshan is shown cargo it
   has already put into a container.
 */
+/** How many shelves one look at this list draws; the rest is reached by filter. */
+const FLOOR_PAGE = 200;
+
 const CHINA_STATUSES: CargoStatus[] = ["RECEIVED_CHINA"];
 
 /** In a box in Foshan, not yet at sea. */
@@ -146,61 +150,68 @@ export default async function InventoryPage({
       ? { receivedAt: { ...(since ? { gte: since } : {}), ...(until ? { lte: until } : {}) } }
       : null;
 
-  const cargo = await prisma.cargo.findMany({
-    where: {
-      deletedAt: null,
-      status: { in: filtered },
-      ...(state === "hold" ? { operationalHold: true } : {}),
-      /* The attention list on the dashboard links straight here: a warning that
-         cannot be turned into the actual rows is a warning nobody acts on. */
-      ...(state === "nophoto" ? { photos: { none: {} } } : {}),
-      /* The rate band, as the floor named it on the line. One consignment can
-         carry several, so a match on any line is a match. */
-      ...(category
-        ? { packages: { some: { deletedAt: null, cargoType: category } } }
-        : {}),
-      /* Two independent questions, each of which wants an OR of its own — the
-         date can match either receiving row, and the search box matches any of
-         six columns. Side by side as `OR` they would be one key overwriting the
-         other, and the filter that lost would silently do nothing. */
-      AND: [
-        ...(receivingFilter
-          ? [
-              inChina
-                ? { chinaReceiving: receivingFilter }
-                : {
+  const onFloor = {
+    deletedAt: null,
+    status: { in: filtered },
+    ...(state === "hold" ? { operationalHold: true } : {}),
+    /* The attention list on the dashboard links straight here: a warning that
+       cannot be turned into the actual rows is a warning nobody acts on. */
+    ...(state === "nophoto" ? { photos: { none: {} } } : {}),
+    /* The rate band, as the floor named it on the line. One consignment can
+       carry several, so a match on any line is a match. */
+    ...(category
+      ? { packages: { some: { deletedAt: null, cargoType: category } } }
+      : {}),
+    /* Two independent questions, each of which wants an OR of its own — the
+       date can match either receiving row, and the search box matches any of
+       six columns. Side by side as `OR` they would be one key overwriting the
+       other, and the filter that lost would silently do nothing. */
+    AND: [
+      ...(receivingFilter
+        ? [
+            inChina
+              ? { chinaReceiving: receivingFilter }
+              : {
+                  OR: [
+                    { darReceiving: receivingFilter },
+                    { chinaReceiving: receivingFilter },
+                  ],
+                },
+          ]
+        : []),
+      ...(query
+        ? [
+            {
+              OR: [
+                { reference: { contains: query, mode: "insensitive" as const } },
+                { shippingMark: { contains: query, mode: "insensitive" as const } },
+                { paperReceiptNo: { contains: query } },
+                { description: { contains: query, mode: "insensitive" as const } },
+                { descriptionZh: { contains: query } },
+                {
+                  sender: {
                     OR: [
-                      { darReceiving: receivingFilter },
-                      { chinaReceiving: receivingFilter },
+                      { fullName: { contains: query, mode: "insensitive" as const } },
+                      { phone: { contains: query } },
                     ],
                   },
-            ]
-          : []),
-        ...(query
-          ? [
-              {
-                OR: [
-                  { reference: { contains: query, mode: "insensitive" as const } },
-                  { shippingMark: { contains: query, mode: "insensitive" as const } },
-                  { paperReceiptNo: { contains: query } },
-                  { description: { contains: query, mode: "insensitive" as const } },
-                  { descriptionZh: { contains: query } },
-                  {
-                    sender: {
-                      OR: [
-                        { fullName: { contains: query, mode: "insensitive" as const } },
-                        { phone: { contains: query } },
-                      ],
-                    },
-                  },
-                ],
-              },
-            ]
-          : []),
-      ],
-    },
+                },
+              ],
+            },
+          ]
+        : []),
+    ],
+  };
+
+  /* Everything standing on this floor, against the two hundred the table
+     draws. A shelf list that stops without saying so is how a clerk decides a
+     consignment is not in the building. */
+  const onFloorTotal = await prisma.cargo.count({ where: onFloor });
+
+  const cargo = await prisma.cargo.findMany({
+    where: onFloor,
     orderBy: { updatedAt: "asc" },
-    take: 200,
+    take: FLOOR_PAGE,
     include: {
       sender: { select: { fullName: true, phone: true } },
       chinaReceiving: {
@@ -649,6 +660,9 @@ export default async function InventoryPage({
             </Table>
           )}
         </Card>
+        <div className="mt-2">
+          <ListCap shown={cargo.length} total={onFloorTotal} order="oldest" />
+        </div>
       </section>
     </div>
   );
