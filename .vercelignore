@@ -6,7 +6,11 @@
 node_modules
 .next
 .next-*
-storage
+# Anchored: the uploads directory at the root, and nothing else. Unanchored,
+# this matched every path segment called storage — it quietly kept
+# app/api/cron/storage out of the deployment, so the route 404'd in production
+# while working locally.
+/storage
 public/uploads
 *.dump
 *.tsbuildinfo
