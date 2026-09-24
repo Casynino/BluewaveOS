@@ -273,11 +273,21 @@ export async function markReadyForRelease(
 
 const deliverySchema = z.object({
   cargoId: z.string().min(1),
-  address: z.string().trim().min(5, "Where is it going?"),
-  contactName: z.string().trim().min(2, "Who receives it?"),
-  contactPhone: z.string().trim().min(6, "A phone number is required."),
-  preferredDate: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
+  address: z.string().trim().min(5, "Where is it going?").max(300),
+  contactName: z.string().trim().min(2, "Who receives it?").max(120),
+  contactPhone: z.string().trim().min(6, "A phone number is required.").max(30),
+  /* A day the lorry can be sent. Anything that is not a day reached Prisma as
+     an Invalid Date, and what came back to the customer was the database's own
+     complaint about it. */
+  preferredDate: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), {
+      message: "That is not a date we can read.",
+    }),
+  notes: z.string().trim().max(1000).optional(),
 });
 
 /** A customer asks for delivery instead of collecting. */

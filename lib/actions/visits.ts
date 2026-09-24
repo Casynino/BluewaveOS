@@ -9,7 +9,7 @@ import { generatePublicKey, nextVisitReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseAnyPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
-import { screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
+import { filePublicly, screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
 import { can } from "@/lib/rbac";
 import { authorize, currentUser, type SessionUser } from "@/lib/session";
 
@@ -145,7 +145,7 @@ export async function submitVisitRequest(_prev: VisitState, formData: FormData):
     };
   }
 
-  const request = await prisma.$transaction(async (tx) => {
+  const filed = await filePublicly(prisma.$transaction(async (tx) => {
     const reference = await nextVisitReference(tx);
     const created = await tx.businessVisitRequest.create({
       data: {
@@ -192,7 +192,9 @@ export async function submitVisitRequest(_prev: VisitState, formData: FormData):
       tx
     );
     return created;
-  });
+  }), "We could not file that request. Please try again, or call us.");
+  if ("error" in filed) return { error: filed.error };
+  const request = filed.filed;
 
   revalidatePath("/app/support/visits");
   return {

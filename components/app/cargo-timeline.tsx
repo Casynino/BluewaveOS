@@ -94,7 +94,10 @@ export function CargoTimeline({
                     {stamp.by ? ` · ${stamp.by}` : ""}
                   </>
                 ) : (
-                  meta.where
+                  /* The place reads in the floor's own language like the step
+                     above it; left bare it was the one English line on a
+                     Chinese screen. */
+                  <Tx>{meta.where}</Tx>
                 )}
               </p>
               {stamp?.reason ? (

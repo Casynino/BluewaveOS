@@ -14,12 +14,11 @@ import { requireScratchDatabase } from "./scratch-db";
   lib/rbac.ts, and only the session is stood in for — see tests/stubs — so a
   refusal proved here is the refusal production gives.
 
-  Rows are committed and removed again in `after`, so it needs a throwaway
-  database — the same name check every other committing test makes, kept in one
-  place so a second copy cannot drift and lock this file out of a database the
-  rest of the suite happily writes to.
+  Rows are committed and removed again in `after`, so this needs the same
+  throwaway database every committing test insists on — one guard, in one
+  place, or a run against real records depends on which file you opened.
 */
-requireScratchDatabase();
+const url = requireScratchDatabase();
 
 const load = createRequire(import.meta.url);
 load("./stubs/hook.cjs");

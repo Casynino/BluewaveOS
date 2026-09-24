@@ -4,13 +4,31 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
-import { formatRate } from "@/lib/currency";
+import { formatRate, rateOutOfBand } from "@/lib/currency";
 import { PER_UNIT, RATE_ENTRIES, displayRate, readRateEntry, type Basis } from "@/lib/rate-basis";
 import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { formMessage } from "@/lib/safe-error";
 import { authorize } from "@/lib/session";
 
 export type ActionState = { error?: string; ok?: string };
+
+/**
+ * A rate row is superseded rather than edited, and the update that closes the
+ * old one is claimed: only one of two desks pressing Save together may have it.
+ * The loser is told so in a sentence written for them — but a sentence thrown
+ * out of a server action reaches nobody, and they got an error page instead of
+ * being asked to reload. Every supersede runs through here so the refusal lands
+ * on the form it came from.
+ */
+async function superseding(work: Promise<unknown>): Promise<string | null> {
+  try {
+    await work;
+    return null;
+  } catch (error) {
+    return formMessage(error, "That change was not saved. Reload and try again.");
+  }
+}
 
 const rateSchema = z.object({
   service: z.enum(["LCL", "FCL"]),
@@ -210,8 +228,10 @@ export async function setExchangeRate(
   }
   const rate = new Prisma.Decimal(raw);
   /* A USD → TZS rate in single digits or in the millions is a slipped key, not
-     a market. Refused rather than published to every new bill. */
-  if (rate.lessThan(100) || rate.greaterThan(100000)) {
+     a market. Refused rather than published to every new bill. The band itself
+     lives in lib/currency.ts, because the board is not the only door a rate
+     comes through — the payment counter has one too. */
+  if (rateOutOfBand(rate)) {
     return { error: "That rate is outside any sensible USD → TZS range." };
   }
   if (!confirmed) {
@@ -578,7 +598,7 @@ export async function updateRate(
   }
 
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
+  const refused = await superseding(prisma.$transaction(async (tx) => {
     const closed = await tx.shippingRate.updateMany({
       where: { id: current.id, active: true },
       data: { active: false, effectiveTo: now },
@@ -632,7 +652,8 @@ export async function updateRate(
       },
       tx
     );
-  });
+  }));
+  if (refused) return { error: refused };
 
   revalidatePath("/app/finance/rates");
   revalidatePath("/calculator");
@@ -662,7 +683,7 @@ export async function deleteRate(
     return { error: "That rate is no longer live. Refresh the page." };
   }
 
-  await prisma.$transaction(async (tx) => {
+  const refused = await superseding(prisma.$transaction(async (tx) => {
     const closed = await tx.shippingRate.updateMany({
       where: { id: current.id, active: true },
       data: { active: false, effectiveTo: new Date(), notes: reason },
@@ -679,7 +700,8 @@ export async function deleteRate(
       },
       tx
     );
-  });
+  }));
+  if (refused) return { error: refused };
 
   revalidatePath("/app/finance/rates");
   revalidatePath("/calculator");
@@ -713,7 +735,7 @@ export async function updateCustomerRate(
   if (current.rate.equals(rate) && current.basis === basis) return { error: "Nothing was changed." };
 
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
+  const refused = await superseding(prisma.$transaction(async (tx) => {
     const closed = await tx.customerRate.updateMany({
       where: { id: current.id, active: true },
       data: { active: false, effectiveTo: now },
@@ -744,7 +766,8 @@ export async function updateCustomerRate(
       },
       tx
     );
-  });
+  }));
+  if (refused) return { error: refused };
 
   revalidatePath("/app/finance/rates");
   return { ok: "Agreed rate updated." };

@@ -13,6 +13,7 @@ import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseAnyPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { SERVICE_LABEL } from "@/lib/constants";
+import { filePublicly } from "@/lib/public-guard";
 import { clientAddress, hit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 import { authorize, currentUser, type SessionUser } from "@/lib/session";
@@ -176,7 +177,7 @@ export async function submitQuoteRequest(
 
   const customerId = await sessionCustomerId();
 
-  const request = await prisma.$transaction(async (tx) => {
+  const filed = await filePublicly(prisma.$transaction(async (tx) => {
     const reference = await nextQuoteReference(tx);
     const created = await tx.quoteRequest.create({
       data: {
@@ -220,7 +221,9 @@ export async function submitQuoteRequest(
     );
 
     return created;
-  });
+  }), L("We could not file that request. Please try again, or call us."));
+  if ("error" in filed) return { error: filed.error };
+  const request = filed.filed;
 
   revalidatePath("/app/support/requests");
   return {
@@ -305,7 +308,7 @@ export async function submitPickupRequest(
 
   const customerId = await sessionCustomerId();
 
-  const request = await prisma.$transaction(async (tx) => {
+  const filed = await filePublicly(prisma.$transaction(async (tx) => {
     const reference = await nextPickupReference(tx);
     const created = await tx.pickupRequest.create({
       data: {
@@ -360,7 +363,9 @@ export async function submitPickupRequest(
     );
 
     return created;
-  });
+  }), L("We could not file that request. Please try again, or call us."));
+  if ("error" in filed) return { error: filed.error };
+  const request = filed.filed;
 
   revalidatePath("/app/support/requests");
   return {
@@ -506,7 +511,7 @@ export async function submitBooking(
 
   const customerId = await sessionCustomerId();
 
-  const request = await prisma.$transaction(async (tx) => {
+  const filed = await filePublicly(prisma.$transaction(async (tx) => {
     const reference = await nextBookingReference(tx);
     const created = await tx.containerBooking.create({
       data: {
@@ -568,7 +573,9 @@ export async function submitBooking(
     );
 
     return created;
-  });
+  }), L("We could not file that request. Please try again, or call us."));
+  if ("error" in filed) return { error: filed.error };
+  const request = filed.filed;
 
   revalidatePath("/app/support/requests");
   return {

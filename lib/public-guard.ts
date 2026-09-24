@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { clientAddress, hit } from "@/lib/rate-limit";
+import { formMessage } from "@/lib/safe-error";
 
 /*
   WHAT STANDS IN FOR `authorize` ON A FORM A STRANGER FILLS IN.
@@ -44,6 +45,27 @@ export async function screenPublicRequest(formData: FormData, phone: string): Pr
     return { error: "We already have several requests from this number today. Our team will call you." };
   }
   return null;
+}
+
+/**
+ * FILING A STRANGER'S FORM, WITH THE DATABASE KEPT OUT OF THE ANSWER.
+ *
+ * The screening above decides whether the request may be written; this is what
+ * happens when the write itself fails. A Prisma error carries a table, a column
+ * and a constraint name, and on the marketing site the person reading it is not
+ * staff — it is somebody who filled in a form and cannot act on any of it. The
+ * fault is logged for whoever reads the server log and the visitor is given a
+ * sentence they can do something with.
+ */
+export async function filePublicly<T>(
+  work: Promise<T>,
+  fallback: string
+): Promise<{ filed: T } | { error: string }> {
+  try {
+    return { filed: await work };
+  } catch (error) {
+    return { error: formMessage(error, fallback) };
+  }
 }
 
 /**

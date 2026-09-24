@@ -24,10 +24,16 @@ export type ActionState = { error?: string; ok?: string; id?: string };
  * They are filtered out of every customer-facing query.
  */
 
+/* Both ceilings are for the counter that has to read the thread, not for the
+   database: a message nobody can scroll to the end of is a message nobody
+   answers, and the portal box is the one surface a stranger-turned-customer can
+   post unbounded text into. */
+const MAX_MESSAGE = 4000;
+
 const startSchema = z.object({
-  subject: z.string().trim().min(3, "What is it about?"),
-  body: z.string().trim().min(1, "Write something."),
-  cargoId: z.string().optional(),
+  subject: z.string().trim().min(3, "What is it about?").max(200, "Keep the subject short."),
+  body: z.string().trim().min(1, "Write something.").max(MAX_MESSAGE, "That message is too long to send."),
+  cargoId: z.string().max(60).optional(),
 });
 
 /** A customer opens a conversation from their portal. */
@@ -180,6 +186,7 @@ export async function customerReply(
   const conversationId = String(formData.get("conversationId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return { error: "Write something." };
+  if (body.length > MAX_MESSAGE) return { error: "That message is too long to send." };
 
   const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, customerId: customer.customerId },
