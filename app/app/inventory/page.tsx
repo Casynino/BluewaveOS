@@ -33,7 +33,7 @@ import {
 import { formatCbm, formatDate } from "@/lib/format";
 import { NotifyRow } from "@/components/app/notify-row";
 import { CARGO_EVENT_ACTION } from "@/lib/cargo-notices";
-import { composeMessage, composeNotice, whatsappNumber } from "@/lib/messages";
+import { composeMessage, composeNotice, contactKindLabel, whatsappNumber } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { priceListForChinaFloor } from "@/lib/price-list";
@@ -715,6 +715,7 @@ export default async function InventoryPage({
                                   body={composeMessage(event, context)}
                                   links={notice.links.map((l) => ({ label: l.label, href: l.href }))}
                                   notified={lastTold(item.id, event)}
+                                  stage={contactKindLabel(event)}
                                 />
                               </TableCell>
                             );

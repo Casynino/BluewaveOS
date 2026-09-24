@@ -29,6 +29,7 @@ export function NotifyRow({
   body: initialBody,
   links,
   notified,
+  stage,
 }: {
   cargoId: string;
   /** Digits only, country code, no plus. Null when there is no usable number. */
@@ -39,6 +40,8 @@ export function NotifyRow({
   body: string;
   links: { label: string; href: string }[];
   notified: { when: string; by: string } | null;
+  /** What was said, in the customer's own words: "Received in China". */
+  stage: string;
 }) {
   const tx = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(logCustomerContact, {});
@@ -57,21 +60,19 @@ export function NotifyRow({
   };
 
   return (
-    <div className="flex flex-col items-start gap-1">
-      {notified ? (
-        <span className="text-xs text-muted-foreground">
-          {tx("Notified")} {notified.when} · {notified.by}
-        </span>
-      ) : (
-        <span className="text-xs font-medium text-warning">{tx("Not notified yet")}</span>
-      )}
-      {/* Row-sized. A table cell is not a page, and a full-height button
-          beside six columns of figures pushes them into two lines each. */}
+    /* THE PRESS FIRST, THEN WHAT WAS SAID.
+
+       A clerk working down this column is deciding whether to ring somebody,
+       so the button is where the eye lands and the answer — told, or not told
+       — sits beside it rather than above it. Row-sized: a table cell is not a
+       page, and a full-height button pushes six columns of figures into two
+       lines each. */
+    <div className="flex flex-wrap items-center gap-2">
       <Button
         type="button"
         size="sm"
-        className="h-7 px-2.5 text-xs [&_svg]:size-3.5"
-        variant={notified ? "outline" : "default"}
+        className="h-8 px-3 text-xs [&_svg]:size-3.5"
+        variant="outline"
         disabled={!phone}
         onClick={() => {
           setBody(initialBody);
@@ -80,8 +81,18 @@ export function NotifyRow({
         }}
       >
         <MessageCircle />
-        {!phone ? tx("No phone number") : notified ? tx("Notify again") : tx("Notify customer")}
+        {!phone ? tx("No phone number") : tx("Notify")}
       </Button>
+      {notified ? (
+        <span className="text-xs leading-tight text-muted-foreground">
+          <span className="block text-foreground">{tx(stage)}</span>
+          {notified.when} · {notified.by}
+        </span>
+      ) : (
+        <span className="rounded-md bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+          {tx("Not told")}
+        </span>
+      )}
       {state.ok && !open ? <span className="text-xs text-success">{tx("Logged.")}</span> : null}
 
       {open ? (

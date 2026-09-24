@@ -8276,6 +8276,7 @@ const ZH: Record<string, string> = {
   "A consignment appears here as soon as Foshan measures it. Cargo already on a sailing is priced from its own container.":
     "佛山一量好，货物便出现在这里。已上船的货物请在其所属货柜中确认价格。",
   "Cargo already on a container is priced from": "已装柜的货物请在此确认价格：",
+  "Not told": "未通知",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
