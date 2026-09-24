@@ -138,6 +138,8 @@ const SECTIONS: NavSection[] = [
       { label: "Expenses", href: "/app/finance/expenses", icon: "Banknote", permissions: ["expense.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
       { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      { label: "Confirm prices", href: "/app/inventory/china?view=prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
+
       { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
       { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
       { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
@@ -303,6 +305,7 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { label: "Overview", href: "/app/finance", icon: "LayoutGrid", permissions: ["accounting.view"], pinned: true },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
+      { label: "Confirm prices", href: "/app/inventory/china?view=prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
       { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
       { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
       { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
@@ -391,6 +394,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { label: "Credit", href: "/app/finance/credit", icon: "CalendarClock", permissions: ["finance.view"] },
       { label: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
       { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      { label: "Confirm prices", href: "/app/inventory/china?view=prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
       { label: "Accounts", href: "/app/finance/accounts", icon: "Landmark", permissions: ["accounting.view"] },
       { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
       { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },

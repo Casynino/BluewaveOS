@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { CargoStatus } from "@prisma/client";
 import {
   Boxes,
+  ChevronRight,
   Container as ContainerIcon,
   Download,
   Package,
@@ -92,11 +93,13 @@ export default async function InventoryPage({
     from?: string;
     to?: string;
     at?: string;
+    /** "prices" opens the price list straight away — see the menu entry. */
+    view?: string;
   }>;
 }) {
   const locale = await primeLocale();
   const user = await requirePermission("inventory.view");
-  const { q, state, type, from, to, at } = await searchParams;
+  const { q, state, type, from, to, at, view } = await searchParams;
   const query = q?.trim() ?? "";
   const category = type?.trim() ?? "";
 
@@ -480,19 +483,44 @@ export default async function InventoryPage({
         screens carry — asked of the floor the goods are standing on.
       */}
       {chinaPrices && chinaPrices.rows.length > 0 ? (
-        <PriceList
-          heading={
-            <span className="font-medium text-foreground">
+        /*
+          SHUT UNTIL SOMEBODY ASKS.
+
+          On a busy week this list is ninety rows, and a floor screen that
+          opens with ninety rows of money above the boxes is a screen nobody
+          scrolls. Closed it is one line — how many are waiting and what they
+          come to — and it opens on the press, or straight away when the menu
+          entry that asks for it was the way in.
+        */
+        <details
+          open={view === "prices"}
+          className="group overflow-hidden rounded-xl border border-signal/40 bg-signal/5"
+        >
+          <summary className="focus-ring flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="size-4 shrink-0 text-signal transition-transform group-open:rotate-90" />
+            <span className="font-semibold">
+              {chinaPrices.ready}{" "}
+              {T(chinaPrices.ready === 1 ? "price to confirm" : "prices to confirm")}
+            </span>
+            <span className="tnum text-sm text-muted-foreground">
+              {chinaPrices.totalUsdLabel}
+              {chinaPrices.totalTzsLabel ? ` · ${chinaPrices.totalTzsLabel}` : ""}
+            </span>
+            <span className="ml-auto text-xs text-muted-foreground">
               {T("Still in China, not yet on a container")}
             </span>
-          }
-          containerId={null}
-          scope="china"
-          list={chinaPrices}
-          cargoTypes={categories}
-          canConfirm={mayConfirm}
-          locale={locale}
-        />
+          </summary>
+          <div className="border-t border-signal/30">
+            <PriceList
+              containerId={null}
+              scope="china"
+              list={chinaPrices}
+              cargoTypes={categories}
+              canConfirm={mayConfirm}
+              locale={locale}
+            />
+          </div>
+        </details>
       ) : null}
 
       <section>
