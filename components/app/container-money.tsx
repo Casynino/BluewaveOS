@@ -38,8 +38,10 @@ import { cargoTypeOptions } from "@/lib/valuation";
 import { can } from "@/lib/rbac";
 import { localeOf } from "@/lib/viewer-locale";
 import { cn } from "@/lib/utils";
+import type { ContainerStatus } from "@prisma/client";
+
 import { storageStart } from "@/lib/storage-clock";
-import { CARGO_CONDITION_LABELS } from "@/lib/constants";
+import { CARGO_CONDITION_LABELS, CONTAINER_STATUS_LABELS } from "@/lib/constants";
 
 import { primeLocale, T } from "@/lib/server-t";
 import { Tx } from "@/components/app/tx";
@@ -528,7 +530,7 @@ export async function ContainerMoney({
 
   const timelineRows: TimelineRow[] = container.events.map((e) => ({
     id: e.id,
-    title: e.note ?? e.to.replace(/_/g, " ").toLowerCase(),
+    title: e.note ?? T(CONTAINER_STATUS_LABELS[e.to as ContainerStatus] ?? e.to),
     at: formatDate(e.createdAt),
     by: e.actor?.name ?? "—",
   }));

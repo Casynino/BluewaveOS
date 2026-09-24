@@ -399,7 +399,7 @@ export default async function InvoicePage({
                                 : "bad"
                           }
                         >
-                          {PAYMENT_STATUS_LABELS[payment.status]}
+                          {T(PAYMENT_STATUS_LABELS[payment.status])}
                         </Badge>
                         {payment.rejectedReason ? (
                           <span className="block text-xs text-muted-foreground">

@@ -358,7 +358,7 @@ export default async function ContainerPage({
                     return {
                       id: t.id,
                       reference: t.reference,
-                      where: CONTAINER_STATUS_LABELS[t.status] ?? t.status,
+                      where: T(CONTAINER_STATUS_LABELS[t.status]),
                       route:
                         t.originPort && t.destinationPort
                           ? `${t.originPort} → ${t.destinationPort}`
@@ -1083,7 +1083,7 @@ export default async function ContainerPage({
                     ["Shipment", container.shipment.reference, true],
                     [
                       "Voyage",
-                      SHIPMENT_STATUS_LABELS[container.shipment.status],
+                      T(SHIPMENT_STATUS_LABELS[container.shipment.status]),
                       false,
                     ],
                     [

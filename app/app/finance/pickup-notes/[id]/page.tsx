@@ -325,7 +325,9 @@ export default async function PickupNotePage({
           </section>
 
           <footer className="mt-6 flex items-center justify-between border-t border-[#d6e2ee] pt-3 text-[9px] text-neutral-500">
-            <span>{company?.email ?? ""}{company?.altPhone ? ` · ${company.altPhone}` : ""}</span>
+            {/* The company has not published an email yet, so the footer is
+                built from whichever lines exist rather than around a gap. */}
+            <span>{[company?.email, company?.altPhone].filter(Boolean).join(" · ")}</span>
             <span className="font-bold uppercase tracking-[0.2em] text-[#0a3350]">{company?.name ?? "BlueWave Cargo"}</span>
           </footer>
         </div>

@@ -93,7 +93,7 @@ export default async function ContainerFinancesPage() {
                                 : "warn"
                           }
                         >
-                          {CONTAINER_STATUS_LABELS[c.status]}
+                          {T(CONTAINER_STATUS_LABELS[c.status])}
                         </Badge>
                       </span>
                     </td>

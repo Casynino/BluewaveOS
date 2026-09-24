@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { checkVersion, useStale } from "@/components/app/version-watch";
-import { t } from "@/lib/i18n";
+import { useT } from "@/components/app/locale-provider";
 
 export function SubmitButton({
   children,
@@ -15,6 +15,7 @@ export function SubmitButton({
   ...props
 }: ButtonProps & { pendingLabel?: string }) {
   const { pending } = useFormStatus();
+  const tx = useT();
   /* Pending wins over the caller's own condition. A form that passes
      `disabled={false}` because its figures are valid must not switch the guard
      off, or a second tap records the same payment twice. */
@@ -45,17 +46,17 @@ export function SubmitButton({
     <>
       <Button type="submit" {...props} disabled={busy} aria-busy={pending || undefined}>
         {pending ? <Loader2 className="animate-spin" /> : null}
-        {pending ? (iconOnly ? null : (pendingLabel ?? t(null, "Saving…"))) : children}
+        {pending ? (iconOnly ? null : (pendingLabel ?? tx("Saving…"))) : children}
       </Button>
       {pending && slow ? (
         <span role="status" className="ml-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
-          {stale ? t(null, "The app was updated while this page was open.") : t(null, "Still working…")}
+          {stale ? tx("The app was updated while this page was open.") : tx("Still working…")}
           <button
             type="button"
             onClick={() => window.location.reload()}
             className="font-semibold text-brand underline-offset-2 hover:underline"
           >
-            {t(null, "Reload")}
+            {tx("Reload")}
           </button>
         </span>
       ) : null}

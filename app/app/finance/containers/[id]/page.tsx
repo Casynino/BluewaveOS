@@ -215,7 +215,7 @@ export default async function ContainerFinancePage({
         actions={
           <>
             <Badge tone={container.status === "CLOSED" ? "neutral" : "good"}>
-              {CONTAINER_STATUS_LABELS[container.status]}
+              {T(CONTAINER_STATUS_LABELS[container.status])}
             </Badge>
             <Button asChild size="sm" variant="outline">
               <Link href={`/app/containers/${container.id}`}>{T("Open container")}</Link>

@@ -333,7 +333,7 @@ export default async function TicketsPage({
                       {ticket.priority.toLowerCase()}
                     </Badge>
                     <Badge tone={STATUS_TONE[ticket.status]}>
-                      {STATUS_LABEL[ticket.status]}
+                      {T(STATUS_LABEL[ticket.status])}
                     </Badge>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -403,7 +403,7 @@ export default async function TicketsPage({
                     </TableCell>
                     <TableCell>
                       <Badge tone={STATUS_TONE[ticket.status]}>
-                        {STATUS_LABEL[ticket.status]}
+                        {T(STATUS_LABEL[ticket.status])}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">

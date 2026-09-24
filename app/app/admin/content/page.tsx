@@ -76,7 +76,7 @@ export default async function ContentPage() {
               {formatDate(sailing.departureDate)} · cargo in by{" "}
               {formatDate(sailing.cargoDeadline)} · arrives about{" "}
               {formatDate(sailing.estimatedArrival)} ·{" "}
-              {SAILING_STATUS_LABEL[sailing.status]}
+              {T(SAILING_STATUS_LABEL[sailing.status])}
               {sailing.source === "published" ? " · published row" : ""}
             </li>
           ))}
@@ -129,7 +129,7 @@ export default async function ContentPage() {
                     <span className="block text-xs">{sailing.transitDays} days</span>
                   </TableCell>
                   <TableCell className="text-sm">
-                    {SAILING_STATUS_LABEL[sailing.status]}
+                    {T(SAILING_STATUS_LABEL[sailing.status])}
                   </TableCell>
                   <TableCell>
                     <Badge tone={sailing.published ? "good" : "neutral"}>

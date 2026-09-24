@@ -249,7 +249,7 @@ export default async function RequestsPage() {
                         <Badge tone={TONE[booking.status]}>
                           {booking.status.replace(/_/g, " ").toLowerCase()}
                         </Badge>
-                        <Badge tone="neutral">{SERVICE_LABEL[booking.type]}</Badge>
+                        <Badge tone="neutral">{T(SERVICE_LABEL[booking.type])}</Badge>
                         {booking.assignedTo ? (
                           <Badge tone="neutral">{booking.assignedTo.name}</Badge>
                         ) : null}

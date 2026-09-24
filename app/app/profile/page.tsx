@@ -106,11 +106,11 @@ export default async function ProfilePage() {
               {T("Set by the office. Ask a manager if any of it is wrong.")}
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <Field label={T("Desk")} value={ROLE_LABELS[me.role]} />
+              <Field label={T("Desk")} value={T(ROLE_LABELS[me.role])} />
               <Field
                 label={T("Department")}
                 value={
-                  me.department ? DEPARTMENT_LABELS[me.department] : "—"
+                  me.department ? T(DEPARTMENT_LABELS[me.department]) : "—"
                 }
               />
               <Field label={T("Warehouse")} value={me.warehouse?.name ?? "—"} />

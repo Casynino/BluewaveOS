@@ -3,6 +3,7 @@ import { Printer, QrCode } from "lucide-react";
 
 import { BoxActions } from "@/components/app/box-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEPARTMENT_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -203,7 +204,10 @@ export async function BoxesCard({
                   </span>
                   <span className="text-muted-foreground">
                     {who(scan.userId)}
-                    {scan.department ? ` · ${scan.department.replace(/_/g, " ").toLowerCase()}` : ""} · {formatDateTime(scan.createdAt)}
+                    {scan.department
+                      ? ` · ${T(DEPARTMENT_LABELS[scan.department as keyof typeof DEPARTMENT_LABELS] ?? scan.department)}`
+                      : ""}{" "}
+                    · {formatDateTime(scan.createdAt)}
                   </span>
                 </li>
               ))}

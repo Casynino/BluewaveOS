@@ -103,7 +103,9 @@ export function ValuationPanel({
                 </TableCell>
                 <TableCell className="tnum text-right text-sm text-muted-foreground">
                   {line.rate
-                    ? `${formatMoney(displayRate(line.rate.toString(), line.basis), currency)} ${BASIS_LABEL[line.basis ?? ""] ?? ""}`
+                    ? `${formatMoney(displayRate(line.rate.toString(), line.basis), currency)} ${T(
+                        BASIS_LABEL[line.basis ?? ""] ?? ""
+                      )}`
                     : "—"}
                 </TableCell>
                 <TableCell className="tnum text-right text-sm font-medium">

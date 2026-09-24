@@ -453,7 +453,7 @@ export default async function ContainersPage({
                     </TableCell>
                     <TableCell>
                       <Badge tone={TONE[c.status]}>
-                        {CONTAINER_STATUS_LABELS[c.status]}
+                        {T(CONTAINER_STATUS_LABELS[c.status])}
                       </Badge>
                     </TableCell>
                     {/* The way in. The reference is a link too, but it is four

@@ -657,7 +657,7 @@ const ZH: Record<string, string> = {
   "China Warehouse": "中国仓",
   "China warehouse": "中国仓库",
   "China → Tanzania": "中国 → 坦桑尼亚",
-  "Chinese name": "中文名称",
+  "Chinese name": "中文品名",
   'Choose a customer, or switch to "New customer".':
     "请选择客户，或切换到“新客户”。",
   "Choose a customer, or switch to “New customer”.":
@@ -7217,7 +7217,7 @@ const ZH: Record<string, string> = {
   "Receipts": "收据",
   "Received and still not loaded. The customer is asking, and the shelf is paid for.": "已收货但仍未装柜。客户在询问，货架也在占用。",
   "Receiver": "收货人",
-  "Receiver at the door (收货人)": "收货人",
+  "Receiver at the door": "收货人",
   "Record quotation": "记录报价",
   "Recorded beside the payment, never added to it. It does not settle any part of the freight.": "记录在付款旁边，不计入付款。不抵扣任何运费。",
   "Reference, mark, customer or phone…": "编号、唛头、客户或电话…",
@@ -8215,15 +8215,27 @@ const ZH: Record<string, string> = {
   "Wet": "受潮",
   "Repacked": "已重新包装",
   "China receiving": "中国收货",
+  "Department logins": "各部门登录账号",
+  "One login each for Manager, Support, China, Dar and Finance —":
+    "为经理、客服、中国仓、达累斯萨拉姆仓和财务各开一个登录账号——",
+  "— all with the password below.": "——全部使用下方的密码。",
+  "Password for all of them": "所有账号共用的密码",
+  "Create department logins": "创建部门登录账号",
+  /* The two screens a clerk reaches when something has already gone wrong. */
+  "This screen could not load": "此页面无法加载",
+  "Nothing you had not already saved was changed. Try again — if it keeps happening, tell the administrator and quote the reference below.":
+    "尚未保存的内容不会有任何改动。请重试——如果反复出现，请告知管理员并提供下方的参考编号。",
+  "Go back": "返回",
+  "We could not find that": "未找到该内容",
+  "The link may be old, the record may have been removed, or the reference was mistyped.":
+    "链接可能已过期，记录可能已被删除，或者编号输错了。",
   "Assigned to a driver": "已指派司机",
   "Out for delivery": "派送中",
   "Delivery failed": "派送失败",
   "Collected at the counter": "已在柜台提货",
   "General rate": "通用费率",
-  "Every cargo type": "所有货物类别",
   "unspecified goods": "未注明货物",
   "since": "自",
-  "currently": "当前",
   "No container is on the water or waiting to be checked in.":
     "没有货柜在海上，也没有货柜等待入库核对。",
 };

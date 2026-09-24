@@ -237,7 +237,7 @@ function PriceRow({
              It follows the cargo to whoever prices it, so nobody quotes a clean
              bill for a bale that arrived soaked. */
           <Badge tone="bad" className="ml-2 align-middle">
-            {CARGO_CONDITION_LABELS[row.condition ?? "DAMAGED"]}
+            <Tx>{CARGO_CONDITION_LABELS[row.condition ?? "DAMAGED"]}</Tx>
           </Badge>
         ) : null}
         {row.darFlagged && !row.damaged ? (

@@ -378,7 +378,7 @@ export default async function LoadingContainersPage({
                         {box.container.reference}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {TYPE_LABEL[box.container.type]}
+                        {T(TYPE_LABEL[box.container.type])}
                         {box.container.sealNumber
                           ? ` · seal ${box.container.sealNumber}`
                           : ""}

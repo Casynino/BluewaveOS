@@ -364,7 +364,7 @@ export default async function CustomerPage({
                             : "neutral"
                       }
                     >
-                      {INVOICE_STATUS_LABELS[invoice.status]}
+                      {T(INVOICE_STATUS_LABELS[invoice.status])}
                     </Badge>
                   </TableCell>
                 </TableRow>

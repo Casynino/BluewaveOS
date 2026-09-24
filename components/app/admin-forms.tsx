@@ -153,7 +153,7 @@ export function WarehouseForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`contact-${warehouse?.id ?? "new"}`}>{tx("Receiver at the door (收货人)")}</Label>
+            <Label htmlFor={`contact-${warehouse?.id ?? "new"}`}>{tx("Receiver at the door")}</Label>
             <Input
               id={`contact-${warehouse?.id ?? "new"}`}
               name="contactName"

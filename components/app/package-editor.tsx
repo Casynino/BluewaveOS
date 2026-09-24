@@ -417,7 +417,7 @@ export function PackageEditor({
               shipping line and the clearing agent. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="descriptionZh">Chinese name 中文品名</Label>
+              <Label htmlFor="descriptionZh">{tx("Chinese name")}</Label>
               <Input id="descriptionZh" name="descriptionZh" defaultValue={editing?.descriptionZh ?? ""} />
             </div>
             <div className="space-y-2">

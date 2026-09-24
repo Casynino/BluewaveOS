@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
 import { useSmartBack } from "@/components/app/smart-back";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
-import { t } from "@/lib/i18n";
 
 /**
  * A screen that failed to draw, inside the shell so the menu still works.
@@ -21,7 +21,8 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const back = useSmartBack("/app/dashboard", t(null, "Home"));
+  const tx = useT();
+  const back = useSmartBack("/app/dashboard", tx("Home"));
 
   useEffect(() => {
     console.error("Staff app error:", error);
@@ -33,11 +34,10 @@ export default function AppError({
         <AlertTriangle className="size-7" />
       </span>
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">
-        {t(null, "This screen could not load")}
+        {tx("This screen could not load")}
       </h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        {t(
-          null,
+        {tx(
           "Nothing you had not already saved was changed. Try again — if it keeps happening, tell the administrator and quote the reference below."
         )}
       </p>
@@ -47,12 +47,12 @@ export default function AppError({
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Button onClick={reset}>
           <RotateCcw />
-          {t(null, "Try again")}
+          {tx("Try again")}
         </Button>
         <Button asChild variant="outline">
           {/* A plain anchor, not a client link: the router that just failed is
               the one a client link would ask to try again. */}
-          <a href={back.href}>{back.label === "Back" ? t(null, "Go back") : back.label}</a>
+          <a href={back.href}>{back.label === "Back" ? tx("Go back") : back.label}</a>
         </Button>
       </div>
     </div>

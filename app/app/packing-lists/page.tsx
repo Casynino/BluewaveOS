@@ -16,7 +16,7 @@ import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
-import { primeLocale } from "@/lib/server-t";
+import { primeLocale, T } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Packing lists" };
 
 export default async function PackingListsPage() {
@@ -51,11 +51,11 @@ export default async function PackingListsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Number</TableHead>
-                <TableHead>Container</TableHead>
-                <TableHead className="hidden md:table-cell">Seal</TableHead>
-                <TableHead className="hidden lg:table-cell">Issued by</TableHead>
-                <TableHead>Issued</TableHead>
+                <TableHead>{T("Number")}</TableHead>
+                <TableHead>{T("Container")}</TableHead>
+                <TableHead className="hidden md:table-cell">{T("Seal")}</TableHead>
+                <TableHead className="hidden lg:table-cell">{T("Issued by")}</TableHead>
+                <TableHead>{T("Issued")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
