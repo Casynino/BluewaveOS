@@ -21,6 +21,7 @@ import { PhotoPanel } from "@/components/app/photo-upload";
 import { CargoStatusBadge } from "@/components/app/status-badge";
 import { NotifyCustomer, type MessageOption } from "@/components/app/notify-customer";
 import { CargoActions } from "@/components/app/cargo-actions";
+import { DeleteCargo } from "@/components/app/delete-cargo";
 import { StorageCard } from "@/components/app/storage-card";
 import { ValuationPanel } from "@/components/app/valuation-panel";
 import { WhatsAppButton } from "@/components/app/whatsapp-button";
@@ -43,7 +44,7 @@ import { prisma } from "@/lib/prisma";
 import { storageOnCargo } from "@/lib/storage-fee";
 import { receiverLockReason } from "@/lib/cargo-corrections";
 import { t } from "@/lib/i18n";
-import { can, canAmendCargo, cargoCustody } from "@/lib/rbac";
+import { can, canAmendCargo, canDeleteCargo, cargoCustody } from "@/lib/rbac";
 import { localeOf } from "@/lib/viewer-locale";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -1073,6 +1074,13 @@ export default async function CargoDetailPage({
 
           {!cargo.operationalHold && can(user.role, "cargo.hold") ? (
             <HoldToggle cargoId={cargo.id} held={false} reason={null} />
+          ) : null}
+
+          {/* The floor holding the boxes removes a consignment that should
+              never have been one. What may be deleted at all is decided in the
+              action, which refuses anything billed, paid or handed over. */}
+          {canDeleteCargo(user.role, cargo.status) ? (
+            <DeleteCargo cargoId={cargo.id} reference={cargo.reference} />
           ) : null}
 
           {cargo.internalNotes && can(user.role, "cargo.viewInternal") ? (

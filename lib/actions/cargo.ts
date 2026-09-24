@@ -24,7 +24,7 @@ import { notifyCustomer } from "@/lib/notify";
 import { normaliseTzPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { syncCargoBoxes } from "@/lib/boxes";
-import { canAmendCargo } from "@/lib/rbac";
+import { canAmendCargo, canDeleteCargo } from "@/lib/rbac";
 import {
   applyCargoDetails,
   applyDarMeasurement,
@@ -1551,4 +1551,123 @@ export async function updateCargoDetails(
     if (error instanceof CorrectionRefused) return { error: error.message };
     throw error;
   }
+}
+
+/**
+ * A CONSIGNMENT THAT SHOULD NEVER HAVE BEEN ONE.
+ *
+ * The scanner fired twice, a line was typed against the wrong customer, a
+ * receipt was entered and then found to be somebody else's. The floor holding
+ * the boxes can see that and nobody else can, so the floor removes it — see
+ * `canDeleteCargo` for which desk that is on each side of the water.
+ *
+ * WHAT IT IS NOT is a way to make a bill or a handover disappear. A record a
+ * customer has been given — an issued bill, a payment taken, boxes handed over
+ * — is evidence, and evidence is not deleted because somebody wants a list to
+ * look tidier. Those refusals are here rather than in the permission, because
+ * they are about this consignment and not about the desk.
+ *
+ * The deletion is soft, reasoned and restorable: it leaves every list at once,
+ * and the owner can put it back from Deleted records. Its boxes go with it —
+ * a sticker on a carton must not scan to a consignment nobody can find — and
+ * a draft bill goes too, since Finance's working on a record that does not
+ * exist is not working on anything. The measurement history stays untouched.
+ */
+export async function deleteCargo(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorize("cargo.delete");
+
+  const cargoId = String(formData.get("cargoId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (reason.length < 3) return { error: "Say why this cargo is being deleted." };
+
+  const cargo = await prisma.cargo.findFirst({
+    where: { id: cargoId, deletedAt: null },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      release: { select: { id: true } },
+      invoices: {
+        select: {
+          id: true,
+          status: true,
+          _count: { select: { payments: true } },
+        },
+      },
+    },
+  });
+  if (!cargo) return { error: "That cargo no longer exists." };
+
+  if (!canDeleteCargo(actor.role, cargo.status)) {
+    return { error: "This cargo is not on your floor." };
+  }
+
+  if (cargo.release || cargo.status === "COLLECTED" || cargo.status === "DELIVERED") {
+    return { error: "These goods have been handed over. A handover is not deleted." };
+  }
+
+  const live = cargo.invoices.filter((i) => i.status !== "DRAFT" && i.status !== "CANCELLED");
+  if (live.length > 0) {
+    return {
+      error: "The customer has been given a bill for this cargo. Cancel the bill first.",
+    };
+  }
+  if (cargo.invoices.some((i) => i._count.payments > 0)) {
+    return { error: "Money has been recorded against this cargo. Finance settles that first." };
+  }
+
+  const deleted = await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    /* Conditional, so two people pressing Delete at once write one deletion
+       and one audit line rather than two. */
+    const { count } = await tx.cargo.updateMany({
+      where: { id: cargo.id, deletedAt: null },
+      data: { deletedAt: now },
+    });
+    if (count === 0) return false;
+
+    await recordFieldChange(
+      {
+        actor,
+        entity: "Cargo",
+        entityId: cargo.id,
+        field: "deletedAt",
+        oldValue: null,
+        newValue: now.toISOString(),
+        reason,
+      },
+      tx
+    );
+    /* A printed sticker must not scan to a consignment nobody can find. The
+       rows are kept, as every box row is — voided, never removed. */
+    await tx.cargoBox.updateMany({
+      where: { cargoId: cargo.id, voidedAt: null },
+      data: { voidedAt: now },
+    });
+    await tx.invoice.updateMany({
+      where: { cargoId: cargo.id, status: "DRAFT" },
+      data: { status: "CANCELLED" },
+    });
+    await recordAudit(
+      {
+        actor,
+        action: "cargo.delete",
+        entity: "Cargo",
+        entityId: cargo.id,
+        summary: `Deleted ${cargo.reference}`,
+        metadata: { reason, status: cargo.status },
+      },
+      tx
+    );
+    return true;
+  });
+  if (!deleted) return { error: "Somebody deleted this cargo first." };
+
+  revalidatePath("/app/cargo");
+  revalidatePath("/app/inventory");
+  revalidatePath("/app/admin/deleted");
+  return { ok: `${cargo.reference} deleted.` };
 }

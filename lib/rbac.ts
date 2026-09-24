@@ -280,6 +280,11 @@ const CHINA_WAREHOUSE: Permission[] = [
 const DAR_WAREHOUSE: Permission[] = [
   "cargo.view",
   "cargo.edit",
+  /* A consignment on this floor that should never have been a consignment —
+     a duplicate off the scanner, a line typed twice. The floor holding the
+     boxes is the floor that can see it is wrong. `canDeleteCargo` still
+     refuses anything a customer has been billed or handed. */
+  "cargo.delete",
   "cargo.viewInternal",
   "cargo.amendDar",
   /* The same reach Foshan has over cargo not yet booked in at Dar. Every
@@ -402,6 +407,10 @@ const FINANCE: Permission[] = [
   "cargo.view",
   "cargo.viewAll",
   "cargo.viewInternal",
+  /* The desk that reconciles is the desk that notices one consignment
+     entered twice. Only on the Dar side, and only while nothing is billed —
+     see `canDeleteCargo`. */
+  "cargo.delete",
   "deliveryNote.view",
   /* The Foshan floor list, read-only — see CUSTOMER_SUPPORT. */
   "inventory.view",
@@ -518,7 +527,9 @@ const MANAGER: Permission[] = ALL.filter(
        owner's — the people who answer for the books. */
     p !== "fx.manage" &&
     p !== "warehouse.manage" &&
-    p !== "cargo.delete" &&
+    /* `cargo.delete` is the manager's: a mistyped consignment is the floor's
+       mistake to undo, and the deletion is soft, reasoned and restorable.
+       `container.delete` is not — a sailing carries other people's goods. */
     p !== "container.delete"
 );
 
@@ -612,6 +623,52 @@ export function canAmendCargo(
     role,
     cargoCustody(status) === "CHINA" ? "cargo.amendChina" : "cargo.amendDar"
   );
+}
+
+/**
+ * MAY THIS DESK DELETE THIS CONSIGNMENT'S RECORD?
+ *
+ * Deleting is not editing, so it does not follow the amendment rule. Foshan
+ * holds `cargo.amendChina` and so does Dar — deliberately, so the Dar clerk
+ * can correct a measurement before check-in — but a consignment sitting on the
+ * Foshan shelf is Foshan's to remove, not Dar's. The desk that is physically
+ * holding the boxes is the one that can see the record should not exist.
+ *
+ * So: the verb, and then the floor. China-side asks the desk that receives in
+ * China; Dar-side asks the desk that receives in Dar, or Finance — the desk
+ * that reconciles is the one that finds a consignment entered twice. The
+ * manager and the owner hold all of it. Support holds none of it and never
+ * has: it answers customers, it does not remove their records.
+ *
+ * What may be deleted at all is a separate question, and a harder one — see
+ * `deleteCargo`, which refuses anything billed, paid or handed over.
+ */
+export function canDeleteCargo(
+  role: Role | undefined | null,
+  status: CargoStatus
+) {
+  if (!can(role, "cargo.delete")) return false;
+  /*
+    THE SIDE IS WHERE THE BOXES ARE, WHICH IS NOT WHERE CUSTODY IS.
+
+    `cargoCustody` keeps a landed-but-uncounted consignment on the China side
+    on purpose: Foshan typed the measurement and may still correct it before
+    Dar counts the box off. Deleting is a different question. Once the vessel
+    has discharged, the cartons are in Tanzania and Foshan cannot see whether
+    the record should exist — so from arrival onwards this is the Dar floor's
+    to remove, and Finance's, which is where a consignment entered twice is
+    usually noticed.
+  */
+  const landed =
+    status !== "REGISTERED" &&
+    status !== "RECEIVED_CHINA" &&
+    status !== "ASSIGNED_TO_CONTAINER" &&
+    status !== "CONTAINER_LOADED" &&
+    status !== "DEPARTED_CHINA" &&
+    status !== "IN_TRANSIT";
+  return landed
+    ? can(role, "receiving.dar") || can(role, "finance.view")
+    : can(role, "receiving.china");
 }
 
 // ---------------------------------------------------------------------------

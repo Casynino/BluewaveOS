@@ -200,12 +200,18 @@ describe("the support desk explains; it does not do", () => {
 });
 
 describe("the manager runs the business; the owner owns it", () => {
-  /** The keys to the system, as opposed to the running of it. */
+  /**
+   * The keys to the system, as opposed to the running of it.
+   *
+   * `cargo.delete` came off this list by the owner's decision: a consignment
+   * typed twice is the floor's mistake to undo, the deletion is soft, reasoned
+   * and restorable, and waiting for the owner to remove it is a queue nobody
+   * works. `container.delete` stays — a sailing carries other people's goods.
+   */
   const OWNER_ONLY: Permission[] = [
     "settings.manage",
     "fx.manage",
     "warehouse.manage",
-    "cargo.delete",
     "container.delete",
   ];
 

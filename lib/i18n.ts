@@ -8247,6 +8247,9 @@ const ZH: Record<string, string> = {
   "since": "自",
   "No container is on the water or waiting to be checked in.":
     "没有货柜在海上，也没有货柜等待入库核对。",
+  "It leaves every list. Its box labels stop scanning to it, and any draft bill is cancelled with it. The owner can put it back from Deleted records.":
+    "它将从所有列表中消失，箱唛标签也不再扫得到它，草稿账单会一并作废。老板可在“已删除记录”中恢复。",
+  "Scanned twice, entered against the wrong customer…": "扫了两次、录错了客户…",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
