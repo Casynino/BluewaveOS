@@ -9,8 +9,8 @@ import {
   Warehouse,
 } from "lucide-react";
 
-import { CargoTypeOnRow, ConfirmAllPrices, ConfirmPriceRow } from "@/components/app/confirm-price-row";
 import { EmptyState } from "@/components/app/empty-state";
+import { PriceList } from "@/components/app/price-list";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
@@ -94,7 +94,7 @@ export default async function InventoryPage({
     at?: string;
   }>;
 }) {
-  await primeLocale();
+  const locale = await primeLocale();
   const user = await requirePermission("inventory.view");
   const { q, state, type, from, to, at } = await searchParams;
   const query = q?.trim() ?? "";
@@ -331,10 +331,6 @@ export default async function InventoryPage({
   /* Keyed by consignment, so each row can show what the book makes it without
      the list below and the figures beside it being two different reads. */
   const chinaPrices = seesPrice ? await priceListForChinaFloor() : null;
-  const priced = new Map((chinaPrices?.rows ?? []).map((row) => [row.cargoId, row]));
-  /* Only what the book has actually priced: one press cannot confirm a row
-     that is still waiting for a rate. */
-  const confirmable = (chinaPrices?.rows ?? []).filter((row) => row.totalLabel).length;
 
   return (
     <div className="space-y-6">
@@ -465,13 +461,34 @@ export default async function InventoryPage({
         </Button>
       </form>
 
+      {/*
+        THE PRICES, IN THEIR OWN LIST.
+
+        Read down one column of figures and confirm the lot, rather than
+        hunting a button along a row of twelve columns about something else.
+        The same list, the same one press and the same row editor the container
+        screens carry — asked of the floor the goods are standing on.
+      */}
+      {chinaPrices && chinaPrices.rows.length > 0 ? (
+        <PriceList
+          heading={
+            <span className="font-medium text-foreground">
+              {T("Still in China, not yet on a container")}
+            </span>
+          }
+          containerId={null}
+          scope="china"
+          list={chinaPrices}
+          cargoTypes={categories}
+          canConfirm={mayConfirm}
+          locale={locale}
+        />
+      ) : null}
+
       <section>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionLabel count={held}>
-            {inChina ? "Received cargo" : "Landed cargo"}
-          </SectionLabel>
-          {mayConfirm && confirmable > 0 ? <ConfirmAllPrices waiting={confirmable} /> : null}
-        </div>
+        <SectionLabel count={held}>
+          {inChina ? "Received cargo" : "Landed cargo"}
+        </SectionLabel>
         <Card>
           {cargo.length === 0 ? (
             <EmptyState
@@ -524,7 +541,6 @@ export default async function InventoryPage({
                       shelf number nobody fills in was two lines of nothing. The
                       date it came in is the fact a clerk actually wants. */}
                   <TableHead className="hidden xl:table-cell">{T("Received")}</TableHead>
-                  {seesPrice ? <TableHead className="text-right">{T("Price")}</TableHead> : null}
                   {mayNotify ? <TableHead>{T("Customer told")}</TableHead> : null}
                 </TableRow>
               </TableHeader>
@@ -635,60 +651,13 @@ export default async function InventoryPage({
                       {mayNotify ? (
                         <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
                           {item.shippingMark ? <span className="block font-medium text-foreground">{item.shippingMark}</span> : null}
-                          {(() => {
-                            const types = [...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))];
-                            const row = priced.get(item.id);
-                            /* The book prices on this word, so where a price is
-                               still waiting it is changed here rather than on a
-                               screen somebody has to go and find. One type only:
-                               a consignment charged at several is corrected line
-                               by line on its own page. */
-                            return mayConfirm && row && types.length < 2 ? (
-                              <CargoTypeOnRow
-                                cargoId={item.id}
-                                reference={item.reference}
-                                current={types[0] ?? ""}
-                                cargoTypes={categories}
-                              />
-                            ) : (
-                              types.join(", ") || "—"
-                            );
-                          })()}
+                          {[...new Set(item.packages.map((k) => k.cargoType).filter(Boolean))].join(", ") || "—"}
                           {receiving?.weightKg ? <span className="tnum block">{formatWeight(receiving.weightKg)}</span> : null}
                         </TableCell>
                       ) : null}
                       <TableCell className="tnum hidden whitespace-nowrap text-sm text-muted-foreground xl:table-cell">
                         {formatDate(receiving?.receivedAt)}
                       </TableCell>
-                      {/* WHAT THE BOOK MAKES IT, AND THE PRESS THAT AGREES IT.
-
-                          A consignment with a live bill has left this question
-                          behind; one the book cannot price yet says so on its
-                          own row rather than being quietly left out. */}
-                      {seesPrice ? (
-                        <TableCell className="text-right">
-                          {(() => {
-                            const row = priced.get(item.id);
-                            if (!row) {
-                              return <Badge tone="good">{T("Price confirmed")}</Badge>;
-                            }
-                            if (!row.totalLabel) {
-                              return (
-                                <span className="text-xs text-warning">
-                                  {row.blockedReason ?? T("The rate book has no price for this yet")}
-                                </span>
-                              );
-                            }
-                            return (
-                              <ConfirmPriceRow
-                                row={row}
-                                vatPercent={Number(chinaPrices?.vatPercent ?? 0)}
-                                canConfirm={mayConfirm}
-                              />
-                            );
-                          })()}
-                        </TableCell>
-                      ) : null}
                       {mayNotify
                         ? (() => {
                             const event =

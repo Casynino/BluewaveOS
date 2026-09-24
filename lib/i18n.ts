@@ -8270,6 +8270,7 @@ const ZH: Record<string, string> = {
     "货物在达累斯萨拉姆入库后即出现在此。佛山已量好的货物请在“在华货物”页面确认价格。",
   "The rate book has no price for this yet": "价格表暂无此类货物的价格",
   "price": "个价格",
+  "Still in China, not yet on a container": "仍在中国，尚未装柜",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {
