@@ -6442,6 +6442,7 @@ const ZH: Record<string, string> = {
   "We already have this booking request.": "我们已收到此预订请求。",
   "We already have this pickup request.": "我们已收到此提货请求。",
   "We already have this quote request.": "我们已收到此报价请求。",
+  "We could not file that request. Please try again, or call us.": "我们无法提交该请求。请重试，或致电我们。",
   "We have had a lot of requests from your connection. Please call or WhatsApp us instead.": "我们收到了来自您网络的大量请求。请改为致电或通过 WhatsApp 联系我们。",
   "We will call you back with a price.": "我们会回电告知价格。",
   "Weight cannot be negative.": "重量不能为负数。",

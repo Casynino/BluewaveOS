@@ -9,7 +9,7 @@ import { generatePublicKey, nextSourcingReference } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseAnyPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
-import { screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
+import { filePublicly, screenPublicRequest, statusKeyFor } from "@/lib/public-guard";
 import { currentUser } from "@/lib/session";
 import { store, UploadError } from "@/lib/storage";
 
@@ -134,7 +134,7 @@ export async function submitSourcingRequest(
     return { error: error instanceof UploadError ? error.message : "That photo could not be uploaded." };
   }
 
-  const created = await prisma.$transaction(async (tx) => {
+  const filed = await filePublicly(prisma.$transaction(async (tx) => {
     const reference = await nextSourcingReference(tx);
     const row = await tx.sourcingRequest.create({
       data: {
@@ -181,7 +181,9 @@ export async function submitSourcingRequest(
       tx
     );
     return row;
-  });
+  }), "We could not file that request. Please try again, or call us.");
+  if ("error" in filed) return { error: filed.error };
+  const created = filed.filed;
 
   revalidatePath("/app/support/sourcing");
   return {

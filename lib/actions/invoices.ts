@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma, type Role } from "@prisma/client";
 
-import { formatCurrency, formatRate, roundMoney, tzsToUsd, usdToTzs } from "@/lib/currency";
+import {
+  formatCurrency,
+  formatRate,
+  rateOutOfBand,
+  roundMoney,
+  tzsToUsd,
+  usdToTzs,
+} from "@/lib/currency";
 
 import { recordAudit, recordFieldChange } from "@/lib/audit";
 import { nextInvoiceNumber, reserveInvoiceNumbers } from "@/lib/ids";
@@ -24,6 +31,7 @@ import { darConfirmationGap } from "@/lib/price-confirmation";
 import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { refreshInvoiceStatus } from "@/lib/invoice-status";
+import { formMessage } from "@/lib/safe-error";
 import { paymentSnapshotNow } from "@/lib/invoice-accounts";
 import { confirmPrices } from "@/lib/actions/price-list";
 import { storageStart } from "@/lib/storage-clock";
@@ -340,7 +348,13 @@ export async function issueInvoice(
   const actor = await authorize("invoice.issue");
 
   const invoiceId = String(formData.get("invoiceId") ?? "");
+  /* Days to pay, from a form field. A term is a handful of days or a couple of
+     months; anything else is a slipped key, and a negative one issued a bill
+     that was already overdue on the day the customer was first shown it. */
   const dueDays = Number(formData.get("dueDays") ?? 7);
+  if (!Number.isInteger(dueDays) || dueDays < 0 || dueDays > 365) {
+    return { error: "Days to pay has to be between 0 and 365." };
+  }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
@@ -364,7 +378,7 @@ export async function issueInvoice(
   if (gap) return { error: `${invoice.cargo.reference}: ${gap}` };
 
   const dueAt = new Date();
-  dueAt.setDate(dueAt.getDate() + (Number.isFinite(dueDays) ? dueDays : 7));
+  dueAt.setDate(dueAt.getDate() + dueDays);
 
   const fx = await currentExchangeRate();
   if (!fx) {
@@ -372,33 +386,41 @@ export async function issueInvoice(
   }
   const snapshot = issueSnapshot(invoice, fx);
 
-  await prisma.$transaction(async (tx) => {
-    const claim = await tx.invoice.updateMany({
-      where: { id: invoice.id, status: "DRAFT" },
-      data: {
-        status: "ISSUED",
-        issuedAt: new Date(),
-        dueAt,
-        ...snapshot,
-        paymentSnapshot: await paymentSnapshotNow(tx),
-      },
-    });
-    if (claim.count === 0) throw new Error("Somebody else issued it first.");
+  /* The claim below is what stops a double press issuing twice, and the
+     sentence it throws is written for the person who lost the race. Thrown out
+     of a server action it never reaches them — they get an error page instead
+     of being told to reload — so it is caught here and handed back. */
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claim = await tx.invoice.updateMany({
+        where: { id: invoice.id, status: "DRAFT" },
+        data: {
+          status: "ISSUED",
+          issuedAt: new Date(),
+          dueAt,
+          ...snapshot,
+          paymentSnapshot: await paymentSnapshotNow(tx),
+        },
+      });
+      if (claim.count === 0) throw new Error("Somebody else issued it first.");
 
-    await recordAudit(
-      {
-        actor,
-        action: "invoice.issue",
-        entity: "Invoice",
-        entityId: invoice.id,
-        summary: `Issued ${invoice.number} — ${amountDueLine(invoice.total, snapshot.fxRate)}`,
-        metadata: { exchangeRateId: snapshot.exchangeRateId, fxRate: snapshot.fxRate.toString(), totalTzs: snapshot.totalTzs.toString() },
-      },
-      tx
-    );
-    /* The invoice message, with the bill's own download link. */
-    await announceCargoEvent(tx, "PRICE_CONFIRMED", invoice.cargoId, { invoiceId: invoice.id });
-  });
+      await recordAudit(
+        {
+          actor,
+          action: "invoice.issue",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `Issued ${invoice.number} — ${amountDueLine(invoice.total, snapshot.fxRate)}`,
+          metadata: { exchangeRateId: snapshot.exchangeRateId, fxRate: snapshot.fxRate.toString(), totalTzs: snapshot.totalTzs.toString() },
+        },
+        tx
+      );
+      /* The invoice message, with the bill's own download link. */
+      await announceCargoEvent(tx, "PRICE_CONFIRMED", invoice.cargoId, { invoiceId: invoice.id });
+    });
+  } catch (error) {
+    return { error: formMessage(error, "That invoice was not issued.") };
+  }
 
   revalidatePath("/app/finance/invoices");
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
@@ -408,7 +430,14 @@ export async function issueInvoice(
 const adjustSchema = z.object({
   invoiceId: z.string().min(1),
   appliedRate: z.coerce.number().min(0).optional(),
-  additionalCharge: z.coerce.number().optional(),
+  /* A charge, not a way to take money off. Money comes off a bill as a
+     discount, which appends its own reasoned line and can be put back; a
+     negative charge here folded silently into the subtotal and — far enough
+     below zero — turned a bill into one the company owed. */
+  additionalCharge: z.coerce
+    .number()
+    .min(0, "A charge cannot be negative. Use a discount to take money off.")
+    .optional(),
   chargeDescription: z.string().trim().optional(),
   reason: z.string().trim().optional(),
 });
@@ -1547,7 +1576,7 @@ export async function changeInvoiceRate(
 
   if (!/^\d+(\.\d{1,6})?$/.test(raw)) return { error: "Enter the rate, e.g. 2700." };
   const rate = new Prisma.Decimal(raw);
-  if (rate.lessThan(100) || rate.greaterThan(100000)) {
+  if (rateOutOfBand(rate)) {
     return { error: "That rate is outside any sensible USD → TZS range." };
   }
 

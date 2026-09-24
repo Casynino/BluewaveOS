@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
 import { nextPaymentReference, nextReceiptNumber } from "@/lib/ids";
-import { formatCurrency, formatRate, toBase } from "@/lib/currency";
+import { formatCurrency, formatRate, rateOutOfBand, toBase } from "@/lib/currency";
 import { balanceOf, outstandingOf } from "@/lib/invoice-balance";
 import {
   parseAmount,
@@ -136,6 +136,13 @@ export async function recordPayment(
     receipt and the audit both show it.
   */
   const override = data.fxRate ? new Prisma.Decimal(data.fxRate) : null;
+  /* The rate board refuses a figure outside any sensible market, and this is
+     the same figure by another door: the shillings it values are the shillings
+     that settle the bill, so two-to-the-dollar here would clear a USD 1,000
+     invoice for two thousand shillings. */
+  if (override && rateOutOfBand(override)) {
+    return { error: "That rate is outside any sensible USD → TZS range." };
+  }
   const rate = paymentRate(invoice, override, live?.rate);
   if (!rate) {
     return { error: "There is no exchange rate to value this payment with. Publish one in the Rate book." };
@@ -328,6 +335,14 @@ export async function submitCustomerPayment(
   if ("error" in parsedAmount) return { error: parsedAmount.error };
   const amount = parsedAmount.amount;
 
+  /* The day the customer says the money left their hands. Finance checks it
+     against a statement, so a day that is not a day — or one in the future —
+     is refused here rather than sent up as a claim nobody can match. */
+  const paidAt = data.paidAt ? new Date(data.paidAt) : new Date();
+  if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 86_400_000) {
+    return { error: "That payment date is not a real day." };
+  }
+
   /* The bill's own rate. A customer never chooses what their dollars are worth. */
   const live = await currentExchangeRate();
   const rate = paymentRate(invoice, null, live?.rate);
@@ -348,49 +363,70 @@ export async function submitCustomerPayment(
     };
   }
 
-  const claim = await prisma.$transaction(async (tx) => {
-    const reference = await nextPaymentReference(tx);
-    const created = await tx.payment.create({
-      data: {
-        reference,
-        invoiceId: invoice.id,
-        customerId: customer.customerId,
-        amount,
-        currency: data.currency,
-        exchangeRateId: invoice.fxRate && rate.equals(invoice.fxRate) ? invoice.exchangeRateId : (live?.id ?? null),
-        fxRate: rate,
-        baseCurrencyAmount: value.baseCurrencyAmount,
-        creditedAmount: value.creditedAmount,
-        idempotencyKey: data.idempotencyKey || null,
-        /* A customer may well have sent more than the bill. It is not refused —
-           the money has already moved — but Finance sees it flagged before
-           verifying. */
-        overpaymentReason: excess.greaterThan(0)
-          ? `Customer claims ${formatCurrency(excess, "TZS")} more than the bill owed`
-          : null,
-        method: data.method,
-        transactionRef: data.transactionRef || null,
-        payerName: data.payerName || customer.name,
-        paidAt: data.paidAt ? new Date(data.paidAt) : new Date(),
-        notes: data.notes || null,
-        submittedByCustomer: true,
-        status: "PENDING",
-        proofs: { create: proofs.map((url) => ({ url })) },
-      },
-    });
+  let claim: Awaited<ReturnType<typeof prisma.payment.create>>;
+  try {
+    claim = await prisma.$transaction(async (tx) => {
+      const reference = await nextPaymentReference(tx);
+      const created = await tx.payment.create({
+        data: {
+          reference,
+          invoiceId: invoice.id,
+          customerId: customer.customerId,
+          amount,
+          currency: data.currency,
+          exchangeRateId: invoice.fxRate && rate.equals(invoice.fxRate) ? invoice.exchangeRateId : (live?.id ?? null),
+          fxRate: rate,
+          baseCurrencyAmount: value.baseCurrencyAmount,
+          creditedAmount: value.creditedAmount,
+          idempotencyKey: data.idempotencyKey || null,
+          /* A customer may well have sent more than the bill. It is not refused —
+             the money has already moved — but Finance sees it flagged before
+             verifying. */
+          overpaymentReason: excess.greaterThan(0)
+            ? `Customer claims ${formatCurrency(excess, "TZS")} more than the bill owed`
+            : null,
+          method: data.method,
+          transactionRef: data.transactionRef || null,
+          payerName: data.payerName || customer.name,
+          paidAt,
+          notes: data.notes || null,
+          submittedByCustomer: true,
+          status: "PENDING",
+          proofs: { create: proofs.map((url) => ({ url })) },
+        },
+      });
 
-    await notifyStaff(
-      await staffInDepartment("FINANCE", tx),
-      {
-        kind: "payment.pending",
-        title: `Customer payment on ${invoice.number}`,
-        body: `${customer.name} says they have paid ${formatCurrency(amount, data.currency)}.`,
-        href: "/app/finance/collections/verify",
-      },
-      tx
-    );
-    return created;
-  });
+      await notifyStaff(
+        await staffInDepartment("FINANCE", tx),
+        {
+          kind: "payment.pending",
+          title: `Customer payment on ${invoice.number}`,
+          body: `${customer.name} says they have paid ${formatCurrency(amount, data.currency)}.`,
+          href: "/app/finance/collections/verify",
+        },
+        tx
+      );
+      return created;
+    });
+  } catch (error) {
+    /*
+      TWO TAPS ON A PHONE ARE ONE PAYMENT.
+
+      The read above answers the second press that arrives after the first has
+      landed. The two that arrive together both read nothing, and the unique
+      key is what actually stops the second row — the same backstop the counter's
+      own Record has. Without this the customer was shown the database's
+      complaint about a constraint instead of being told we already have it.
+    */
+    if (
+      data.idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { ok: "Thank you — we already have this payment." };
+    }
+    return { error: formMessage(error, "We could not record that payment. Please try again.") };
+  }
 
   /*
     A CLAIM IS NOT MONEY, AND IT IS STILL AN EVENT.
@@ -605,6 +641,13 @@ export async function recordMergedPayment(
 
   if (!(amountRaw > 0)) return { error: "An amount is required." };
   if (invoiceIds.length === 0) return { error: "Choose which bills this covers." };
+  /* The day the money moved, when it is being recorded after the fact. Never a
+     day that is not a day, and never one in the future — as the other merged
+     counter asks it, in lib/actions/merge.ts. */
+  const paidAt = paidAtRaw ? new Date(paidAtRaw) : new Date();
+  if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 86_400_000) {
+    return { error: "That payment date is not a real day." };
+  }
   if (idempotencyKey) {
     const already = await prisma.payment.findUnique({
       where: { idempotencyKey },
@@ -634,6 +677,12 @@ export async function recordMergedPayment(
 
   const live = await currentExchangeRate();
   const override = fxOverride > 0 ? new Prisma.Decimal(fxOverride) : null;
+  /* The same band the rate board is held to — see recordPayment above. This
+     rate values every slice of the handover, so it decides what the whole
+     transfer settles. */
+  if (override && rateOutOfBand(override)) {
+    return { error: "That rate is outside any sensible USD → TZS range." };
+  }
   const parsedAmount = parseAmount(formData.get("amount"), currency);
   if ("error" in parsedAmount) return { error: parsedAmount.error };
 
@@ -676,52 +725,66 @@ export async function recordMergedPayment(
   const reference = transactionRef || `MERGE-${Date.now().toString(36).toUpperCase()}`;
   const covering = slices.map((s) => s.invoice.number).join(", ");
 
-  const created = await prisma.$transaction(async (tx) => {
-    const rows: string[] = [];
-    for (const [index, slice] of slices.entries()) {
-      const paymentRef = await nextPaymentReference(tx);
-      await tx.payment.create({
-        data: {
-          reference: paymentRef,
-          invoiceId: slice.invoice.id,
-          customerId,
-          amount: slice.amount,
-          currency,
-          exchangeRateId: override ? null : slice.invoice.exchangeRateId,
-          fxRate: slice.rate,
-          baseCurrencyAmount: slice.baseCurrencyAmount,
-          idempotencyKey: idempotencyKey && index === 0 ? idempotencyKey : null,
-          creditedAmount: valuePayment(slice.amount, currency, slice.invoice.currency, slice.rate).creditedAmount,
-          method: method as (typeof METHODS)[number],
-          transactionRef: reference,
-          paidAt: paidAtRaw ? new Date(paidAtRaw) : new Date(),
-          notes:
-            `${notes ? `${notes} — ` : ""}Part of one payment of ${currency} ${amountRaw} covering ${covering}.`.trim(),
-          recordedById: actor.id,
-          status: "PENDING",
-          /* The proof is attached to the first slice only. It is one screenshot
-             of one transfer; copying it onto four rows would have four people
-             verifying the same image against four different amounts. */
-          proofs:
-            index === 0 ? { create: proofs.map((url) => ({ url })) } : undefined,
+  let created: string[];
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const rows: string[] = [];
+      for (const [index, slice] of slices.entries()) {
+        const paymentRef = await nextPaymentReference(tx);
+        await tx.payment.create({
+          data: {
+            reference: paymentRef,
+            invoiceId: slice.invoice.id,
+            customerId,
+            amount: slice.amount,
+            currency,
+            exchangeRateId: override ? null : slice.invoice.exchangeRateId,
+            fxRate: slice.rate,
+            baseCurrencyAmount: slice.baseCurrencyAmount,
+            idempotencyKey: idempotencyKey && index === 0 ? idempotencyKey : null,
+            creditedAmount: valuePayment(slice.amount, currency, slice.invoice.currency, slice.rate).creditedAmount,
+            method: method as (typeof METHODS)[number],
+            transactionRef: reference,
+            paidAt,
+            notes:
+              `${notes ? `${notes} — ` : ""}Part of one payment of ${currency} ${amountRaw} covering ${covering}.`.trim(),
+            recordedById: actor.id,
+            status: "PENDING",
+            /* The proof is attached to the first slice only. It is one screenshot
+               of one transfer; copying it onto four rows would have four people
+               verifying the same image against four different amounts. */
+            proofs:
+              index === 0 ? { create: proofs.map((url) => ({ url })) } : undefined,
+          },
+        });
+        rows.push(paymentRef);
+      }
+
+      if (!confirmsOwn) await notifyStaff(
+        await staffInDepartment("FINANCE", tx),
+        {
+          kind: "payment.pending",
+          title: `One payment to verify across ${slices.length} bill(s)`,
+          body: `${currency} ${amountRaw} recorded by ${actor.name}, covering ${covering}.`,
+          href: "/app/finance/collections/verify",
         },
-      });
-      rows.push(paymentRef);
+        tx
+      );
+
+      return rows;
+    });
+  } catch (error) {
+    /* Two presses landing together both read no key above; the unique column
+       is what stops the second handover being written twice. See recordPayment. */
+    if (
+      idempotencyKey &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { ok: "Already recorded." };
     }
-
-    if (!confirmsOwn) await notifyStaff(
-      await staffInDepartment("FINANCE", tx),
-      {
-        kind: "payment.pending",
-        title: `One payment to verify across ${slices.length} bill(s)`,
-        body: `${currency} ${amountRaw} recorded by ${actor.name}, covering ${covering}.`,
-        href: "/app/finance/collections/verify",
-      },
-      tx
-    );
-
-    return rows;
-  });
+    return { error: formMessage(error, "That payment was not recorded.") };
+  }
 
   await recordAudit({
     actor,

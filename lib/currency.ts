@@ -42,6 +42,26 @@ export function isUsableRate(rate: Numeric | null | undefined): rate is Numeric 
   }
 }
 
+/**
+ * WHAT A USD → TZS RATE CAN PLAUSIBLY BE.
+ *
+ * Single digits or millions to the dollar is a slipped key, not a market. The
+ * rate board has refused those since it was written; the band lives here
+ * because the board is not the only door a rate comes through. An agreed rate
+ * typed at the payment counter values the shillings that settle a bill, so a
+ * two-to-the-dollar rate accepted there clears a USD 1,000 invoice for two
+ * thousand shillings and the books say it was paid.
+ */
+export const RATE_FLOOR = 100;
+export const RATE_CEILING = 100_000;
+
+/** True for a rate no honest board would publish. Anything unreadable is out. */
+export function rateOutOfBand(rate: Numeric | null | undefined): boolean {
+  if (!isUsableRate(rate)) return true;
+  const value = D(rate);
+  return value.lessThan(RATE_FLOOR) || value.greaterThan(RATE_CEILING);
+}
+
 function requireRate(rate: Numeric | null | undefined): Prisma.Decimal {
   if (!isUsableRate(rate)) {
     throw new Error("A positive exchange rate is required to convert currency.");

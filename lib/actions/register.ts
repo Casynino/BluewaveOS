@@ -9,6 +9,7 @@ import { nextCustomerCode, shippingMarkFor } from "@/lib/ids";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { normaliseTzPhone, tzPhoneProblem } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+import { clientAddress, hit } from "@/lib/rate-limit";
 import { formMessage } from "@/lib/safe-error";
 
 export type ActionState = {
@@ -46,10 +47,36 @@ const schema = z
  * is what the customer sends to their supplier, and without it a box arriving
  * in Foshan belongs to nobody.
  */
+/*
+  HOW MANY ACCOUNTS ONE CONNECTION MAY OPEN.
+
+  Every other write a stranger can make is throttled — the quote, pickup and
+  booking forms in lib/actions/requests.ts, the visit and sourcing forms through
+  lib/public-guard.ts, the estimator, the tracking page. This one was not, and it
+  is the most expensive of them: each attempt takes a number off the customer
+  counter, mints a shipping mark, and rings every desk in Support. It is also the
+  form that answers "is this email on your books" and "is this number one of
+  yours", and answering that as fast as a script can ask is how a customer list
+  is read back out of it.
+
+  Six is a household sharing a connection and a person retyping a password;
+  anything past it is not somebody signing up.
+*/
+const SIGNUPS_PER_ADDRESS = 6;
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
+
 export async function registerCustomer(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const address = await clientAddress();
+  if (!hit(`register:${address}`, SIGNUPS_PER_ADDRESS, SIGNUP_WINDOW_MS).ok) {
+    return {
+      error:
+        "Too many sign-ups from your connection. Please wait a little, or call our office and we will open your account.",
+    };
+  }
+
   const parsed = schema.safeParse({
     fullName: formData.get("fullName"),
     businessName: formData.get("businessName") || undefined,
