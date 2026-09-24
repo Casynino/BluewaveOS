@@ -8216,6 +8216,15 @@ const ZH: Record<string, string> = {
   "Repacked": "已重新包装",
   "China receiving": "中国收货",
   "Department logins": "各部门登录账号",
+  /* Finance's credit queue, as the desk on the phone asks for it. */
+  "Already asked": "已申请",
+  "Asked · release it": "已申请 · 予以放行",
+  "Every open bill is either settled or already free to collect.":
+    "所有未结账单要么已结清，要么货物已可提取。",
+  "The whole consignment owes": "整票货共欠",
+  "— a release lets all of it go.": "——一次放行会把整票货都放走。",
+  "Finance decides. Until they release it the cargo stays where it is and the bill stays owed.":
+    "由财务决定。在财务放行之前，货物留在原处，账单仍为欠款。",
   "One login each for Manager, Support, China, Dar and Finance —":
     "为经理、客服、中国仓、达累斯萨拉姆仓和财务各开一个登录账号——",
   "— all with the password below.": "——全部使用下方的密码。",

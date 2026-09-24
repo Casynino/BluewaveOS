@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { SourcingStatus } from "@prisma/client";
 
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact } from "@/components/bw/req-layout";
@@ -26,7 +27,9 @@ const FLOW = [
   { key: "COMPLETED", label: "Completed" },
 ];
 
-const STATUS_LABEL: Record<string, string> = {
+/* Typed against the enum, so a status added to the schema stops the build
+   here rather than printing WAITING_CUSTOMER at a visitor. */
+const STATUS_LABEL: Record<SourcingStatus, string> = {
   NEW: "Received",
   IN_PROGRESS: "Searching",
   WAITING_CUSTOMER: "Waiting for you",
@@ -110,7 +113,7 @@ export default async function SourcingStatusPage({
             }
           >
             <span aria-hidden className={cancelled || waiting ? "size-2 bg-bw-coral-bright" : "size-2 bg-bw-cyan"} />
-            {STATUS_LABEL[request.status] ?? request.status}
+            {STATUS_LABEL[request.status]}
           </span>
           <span className="bw-mono text-xs text-white/55">Sent {formatDate(request.createdAt)}</span>
         </div>

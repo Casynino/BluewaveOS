@@ -84,19 +84,30 @@ describe("the Chinese the Foshan floor reads", () => {
      types. Anything not on this list belongs in the dictionary. */
   const BILINGUAL_BY_DESIGN = new Set(
     [
+      /* A comment quoting what the Foshan counter types into the box. */
       "app/app/scan/[cargoId]/page.tsx",
-      "components/app/admin-forms.tsx",
       "components/app/app-shell.tsx",
-      "components/app/delivery-note-sheet.tsx",
-      "components/app/explore-cities.tsx",
-      "components/app/intake-form.tsx",
+      /* A language names itself in its own language, or nobody who needs the
+         switch can find it. */
       "components/app/language-switch.tsx",
-      "components/app/package-editor.tsx",
+      /* The example value inside a Chinese-name field. */
+      "components/app/explore-cities.tsx",
+      /* Printed paper that crosses the border and is read at both ends. */
+      "components/app/delivery-note-sheet.tsx",
       "components/app/packing-list-sheet.tsx",
-      "components/app/profile-forms.tsx",
+      /* The Foshan counter's own screen, and the card a customer forwards
+         to a Chinese factory. */
+      "components/app/intake-form.tsx",
       "components/app/supplier-address-card.tsx",
     ].map((p) => join(ROOT, p))
   );
+
+  test("no screen is excused that stopped being bilingual", () => {
+    const stale = [...BILINGUAL_BY_DESIGN]
+      .filter((file) => !CJK.test(readFileSync(file, "utf8")))
+      .map((file) => relative(ROOT, file));
+    assert.deepEqual(stale, [], `drop these, or the list stops guarding:\n${stale.join("\n")}`);
+  });
 
   test("a staff screen carries no Chinese of its own", () => {
     const leaks: string[] = [];

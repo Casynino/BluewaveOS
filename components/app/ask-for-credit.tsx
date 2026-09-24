@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { CalendarClock, Clock, Search, X } from "lucide-react";
 
 import { useEscape } from "@/components/app/use-escape";
+import { useT } from "@/components/app/locale-provider";
 import { CreditDialog } from "@/components/app/bill-dialogs";
 import { FormMessage } from "@/components/app/form-message";
 import { SubmitButton } from "@/components/app/submit-button";
@@ -38,6 +39,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<CreditCandidate[]>([]);
   const [picked, setPicked] = useState<CreditCandidate | null>(null);
+  const tx = useT();
   const [error, setError] = useState<string | null>(null);
   const [loading, start] = useTransition();
 
@@ -53,7 +55,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
             setRows(await creditCandidates(term));
             setError(null);
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Could not load the bills.");
+            setError(e instanceof Error ? e.message : tx("Could not load the bills."));
           }
         }),
       term.length === 0 ? 0 : 250
@@ -68,7 +70,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
   }
   useEscape(open, close);
 
-  const label = canApprove ? "Release on credit" : "Ask for credit";
+  const label = canApprove ? tx("Release on credit") : tx("Ask for credit");
 
   const trigger = (
     <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -120,7 +122,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
                 type="button"
                 onClick={close}
                 className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Close"
+                aria-label={tx("Close")}
               >
                 <X className="size-4" />
               </button>
@@ -134,9 +136,9 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
                     autoFocus
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Customer name, tracking number, invoice or phone…"
+                    placeholder={tx("Customer name, tracking number, invoice or phone…")}
                     className="pl-9"
-                    aria-label="Find the bill"
+                    aria-label={tx("Find the bill")}
                   />
                 </label>
 
@@ -144,12 +146,12 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
                   {error ? (
                     <li className="px-4 py-3 text-sm text-destructive">{error}</li>
                   ) : loading && rows.length === 0 ? (
-                    <li className="px-4 py-3 text-sm text-muted-foreground">Looking…</li>
+                    <li className="px-4 py-3 text-sm text-muted-foreground">{tx("Looking…")}</li>
                   ) : rows.length === 0 ? (
                     <li className="px-4 py-3 text-sm text-muted-foreground">
                       {query.trim()
-                        ? "Nothing matches that. Try the tracking number."
-                        : "Every open bill is either settled or already free to collect."}
+                        ? tx("Nothing matches that. Try the tracking number.")
+                        : tx("Every open bill is either settled or already free to collect.")}
                     </li>
                   ) : (
                     rows.map((row) => {
@@ -184,11 +186,11 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
                             <span className="hidden shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors group-hover:border-warning/40 group-hover:text-warning sm:inline">
                               {row.alreadyAsked
                                 ? canApprove
-                                  ? "Asked · release it"
-                                  : "Already asked"
+                                  ? tx("Asked · release it")
+                                  : tx("Already asked")
                                 : canApprove
-                                  ? "Release it"
-                                  : "Ask"}
+                                  ? tx("Release it")
+                                  : tx("Ask")}
                             </span>
                           </button>
                         </li>
@@ -210,7 +212,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
                     onClick={() => setPicked(null)}
                     className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                   >
-                    pick another
+                    {tx("pick another")}
                   </button>
                 </div>
                 <CreditRequestForm bill={picked} onDone={close} />
@@ -236,6 +238,7 @@ function CreditRequestForm({
   bill: CreditCandidate;
   onDone: () => void;
 }) {
+  const tx = useT();
   const [state, action] = useActionState<CreditRequestState, FormData>(requestCredit, {});
 
   if (state.ok) {
@@ -243,7 +246,7 @@ function CreditRequestForm({
       <div className="space-y-3">
         <FormMessage ok={state.ok} />
         <Button type="button" size="sm" variant="outline" onClick={onDone}>
-          Done
+          {tx("Done")}
         </Button>
       </div>
     );
@@ -253,20 +256,21 @@ function CreditRequestForm({
     <form action={action} className="max-w-md space-y-3">
       <input type="hidden" name="invoiceId" value={bill.invoiceId} />
       <p className="text-sm font-semibold">
-        Ask Finance for credit · {bill.owedLabel}
+        {tx("Ask Finance for credit")} · {bill.owedLabel}
         {bill.cargoOwedLabel && bill.cargoOwedLabel !== bill.owedLabel ? (
           <span className="block text-xs font-normal text-muted-foreground">
-            The whole consignment owes {bill.cargoOwedLabel} — a release lets all of it go.
+            {tx("The whole consignment owes")} {bill.cargoOwedLabel}{" "}
+            {tx("— a release lets all of it go.")}
           </span>
         ) : null}
       </p>
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <Clock className="size-4" />
-        Terms
+        {tx("Terms")}
         <NativeSelect name="creditDays" defaultValue="14" className="h-9 w-40">
           {TERMS.map((d) => (
             <option key={d} value={d}>
-              {d} days
+              {d} {tx("days")}
             </option>
           ))}
         </NativeSelect>
@@ -276,26 +280,28 @@ function CreditRequestForm({
         required
         minLength={3}
         autoFocus
-        placeholder="Why are they asking? Finance reads this."
+        placeholder={tx("Why are they asking? Finance reads this.")}
         className="h-9"
       />
       <FormMessage error={state.error} />
       <div className="flex items-center gap-3">
-        <SubmitButton size="sm" pendingLabel="Sending…">
-          Send to Finance
+        <SubmitButton size="sm" pendingLabel={tx("Sending…")}>
+          {tx("Send to Finance")}
         </SubmitButton>
         <button
           type="button"
           onClick={onDone}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Never mind
+          {tx("Never mind")}
         </button>
       </div>
       {/* Said plainly, because the alternative is somebody telling a customer
           the cargo is ready when nothing has been agreed. */}
       <p className="text-xs text-muted-foreground">
-        Finance decides. Until they release it the cargo stays where it is and the bill stays owed.
+        {tx(
+          "Finance decides. Until they release it the cargo stays where it is and the bill stays owed."
+        )}
       </p>
     </form>
   );
