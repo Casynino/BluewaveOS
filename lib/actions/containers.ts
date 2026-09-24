@@ -1100,6 +1100,11 @@ export async function advanceContainer(
 
   const containerId = String(formData.get("containerId") ?? "");
   const when = String(formData.get("when") ?? "").trim();
+  /* What the floor wrote on the arrival: a berth, an agent, a discharge
+     reference. It goes on the event, where the milestone itself is, rather
+     than on the container — a note about one landing is not a fact about the
+     box for ever. */
+  const note = String(formData.get("note") ?? "").trim().slice(0, 300);
 
   const container = await prisma.container.findFirst({
     where: { id: containerId, deletedAt: null },
@@ -1160,6 +1165,7 @@ export async function advanceContainer(
           containerId: container.id,
           from: container.status,
           to: to as ContainerStatus,
+          note: note || null,
           actorId: actor.id,
         },
       });
@@ -1252,6 +1258,7 @@ export async function advanceContainer(
             container: container.reference,
             containerNumber: container.containerNumber ?? null,
             at: at.toISOString(),
+            note: note || null,
             ...(to === "DEPARTED"
               ? {
                   departureDate: at.toISOString(),

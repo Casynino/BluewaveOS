@@ -88,6 +88,7 @@ const containerActions = load("@/lib/actions/containers") as typeof import("@/li
 const darActions = load("@/lib/actions/dar") as typeof import("@/lib/actions/dar");
 const priceActions = load("@/lib/actions/price-list") as typeof import("@/lib/actions/price-list");
 const invoiceActions = load("@/lib/actions/invoices") as typeof import("@/lib/actions/invoices");
+const storageCharge = load("@/lib/storage-charge") as typeof import("@/lib/storage-charge");
 const paymentActions = load("@/lib/actions/payments") as typeof import("@/lib/actions/payments");
 const pickupActions = load("@/lib/actions/pickup-notes") as typeof import("@/lib/actions/pickup-notes");
 const releaseActions = load("@/lib/actions/release") as typeof import("@/lib/actions/release");
@@ -616,14 +617,19 @@ describe("what the floor space costs, day by day", () => {
     assert.equal(invoice.totalTzs?.toString(), "1120500", "415 × 2,700");
   });
 
-  test("8. pressing it again bills nothing, and three more days bill only the three new ones", async () => {
+  test("8. the nightly run grows the one line, and never charges a day twice", async () => {
+    /* The bill carries ONE storage line and the run brings it up to today.
+       Nobody presses anything: the button is for the exception, and pressing
+       it on a bill that already carries storage is told so. */
     as("finance");
     const again = await invoiceActions.chargeStorage({}, form({ invoiceId: s.invoiceId }));
     assert.ok(again.ok, again.error);
+    assert.match(again.ok ?? "", /already on this bill/);
     assert.equal((await storageItems(s.invoiceId)).length, 1, "no second storage line for the same days");
     assert.equal((await invoiceWithPayments(s.invoiceId)).total.toString(), "415");
 
-    /* Three more days go by. */
+    /* Three more days go by, and the run that happens each night past Dar
+       midnight takes the line to six. */
     await prisma.cargo.update({
       where: { id: s.cargo },
       data: { darArrivedAt: darMiddayDaysAgo(12) },
@@ -632,12 +638,12 @@ describe("what the floor space costs, day by day", () => {
     assert.equal(position.chargeableDays, 6);
     assert.equal(position.amount.toString(), "30");
 
-    const topUp = await invoiceActions.chargeStorage({}, form({ invoiceId: s.invoiceId }));
-    assert.ok(topUp.ok, topUp.error);
+    await storageCharge.accrueStorage({ cargoIds: [s.cargo] });
 
     const items = await storageItems(s.invoiceId);
     const billed = items.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0));
     const days = items.reduce((sum, i) => sum.add(i.quantity), new Prisma.Decimal(0));
+    assert.equal(items.length, 1, "one line, grown — never a second line beside it");
     assert.equal(days.toString(), "6", "six chargeable days on the bill, each charged once");
     assert.equal(billed.toString(), "30", "USD 30, never 15 again on top of 15");
 
@@ -645,12 +651,12 @@ describe("what the floor space costs, day by day", () => {
     assert.equal(invoice.total.toString(), "430");
     assert.equal(invoice.totalTzs?.toString(), "1161000", "430 × 2,700");
 
-    const nothingLeft = await invoiceActions.chargeStorage({}, form({ invoiceId: s.invoiceId }));
-    assert.ok(nothingLeft.ok, nothingLeft.error);
+    /* The run again, with no day having passed. */
+    await storageCharge.accrueStorage({ cargoIds: [s.cargo] });
     assert.equal(
       (await invoiceWithPayments(s.invoiceId)).total.toString(),
       "430",
-      "and a fourth press changes nothing"
+      "and a bill already at today's figure is left alone"
     );
   });
 
@@ -683,8 +689,27 @@ describe("what the floor space costs, day by day", () => {
     assert.equal(change.newValue, "400");
     assert.match(change.reason ?? "", /waiting on our own paperwork/);
 
-    const twice = await invoiceActions.chargeStorage({}, form({ invoiceId: s.invoiceId, remove: "1" }));
-    assert.match(twice.error ?? "", /no storage on it/, "taking off nothing is refused, not repeated");
+    /* And the waiver's own mark, which is what stops the nightly run putting
+       the same days straight back on. */
+    const waived = await prisma.fieldChange.findFirstOrThrow({
+      where: { entity: "Invoice", entityId: s.invoiceId, field: "storageWaived" },
+      orderBy: { createdAt: "desc" },
+    });
+    assert.equal(waived.newValue, "Waived");
+    assert.match(waived.oldValue ?? "", /USD 30 storage/, "what came off");
+
+    await storageCharge.accrueStorage({ cargoIds: [s.cargo] });
+    assert.equal(
+      (await invoiceWithPayments(s.invoiceId)).total.toString(),
+      "400",
+      "a waived bill is never charged again by the run"
+    );
+
+    const twice = await invoiceActions.chargeStorage(
+      {},
+      form({ invoiceId: s.invoiceId, remove: "1", reason: "Asked again by mistake" })
+    );
+    assert.match(twice.error ?? "", /no storage on those bills/, "taking off nothing is refused, not repeated");
     assert.equal((await invoiceWithPayments(s.invoiceId)).total.toString(), "400");
   });
 

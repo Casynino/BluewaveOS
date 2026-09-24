@@ -113,6 +113,22 @@ print that copy (`lib/invoice-accounts.ts`). Only drafts and bills issued before
 the copy existed print today's accounts. Editing an account never redraws a bill
 a customer is holding.
 
+**Storage charges itself; a person only takes it off.** By the owner's decision
+every issued bill past the free days carries ONE "Storage" line — days beyond
+the free ones at the rate on `CompanySetting` — and that line grows a day at a
+time until handover. `lib/storage-charge.ts` is the only thing that writes it:
+nightly just after Dar midnight (`/api/cron/storage-charge`), again when a bill
+is issued, and again at the counter before a handover, so the release check
+reads today's figure. It updates the one line rather than adding another, and a
+line already at today's figure is left alone. The clock starts when the
+container is marked arrived and stops at handover; a draft picks storage up on
+the day it is issued. A bill paid before storage landed keeps its due date as
+"on collection" rather than turning overdue. Finance takes it off with a reason
+(`storageWaivedAt`), one press covering every ticked bill on the payment screen,
+and a waived bill is never charged again until somebody puts it back by hand.
+Customers are told once, the morning their free days end (`/api/cron/storage`),
+and never again per day.
+
 **VAT is on `CompanySetting`, not in code.** A tax rate changes by law, not by
 deploy.
 

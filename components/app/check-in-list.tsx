@@ -106,12 +106,12 @@ type Lens =
    was put on this manifest here. */
 const LENSES: { key: Lens; label: string }[] = [
   { key: "all", label: "Expected" },
-  { key: "unchecked", label: "Not checked in" },
-  { key: "checked", label: "Checked in" },
-  { key: "verified", label: "Verified" },
+  { key: "unchecked", label: "Unchecked" },
+  { key: "checked", label: "Received" },
+  { key: "verified", label: "Signed off" },
   { key: "damaged", label: "Damaged" },
   { key: "missing", label: "Missing" },
-  { key: "discrepancies", label: "Issue" },
+  { key: "discrepancies", label: "Discrepancies" },
   { key: "added", label: "Added here" },
 ];
 
@@ -173,7 +173,17 @@ export function CheckInList({
   /** May this desk sign the box off over cargo nobody counted? */
   canConfirmUnchecked: boolean;
 }) {
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  /* Everything still open starts ticked — the common case is one answer for
+     the whole container, and unticking the few that do not apply is less
+     work than ticking eighty-eight of ninety by hand. */
+  const [picked, setPicked] = useState<Set<string>>(
+    () =>
+      new Set(
+        rows
+          .filter((r) => r.arrivedPackages === null && !r.missing)
+          .map((r) => r.id)
+      )
+  );
   const [lens, setLens] = useState<Lens>("all");
 
   const checked = rows.filter((r) => r.arrivedPackages !== null || r.missing).length;
@@ -252,26 +262,38 @@ export function CheckInList({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {pickableShown.length > 0 ? (
-            <Button type="button" size="sm" variant="outline" onClick={toggleAll}>
-              {allPicked ? "Clear" : `Tick all ${pickableShown.length}`}
-            </Button>
+          {open.length > 0 ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setPicked(new Set())}
+                disabled={pickedOpen.length === 0}
+              >
+                Clear
+              </Button>
+              <AcceptPicked
+                cargoIds={pickedOpen.map((r) => r.id)}
+                onDone={() => setPicked(new Set())}
+              />
+            </>
           ) : null}
-          {pickedOpen.length > 0 ? (
-            <AcceptPicked
-              cargoIds={pickedOpen.map((r) => r.id)}
-              onDone={() => setPicked(new Set())}
+          {/* The box is shut once, at the end. While rows are still open the
+              press that matters is the armful above it, and a desk that may
+              close a box over untouched cargo keeps its own control — that
+              permission exists for exactly that case. */}
+          {open.length === 0 || canConfirmUnchecked ? (
+            <FinishCheckIn
+              containerId={containerId}
+              remaining={open.map((r) => r.id)}
+              toVerify={
+                rows.filter((r) => r.arrivedPackages !== null && !r.verified && !r.discrepancy)
+                  .length
+              }
+              canConfirmUnchecked={canConfirmUnchecked}
             />
           ) : null}
-          <FinishCheckIn
-            containerId={containerId}
-            remaining={open.map((r) => r.id)}
-            toVerify={
-              rows.filter((r) => r.arrivedPackages !== null && !r.verified && !r.discrepancy)
-                .length
-            }
-            canConfirmUnchecked={canConfirmUnchecked}
-          />
         </div>
         <div className="flex w-full flex-wrap items-center gap-1.5 border-t pt-3">
           {LENSES.map((option) => {
@@ -569,7 +591,7 @@ function AcceptPicked({
       {cargoIds.map((id) => (
         <input key={id} type="hidden" name="cargoIds" value={id} />
       ))}
-      <SubmitButton size="sm" pendingLabel="Checking in…">
+      <SubmitButton size="sm" pendingLabel="Checking in…" disabled={cargoIds.length === 0}>
         <CheckCheck />
         Check in {cargoIds.length} picked
       </SubmitButton>

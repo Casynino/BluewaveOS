@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { accrueStorageQuietly } from "@/lib/storage-charge";
 import { parseScan } from "@/lib/qr";
 import { checkRelease, RELEASE_INCLUDE } from "@/lib/release";
 import { recordScan, resolveScanToken } from "@/lib/scan";
@@ -305,6 +306,9 @@ export async function scanBoxForRelease(
     return { error: `Stop — that box belongs to ${scanned.reference}, not to this pickup. Do not hand it over.`, at };
   }
 
+  /* Storage up to this moment, so the check below reads today's figure and
+     not last night's. */
+  await accrueStorageQuietly([cargoId]);
   const cargo = await prisma.cargo.findFirst({
     where: { id: cargoId, deletedAt: null },
     include: { ...RELEASE_INCLUDE, release: true },

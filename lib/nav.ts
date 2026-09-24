@@ -251,6 +251,10 @@ const SUPPORT_SECTIONS: NavSection[] = [
       { label: "Credit", href: "/app/finance/credit", icon: "CalendarClock", permissions: ["finance.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
       { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      /* The counter holds invoice.priceConfirm and had nowhere to press it:
+         a desk that can turn a price into a bill and cannot reach the list
+         sends the customer away to wait for somebody else. */
+      { label: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
       { label: "Merge Payment", href: "/app/finance/payments/new", icon: "Layers", permissions: ["payment.submit"] },
       { label: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
       { label: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },

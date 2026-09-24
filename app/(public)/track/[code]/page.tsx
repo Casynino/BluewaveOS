@@ -390,7 +390,7 @@ function Result({
               <MergedCharge merged={merged} reference={result.reference} wa={wa} whatsappLabel={result.whatsappLabel} />
             ) : !charge ? (
               <p className="text-bw-muted">
-                Your invoice is raised once the cargo is checked in at our Dar es Salaam warehouse. It will appear here and in your account.
+                Your invoice is raised once your cargo reaches our Dar es Salaam warehouse. It will appear here and in your account.
               </p>
             ) : full ? (
               <FullCharge result={result} invoiceHref={invoiceHref} wa={wa} />
@@ -456,7 +456,7 @@ function Result({
                 </dl>
                 {!storage.collected ? (
                   <p className="border-t border-bw-line bg-bw-panel px-4 py-3 text-sm text-bw-muted">
-                    Free storage is counted from the day our Dar warehouse confirmed your cargo.
+                    Free storage is counted from the day your cargo arrived in Dar es Salaam.
                     {storage.charged ? ` After ${storage.freeDays} days storage is charged — collecting sooner costs less.` : ""}
                   </p>
                 ) : null}

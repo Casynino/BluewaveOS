@@ -20,7 +20,7 @@ import { billingMeasurement, priceConsignment } from "@/lib/invoice-draft";
 import { announceCargoEvent } from "@/lib/cargo-events";
 import { notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
-import { storageOnCargo } from "@/lib/storage-fee";
+import { accrueStorage, accrueStorageQuietly } from "@/lib/storage-charge";
 import {
   applyVat,
   companySettings,
@@ -480,6 +480,9 @@ export async function issueInvoice(
   } catch (error) {
     return { error: formMessage(error, "That invoice was not issued.") };
   }
+
+  /* A bill issued past the free days carries its storage from the start. */
+  await accrueStorageQuietly([invoice.cargoId]);
 
   revalidatePath("/app/finance/invoices");
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
@@ -1390,19 +1393,13 @@ export async function undoReprice(
 }
 
 /**
- * PUT THE FLOOR RENT ON THE BILL, OR TAKE IT OFF AGAIN.
+ * TAKE THE STORAGE OFF, OR PUT IT BACK.
  *
- * Never automatic. The figure is worked out from the day Dar booked the boxes
- * in, less the free days, at the rate on CompanySetting — and then a person
- * decides. Whether to charge a customer who was three days late is a commercial
- * judgement, and a charge that appears by itself is one nobody can explain when
- * the customer rings.
- *
- * EVERY DAY IS CHARGED ONCE. The clock keeps running after a charge is added,
- * so the same bill is charged again a week later; what goes on it then is the
- * days since, never the whole run a second time. The days already billed are
- * counted off the lines that are on the bill, so the arithmetic survives a
- * waiver, a rate that moved and a counter that pressed the button twice.
+ * Storage is charged by itself past the free days (lib/storage-charge.ts).
+ * What a desk decides is the exception: waiving it for a customer, with a
+ * reason, or putting it back after a waiver. Taking it off marks the bill so
+ * the nightly charge leaves it alone; putting it back clears the mark and
+ * charges it up to today.
  */
 export async function chargeStorage(
   _prev: ActionState,
@@ -1412,250 +1409,224 @@ export async function chargeStorage(
 
   const invoiceId = String(formData.get("invoiceId") ?? "");
   const remove = String(formData.get("remove") ?? "") === "1";
-  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (remove) {
+    return waiveStorageOn(actor, [invoiceId], String(formData.get("reason") ?? ""));
+  }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: {
-      items: true,
-      cargo: { include: { darReceiving: true, release: true } },
-    },
+    include: { items: { where: { category: "Storage" } } },
   });
   if (!invoice) return { error: "That invoice no longer exists." };
-  if (invoice.status === "CANCELLED") {
-    return { error: "That invoice is cancelled." };
+  if (invoice.status === "CANCELLED") return { error: "That invoice is cancelled." };
+  if (invoice.status === "DRAFT") {
+    return { error: "Storage goes on when the bill is issued." };
   }
   const settled = await settledRefusal(actor, invoice);
   if (settled) return { error: settled };
-
-  const existing = invoice.items.filter((i) => i.category === "Storage");
-  /* Days, not money: the rate can have moved between one charge and the next,
-     and what must not happen twice is a day being charged, not a dollar. */
-  const chargedDays = existing.reduce(
-    (sum, i) => sum.add(i.quantity),
-    new Prisma.Decimal(0)
-  );
-
-  if (remove) {
-    if (existing.length === 0) return { error: "There is no storage on it." };
-    const why = reason || "Storage taken off at the counter";
-
-    /*
-      WORKED OUT AGAIN INSIDE THE TRANSACTION, LIKE THE CHARGE BELOW.
-
-      The lines and the bill above were read before the permission check ran.
-      Taking the waiver off a copy that old subtracts from a subtotal another
-      desk has since discounted or added a charge to, and writes that desk's
-      figure back out of the bill along with the storage. What comes off here
-      is the storage that is on the row nobody else can be writing, and what
-      goes back is that row's own subtotal less exactly those lines.
-    */
-    const waived = await prisma.$transaction(async (tx) => {
-      const live = await billForUpdate(tx, invoice.id);
-      const lines = await tx.invoiceItem.findMany({
-        where: { invoiceId: invoice.id, category: "Storage" },
-        select: { id: true, amount: true, quantity: true },
-      });
-      if (lines.length === 0) return null;
-      const off = lines.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0));
-      const days = lines.reduce((sum, i) => sum.add(i.quantity), new Prisma.Decimal(0));
-
-      const subtotal = live.subtotal.sub(off);
-      const { vatAmount, total } = applyVat(subtotal, live.vatPercent, live.vatInclusive);
-
-      /* The lines come off the bill, so what the waiver was worth and who
-         decided it lives where every other change to a figure a customer has
-         been shown lives — written before it takes effect. */
-      await recordFieldChange(
-        {
-          actor,
-          entity: "Invoice",
-          entityId: invoice.id,
-          field: "total",
-          oldValue: live.total.toString(),
-          newValue: total.toString(),
-          reason: why,
-        },
-        tx
-      );
-      await tx.invoiceItem.deleteMany({
-        where: { id: { in: lines.map((i) => i.id) } },
-      });
-      await tx.invoice.update({
-        where: { id: invoice.id },
-        data: {
-          subtotal,
-          vatAmount,
-          total,
-          totalTzs: live.fxRate ? usdToTzs(total, live.fxRate) : null,
-        },
-      });
-
-      /* Written with the money it describes: a waiver nobody can name is the
-         one thing worse than a waiver nobody agreed. */
-      await recordAudit(
-        {
-          actor,
-          action: "invoice.storage.waive",
-          entity: "Invoice",
-          entityId: invoice.id,
-          summary: `Waived ${invoice.currency} ${off} of storage on ${invoice.number}: ${why}`,
-          metadata: {
-            amount: off.toString(),
-            days: days.toString(),
-            wasTotal: live.total.toString(),
-            nowTotal: total.toString(),
-            reason: why,
-          },
-        },
-        tx
-      );
-      return { off };
-    });
-
-    if (!waived) return { error: "There is no storage on it." };
-
-    await refreshInvoiceStatus(invoice.id);
-
-    revalidatePath(`/app/finance/invoices/${invoice.id}`);
-    return { ok: "Storage taken off." };
+  if (invoice.items.length > 0 && !invoice.storageWaivedAt) {
+    return { ok: "Storage is already on this bill." };
   }
 
   const settings = await companySettings();
-  const position = storageOnCargo(invoice.cargo, settings);
-
-  if (!position.configured) {
+  if (!settings || !settings.storagePerDay.greaterThan(0)) {
     return {
       error:
         "No storage rate is set. An administrator sets one in Settings before it can be charged.",
     };
   }
-  if (position.chargeableDays <= 0) {
-    return {
-      ok: `Still inside the ${position.freeDays} free days — nothing to charge.`,
-    };
-  }
 
-  /* What is left to bill: the days the clock has run, less the days already on
-     this bill. Zero of them is the second press of the same button, and the
-     answer to that is nothing at all. */
-  const days = new Prisma.Decimal(position.chargeableDays).sub(chargedDays);
-  if (days.lessThanOrEqualTo(0)) {
-    return {
-      ok:
-        existing.length > 0
-          ? `Storage to day ${position.chargeableDays} is already on this bill.`
-          : "Storage is already on this bill.",
-    };
-  }
-  /* Priced at the rate in force now, for the days now being charged; the days
-     charged last month keep the rate they were charged at. The figures are
-     worked out again inside the transaction below, against the bill as it
-     stands there — these are only what the reason sentence says. */
-  const why =
-    reason ||
-    (existing.length > 0
-      ? `Storage for ${days} further day(s) beyond the ${position.freeDays} free`
-      : `Storage for ${days} day(s) beyond the ${position.freeDays} free`);
-
-  /*
-    COUNTED AGAIN INSIDE THE TRANSACTION.
-
-    The days above were counted against a bill read before the rate and the
-    company's settings were fetched. Two presses a moment apart — a second
-    press, or a form the browser retried — both read that older copy, and the
-    customer was charged the same day's floor rent twice. The days already
-    billed are counted again here, against the row nobody else can be writing,
-    and a day that has been charged is never charged again.
-  */
-  const charged = await prisma.$transaction(async (tx) => {
-    /* The bill as it stands now, not as it stood before the settings were
-       read: another desk may have discounted it in between. */
-    const live = await billForUpdate(tx, invoice.id);
-    const billed = await tx.invoiceItem.aggregate({
-      where: { invoiceId: invoice.id, category: "Storage" },
-      _sum: { quantity: true },
-    });
-    const billedDays = new Prisma.Decimal(billed._sum.quantity ?? 0);
-    const owed = new Prisma.Decimal(position.chargeableDays).sub(billedDays);
-    if (owed.lessThanOrEqualTo(0)) return null;
-
-    const owedAmount = position.perDay.mul(owed).toDecimalPlaces(2);
-    const liveSubtotal = live.subtotal.add(owedAmount);
-    const money = applyVat(liveSubtotal, live.vatPercent, live.vatInclusive);
-
-    await recordFieldChange(
-      {
-        actor,
-        entity: "Invoice",
-        entityId: invoice.id,
-        field: "total",
-        oldValue: live.total.toString(),
-        newValue: money.total.toString(),
-        reason: why,
-      },
-      tx
-    );
-    await tx.invoiceItem.create({
-      data: {
-        invoiceId: invoice.id,
-        description:
-          billedDays.greaterThan(0)
-            ? `Storage — ${owed} further day(s) beyond ${position.freeDays} free`
-            : `Storage — ${owed} day(s) beyond ${position.freeDays} free`,
-        quantity: owed,
-        unit: "day",
-        unitPrice: position.perDay,
-        amount: owedAmount,
-        category: "Storage",
-        taxable: true,
-      },
-    });
-    await tx.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        subtotal: liveSubtotal,
-        vatAmount: money.vatAmount,
-        total: money.total,
-        totalTzs: live.fxRate ? usdToTzs(money.total, live.fxRate) : null,
-      },
-    });
-    /* Written with the line it describes. The calculation is on it — the days
-       the clock had run, the days already billed, and the rate they were
-       charged at — because the question a customer asks is never "what is the
-       total" but "what are these dollars for". */
-    await recordAudit(
-      {
-        actor,
-        action: "invoice.storage.charge",
-        entity: "Invoice",
-        entityId: invoice.id,
-        summary: `Added ${invoice.currency} ${owedAmount} storage to ${invoice.number} (${owed} day(s)${
-          billedDays.greaterThan(0) ? `, ${billedDays} already billed` : ""
-        })`,
-        metadata: {
-          amount: owedAmount.toString(),
-          days: owed.toString(),
-          daysAlreadyBilled: billedDays.toString(),
-          chargeableDays: position.chargeableDays,
-          perDay: position.perDay.toString(),
-          wasTotal: live.total.toString(),
-          nowTotal: money.total.toString(),
+  if (invoice.storageWaivedAt) {
+    await prisma.$transaction(async (tx) => {
+      await recordFieldChange(
+        {
+          actor,
+          entity: "Invoice",
+          entityId: invoice.id,
+          field: "storageWaived",
+          oldValue: `Waived — ${invoice.storageWaivedReason ?? "no reason given"}`,
+          newValue: "Charged",
+          reason: "Storage put back on the bill",
         },
-      },
-      tx
-    );
-    return { days: owed, amount: owedAmount, billedDays };
-  });
-
-  if (!charged) {
-    return { ok: `Storage to day ${position.chargeableDays} is already on this bill.` };
+        tx
+      );
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { storageWaivedAt: null, storageWaivedReason: null },
+      });
+    });
   }
 
-  await refreshInvoiceStatus(invoice.id);
-
+  const { charged } = await accrueStorage({ cargoIds: [invoice.cargoId] });
   revalidatePath(`/app/finance/invoices/${invoice.id}`);
-  return { ok: `${invoice.currency} ${charged.amount} of storage added.` };
+  if (!charged.includes(invoice.id)) {
+    const fresh = await prisma.invoiceItem.count({
+      where: { invoiceId: invoice.id, category: "Storage" },
+    });
+    return fresh > 0
+      ? { ok: "Storage is back on the bill." }
+      : { ok: `Still inside the ${settings.freeStorageDays} free days — it goes on by itself after that.` };
+  }
+  await recordAudit({
+    actor,
+    action: "invoice.storage.charge",
+    entity: "Invoice",
+    entityId: invoice.id,
+    summary: `Put storage back on ${invoice.number}`,
+  });
+  return { ok: "Storage is back on the bill." };
+}
+
+/**
+ * Take the storage off several bills at once — the payment screen, with the
+ * customer at the counter. One reason covers them all; each bill writes its
+ * own history.
+ */
+export async function waiveStorage(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const actor = await authorize("invoice.discount");
+  const ids = formData.getAll("invoiceId").map(String).filter(Boolean);
+  return waiveStorageOn(actor, ids, String(formData.get("reason") ?? ""));
+}
+
+async function waiveStorageOn(
+  actor: Awaited<ReturnType<typeof authorize>>,
+  invoiceIds: string[],
+  rawReason: string
+): Promise<ActionState> {
+  const reason = rawReason.trim().slice(0, 300);
+  if (!reason) return { error: "Say why the storage is being taken off." };
+  if (invoiceIds.length === 0) return { error: "Tick the cargo first." };
+
+  const invoices = await prisma.invoice.findMany({
+    where: { id: { in: invoiceIds } },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      cargoId: true,
+      currency: true,
+      storageWaivedAt: true,
+    },
+  });
+  let taken = 0;
+  let total = new Prisma.Decimal(0);
+  let currency = "USD";
+  for (const invoice of invoices) {
+    if (invoice.status === "CANCELLED" || invoice.status === "DRAFT") continue;
+    const settled = await settledRefusal(actor, invoice);
+    if (settled) return { error: `${invoice.number}: ${settled}` };
+
+    /*
+      WORKED OUT INSIDE THE TRANSACTION, BEHIND THE BILL'S OWN LOCK.
+
+      The lines and the subtotal above were read before the permission check
+      ran. Subtracting from a copy that old writes back a figure another desk
+      has since changed — a discount agreed on the phone while the counter
+      takes the rent off vanishes with it, from a bill the customer has
+      already been given. What comes off here is the storage that is on the
+      row nobody else can be writing.
+    */
+    const off = await prisma.$transaction(async (tx) => {
+      const live = await billForUpdate(tx, invoice.id);
+      const lines = await tx.invoiceItem.findMany({
+        where: { invoiceId: invoice.id, category: "Storage" },
+        select: { id: true, amount: true },
+      });
+      const taking = lines.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0));
+      /* Nothing on it and already let off: a second press is somebody pressing
+         twice, not a second decision, and it must not write a second reason
+         against a bill nobody changed. Marking a bill that is inside its free
+         days is a decision — "never charge this one" — and goes through. */
+      if (taking.isZero() && invoice.storageWaivedAt) return null;
+      const subtotal = live.subtotal.sub(taking);
+      const { vatAmount, total: newTotal } = applyVat(
+        subtotal,
+        live.vatPercent,
+        live.vatInclusive
+      );
+
+      await recordFieldChange(
+        {
+          actor,
+          entity: "Invoice",
+          entityId: invoice.id,
+          field: "storageWaived",
+          oldValue: taking.isZero()
+            ? "Charged (nothing yet)"
+            : `${invoice.currency} ${taking} storage`,
+          newValue: "Waived",
+          reason,
+        },
+        tx
+      );
+      /* The figure the bill moved by, in the ledger's own words, so a payment
+         taken before the waiver still reads as the bill the customer saw. */
+      if (!taking.isZero()) {
+        await recordFieldChange(
+          {
+            actor,
+            entity: "Invoice",
+            entityId: invoice.id,
+            field: "total",
+            oldValue: live.total.toString(),
+            newValue: newTotal.toString(),
+            reason,
+          },
+          tx
+        );
+      }
+      if (lines.length > 0) {
+        await tx.invoiceItem.deleteMany({ where: { id: { in: lines.map((i) => i.id) } } });
+      }
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          subtotal,
+          vatAmount,
+          total: newTotal,
+          totalTzs: live.fxRate ? usdToTzs(newTotal, live.fxRate) : null,
+          storageWaivedAt: new Date(),
+          storageWaivedReason: reason,
+        },
+      });
+      return { taking, wasTotal: live.total, nowTotal: newTotal };
+    });
+    if (!off) continue;
+
+    await recordAudit({
+      actor,
+      action: "invoice.storage.waive",
+      entity: "Invoice",
+      entityId: invoice.id,
+      summary: `Waived ${invoice.currency} ${off.taking} of storage on ${invoice.number} — ${reason}`,
+      /* The bill on either side of the waiver. "What was taken off" is not the
+         same question as "what the bill came to", and the second is the one
+         asked when a customer disputes what they were charged. */
+      metadata: {
+        amount: off.taking.toString(),
+        wasTotal: off.wasTotal.toString(),
+        nowTotal: off.nowTotal.toString(),
+        reason,
+      },
+    });
+    await refreshInvoiceStatus(invoice.id);
+    revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    taken++;
+    total = total.add(off.taking);
+    currency = invoice.currency;
+  }
+  if (taken === 0) return { error: "There is no storage on those bills." };
+  revalidatePath("/app/finance/payments");
+  return {
+    ok:
+      taken === 1
+        ? `${currency} ${total} of storage taken off. It will not be charged again.`
+        : `${currency} ${total} of storage taken off ${taken} bills. It will not be charged again.`,
+  };
 }
 
 

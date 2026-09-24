@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import { accrueStorageQuietly } from "@/lib/storage-charge";
 import { Prisma, type RateBasis } from "@prisma/client";
 
 import { recordAudit, recordFieldChange } from "@/lib/audit";
@@ -92,6 +94,8 @@ export async function confirmPrices(
     waiting.map((c) => c.id),
     ctx
   );
+  /* A bill issued past the free days carries its storage from the start. */
+  await accrueStorageQuietly(waiting.map((c) => c.id));
 
   await recordAudit({
     actor,

@@ -477,7 +477,7 @@ describe("what the merged letter says about storage", () => {
     }
   });
 
-  test("two currencies in one group are never added together to make a sentence", async () => {
+  test("a bill in another currency is left alone rather than charged in dollars", async () => {
     const s = await scene();
     try {
       const suffix = tag();
@@ -492,10 +492,20 @@ describe("what the merged letter says about storage", () => {
         assert.ok(done.ok, done.error);
       }
 
+      /* The rate is quoted in dollars a day. Putting those dollars on a bill
+         raised in shillings would add a USD column to a TZS column on one
+         invoice, which is the one thing money in this system never does. The
+         shilling bill carries no storage at all, and the group's sentence is
+         the dollars it really asks for. */
+      const lines = await prisma.invoiceItem.findMany({
+        where: { invoiceId: second.invoice.id, category: "Storage" },
+      });
+      assert.equal(lines.length, 0, "no dollars on a shilling bill");
+
       const merged = await combined.mergedBillFor(first.reference);
       assert.ok(merged?.storage);
-      assert.equal(merged.storage.charged, null, "dollars and shillings do not add up");
-      assert.equal(combined.mergeLetterContextFor(merged).storageCharge, null);
+      assert.equal(merged.storage.charged?.toString(), "65", "only the dollar bill carries any");
+      assert.equal(merged.storage.chargedCurrency, "USD");
     } finally {
       await unseed(s);
     }
@@ -555,8 +565,16 @@ describe("two desks on the same bill at the same time", () => {
         /* Wait until the discount is standing at the gate: its own field
            change is written before the line it is blocked on. */
         for (let i = 0; i < 400; i++) {
+          /* The charge above wrote one of these and committed it; the
+             discount's own is invisible until it commits, which it cannot do
+             while it is held at the gate. Either name will do — what this
+             waits for is the bill having been moved once already. */
           const standing = await holder.fieldChange.count({
-            where: { entity: "Invoice", entityId: invoice.id, field: "total" },
+            where: {
+              entity: "Invoice",
+              entityId: invoice.id,
+              field: { in: ["total", "storage"] },
+            },
           });
           if (standing > 0) break;
           await new Promise((r) => setTimeout(r, 25));

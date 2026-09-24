@@ -58,6 +58,7 @@ import {
   formatDateTime,
   formatWeight,
 } from "@/lib/format";
+import { storageSettings } from "@/lib/cargo-events";
 import { prisma } from "@/lib/prisma";
 import {
   countsInContainer,
@@ -317,6 +318,10 @@ export default async function ContainerPage({
         : mayAmendArrived && maySail
   );
 
+  /* The company's own storage terms, for the sentence the arrival dialog puts
+     in front of the press. Read once, never typed. */
+  const terms = await storageSettings(prisma);
+
   const advance = nextStep ? (
     <Card className="border-brand/30">
       <CardContent className="pt-6">
@@ -331,6 +336,15 @@ export default async function ContainerPage({
           canDepart={can(user.role, "container.depart")}
           canArrive={can(user.role, "container.arrive")}
           canClose={can(user.role, "container.close")}
+          arrival={{
+            reference: container.reference,
+            waiting: container.cargoLines.length,
+            terms: {
+              freeDays: terms.freeStorageDays,
+              perDay: terms.storagePerDay.toString(),
+              currency: terms.storageCurrency,
+            },
+          }}
           close={
             closing
               ? {
@@ -617,7 +631,11 @@ export default async function ContainerPage({
               </Button>
             ) : null}
             {can(user.role, "container.arrive") && container.status === "ARRIVED" && arrivalUndoable ? (
-              <UndoArrivalButton containerId={container.id} reference={container.reference} />
+              <UndoArrivalButton
+                containerId={container.id}
+                reference={container.reference}
+                waiting={container.cargoLines.length}
+              />
             ) : null}
             {(can(user.role, "receiving.china") || can(user.role, "receiving.dar")) &&
             container.cargoLines.length > 0 ? (

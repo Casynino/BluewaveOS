@@ -105,7 +105,7 @@ export default async function TrackPage() {
             />
           </div>
           <p className="mt-10 max-w-2xl text-bw-muted">
-            Once your goods are checked in at Dar, the invoice appears on the same page — in shillings and dollars, at
+            Once your goods reach our Dar warehouse, the invoice appears on the same page — in shillings and dollars, at
             the exchange rate it was issued with, with the accounts to pay into.
           </p>
         </Frame>

@@ -288,7 +288,7 @@ export default async function HowItWorksPage() {
                 items: [
                   "Check the photos and figures from Foshan",
                   "Track your reference while it is at sea",
-                  "Keep your phone on — we call the day it is checked in at Dar",
+                  "Keep your phone on — we call the day it lands in Dar",
                 ],
               },
               {

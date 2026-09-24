@@ -285,10 +285,6 @@ export default async function CargoDetailPage({
       )
     : new Prisma.Decimal(0);
   const storageOnBill = Number(storageBilled);
-  /* What another press would put on the bill: the run so far, less what is
-     already charged for. Naming the whole calculated figure on the button is
-     how the first week gets charged twice. */
-  const storageToAdd = Number(Prisma.Decimal.max(0, storage.amount.sub(storageBilled)));
 
   const otherUnpaid = otherBills.filter((i) => !balanceOf(i).settled).length;
 
@@ -874,9 +870,12 @@ export default async function CargoDetailPage({
                   ? formatMoney(storageOnBill, billHere.currency)
                   : null
               }
-              toAdd={formatMoney(storageToAdd, storage.currency)}
-              canAdd={storageToAdd > 0}
-              since={formatDate(dar.receivedAt)}
+              since={formatDate(cargo.darArrivedAt ?? dar.receivedAt)}
+              waived={
+                billHere.storageWaivedAt
+                  ? billHere.storageWaivedReason ?? "no reason given"
+                  : null
+              }
             />
           ) : null}
 
@@ -976,11 +975,15 @@ export default async function CargoDetailPage({
                   : null
               }
               storageLine={
-                !storage.configured || !dar
+                !storage.configured || !cargo.darArrivedAt
                   ? null
-                  : storage.chargeableDays > 0
-                    ? `Storage ${formatMoney(storage.amount, storage.currency)} so far${storageOnBill > 0 ? ` · ${formatMoney(storageOnBill, billHere?.currency ?? "USD")} on the bill` : " · not on the bill yet"}`
-                    : `No storage fee · ${Math.max(0, storage.freeDays - storage.daysHeld + 1)} free day${storage.freeDays - storage.daysHeld + 1 === 1 ? "" : "s"} left`
+                  : billHere?.storageWaivedAt
+                    ? "Storage taken off this bill"
+                    : storage.chargeableDays > 0
+                      ? storageOnBill > 0
+                        ? `Includes ${formatMoney(storageOnBill, billHere?.currency ?? "USD")} storage (${storage.chargeableDays} day${storage.chargeableDays === 1 ? "" : "s"}) — added by itself each day until pickup`
+                        : `Storage ${formatMoney(storage.amount, storage.currency)} — goes on the bill once it is issued`
+                      : `No storage fee · ${Math.max(0, storage.freeDays - storage.daysHeld + 1)} free day${storage.freeDays - storage.daysHeld + 1 === 1 ? "" : "s"} left`
               }
               accounts={accounts.map((a) => ({
                 id: a.id,

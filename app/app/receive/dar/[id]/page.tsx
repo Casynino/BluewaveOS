@@ -17,7 +17,9 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCbm, formatDate } from "@/lib/format";
+import { manifestTally } from "@/lib/manifest-tally";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -189,6 +191,18 @@ export default async function CheckInContainerPage({
     }),
     { packages: 0, pieces: 0, cbm: 0 }
   );
+  /* Packages expected, received and missing — the one piece of arithmetic
+     every screen shares, so the dock, the container page and the customer's
+     tracking can never disagree about the same box. */
+  const tally = manifestTally(
+    container.cargoLines.map((l) => ({
+      expectedPackages:
+        l.cargo.chinaReceiving?.packagesCount ?? l.cargo.declaredPackages ?? 0,
+      receivedPackages: l.cargo.darReceiving?.packagesCount ?? null,
+      missing: l.cargo.status === "MISSING_AT_DAR",
+    }))
+  );
+
   const confirmed = container.cargoLines.reduce(
     (sum, l) => ({
       packages: sum.packages + (l.cargo.darReceiving?.packagesCount ?? 0),
@@ -211,7 +225,6 @@ export default async function CheckInContainerPage({
       (e) => e.type === "UNIDENTIFIED_CARGO" || e.type === "WRONG_CONTAINER"
     )
   ).length;
-  const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
 
   const [boxesDone, boxesTotal] = await Promise.all([
     prisma.cargoBox.count({ where: { voidedAt: null, darReceivedAt: { not: null }, darContainerId: container.id } }),
@@ -248,29 +261,22 @@ export default async function CheckInContainerPage({
         }
       />
 
-      {/*
-        THE SCANNER IS A BAR, NOT A CHAPTER.
-
-        Every box off the container is scanned here — arrival only; each
-        consignment is still checked in on the list below. It sat in a full card
-        with a paragraph of explanation, which put the job itself a screen down
-        on the phone the dock actually uses. The rule it explains is the same
-        one the scanner says out loud when it happens.
-      */}
-      <div className="rounded-xl border bg-card p-4 shadow-soft">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="flex items-center gap-2 text-sm font-semibold">
+      {/* Every box off the container, scanned one at a time. Arrival only —
+          each consignment is still checked in below. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
             <ScanLine className="size-4" />
             {T("Scan boxes off the container")}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {T("Scan the sticker on every box as it comes off. Each box is marked as arrived with your name and the time; a box from another container, one scanned twice or one already handed over is flagged straight away.")}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {T("A box from another container, one scanned twice or one already handed over is flagged straight away.")}
-          </p>
-        </div>
-        <div className="mt-3">
+        </CardHeader>
+        <CardContent>
           <BoxScanner mode="dar" containerId={container.id} initial={boxProgress} />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/*
         THE CONTAINER'S OWN ARITHMETIC, ABOVE THE ROWS THAT MAKE IT.
@@ -282,59 +288,71 @@ export default async function CheckInContainerPage({
       */}
       <StatStrip
         chips={[
+          /*
+            THE PACKING LIST AGAINST THE FLOOR, IN PACKAGES.
+
+            Expected is China's count and never moves. Received is what Dar
+            counted off the box. Missing is the two of them subtracted — a
+            whole consignment that never came off, plus every short count
+            inside one that did — and it is worked out here rather than typed,
+            so nobody can make a box add up by lowering a total. See
+            lib/manifest-tally.ts.
+          */
           {
-            label: "Packages",
-            /* The gap is named only once the box is worked through: until then
-               it is the job in progress, not a shortage. */
-            value:
-              waiting === 0 && confirmed.packages !== expected.packages
-                ? `${confirmed.packages} / ${expected.packages} (${sign(confirmed.packages - expected.packages)})`
-                : `${confirmed.packages} / ${expected.packages}`,
-            icon: PackageOpen,
-            tone:
-              waiting > 0
-                ? "neutral"
-                : confirmed.packages === expected.packages
-                  ? "success"
-                  : "warning",
+            label: "Expected",
+            value: String(tally.expected),
+            icon: ClipboardCheck,
+            hint: "On the packing list",
           },
-          ...(expected.pieces > 0
-            ? [
-                {
-                  label: "Pieces",
-                  value: `${confirmed.pieces} / ${expected.pieces}`,
-                  icon: PackageOpen,
-                },
-              ]
-            : []),
+          {
+            label: "Received",
+            value: String(tally.received),
+            icon: PackageOpen,
+            tone: tally.inProgress ? "neutral" : tally.missing === 0 ? "success" : "warning",
+            hint: "Counted off the box",
+          },
+          {
+            label: "Missing",
+            value: String(tally.missing),
+            icon: PackageX,
+            tone: tally.missing > 0 ? "danger" : "neutral",
+            hint: "Expected and not found",
+          },
+          {
+            label: "Available",
+            value: String(tally.available),
+            icon: ClipboardCheck,
+            hint: "Physically here",
+          },
+          {
+            label: "Discrepancy",
+            value: String(tally.discrepancy),
+            icon: TriangleAlert,
+            tone: tally.discrepancy > 0 ? "warning" : "neutral",
+            hint: tally.over > 0 ? `${tally.over} more than the paper` : "Packing list against the floor",
+          },
           {
             label: "Volume",
             value: `${formatCbm(confirmed.cbm)} / ${formatCbm(expected.cbm)}`,
             icon: ScanSearch,
           },
+          /* The same box counted in consignments rather than packages: how
+             many rows are done, how many nobody has touched, how many never
+             came off at all. */
+          { label: "Counted", value: String(done), icon: ClipboardCheck, tone: "success", hint: "Consignments" },
           {
-            label: "Checked in",
-            value: `${done} / ${summary.expected}`,
+            label: "Unchecked",
+            value: String(waiting),
             icon: ClipboardCheck,
-            tone: "success",
+            tone: waiting > 0 ? "warning" : "success",
+            hint: "Consignments",
           },
           {
-            label: "Verified",
-            value: String(summary.verified),
-            icon: ClipboardCheck,
-            tone: summary.verified === summary.expected ? "success" : "neutral",
-          },
-          {
-            label: "Pending",
-            value: String(summary.pending),
-            icon: ClipboardCheck,
-            tone: summary.pending > 0 ? "warning" : "success",
-          },
-          {
-            label: "Missing",
+            label: "Missing lines",
             value: String(missing),
             icon: PackageX,
             tone: missing > 0 ? "danger" : "neutral",
+            hint: "Never came off",
           },
           {
             label: "Damaged",
@@ -343,10 +361,11 @@ export default async function CheckInContainerPage({
             tone: damaged > 0 ? "danger" : "neutral",
           },
           {
-            label: "Issue",
+            label: "Discrepancies",
             value: String(discrepancies),
             icon: TriangleAlert,
             tone: discrepancies > 0 ? "warning" : "neutral",
+            hint: "Consignments",
           },
           {
             label: "Added here",

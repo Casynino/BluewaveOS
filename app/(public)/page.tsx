@@ -377,7 +377,7 @@ export default async function HomePage() {
           </h2>
           <ol className="mt-10 grid gap-px overflow-hidden rounded-[3px] bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Arrive", "Your cargo is checked in at our Dar warehouse and counted again. Free storage starts that day."],
+              ["Arrive", "Your cargo lands in Dar es Salaam and comes into our warehouse. Free storage starts that day."],
               ["Pay", "Your invoice in shillings, at the rate of the day it is issued."],
               ["Ready", "Once payment is confirmed your pickup note is issued and we tell you it is ready."],
               ["Collect", "Bring your ID and pickup note to our Dar es Salaam warehouse."],

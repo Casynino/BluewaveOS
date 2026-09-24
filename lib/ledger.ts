@@ -144,6 +144,13 @@ export async function ledgerRows(locale: Locale = "en"): Promise<LedgerRow[]> {
           select: {
             id: true,
             number: true,
+            currency: true,
+            /* Read only when the bill has no storage history of its own — see
+               storageAt below. */
+            items: {
+              where: { category: "Storage" },
+              select: { amount: true, quantity: true },
+            },
             cargo: {
               select: {
                 id: true,
@@ -218,6 +225,144 @@ export async function ledgerRows(locale: Locale = "en"): Promise<LedgerRow[]> {
      derivation the verify list and the merge form read. */
   const billChanges = await billChangesFor(payments.map((p) => p.invoice.id));
 
+  /*
+    STORAGE AS IT STOOD WHEN THE MONEY MOVED.
+
+    Storage is charged onto a bill a day at a time and can be taken off, so
+    the bill today says nothing about a payment made last week: a freight
+    payment made before the free days ran out did not include storage. Each
+    payment is read against its own bill's storage history up to its moment,
+    which is why this cannot come from billChangesFor — that answers about a
+    bill, and this answers about a bill at a time.
+  */
+  const storageBillIds = [...new Set(payments.map((p) => p.invoice.id))];
+  const storageHistory = new Map<
+    string,
+    {
+      at: Date;
+      field: string;
+      oldValue: string | null;
+      newValue: string | null;
+      reason: string | null;
+      by: string | null;
+      number: string;
+    }[]
+  >();
+  if (storageBillIds.length > 0) {
+    const changes = await prisma.fieldChange.findMany({
+      where: {
+        entity: "Invoice",
+        entityId: { in: storageBillIds },
+        field: { in: ["storage", "storageWaived"] },
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        entityId: true,
+        field: true,
+        oldValue: true,
+        newValue: true,
+        reason: true,
+        createdAt: true,
+        actor: { select: { name: true } },
+      },
+    });
+    const numberOf = new Map(payments.map((p) => [p.invoice.id, p.invoice.number]));
+    for (const c of changes) {
+      const list = storageHistory.get(c.entityId) ?? [];
+      list.push({
+        at: c.createdAt,
+        field: c.field,
+        oldValue: c.oldValue,
+        newValue: c.newValue,
+        reason: c.reason,
+        by: c.actor?.name ?? null,
+        number: numberOf.get(c.entityId) ?? "",
+      });
+      storageHistory.set(c.entityId, list);
+    }
+  }
+
+  /** The storage tag, if any, for one payment against one bill. */
+  const storageAt = (
+    invoice: {
+      id: string;
+      number: string;
+      currency: string;
+      items: { amount: Prisma.Decimal; quantity: Prisma.Decimal }[];
+    },
+    at: Date
+  ): BillChange[] => {
+    const head = { invoiceId: invoice.id, invoiceNumber: invoice.number };
+    const history = storageHistory.get(invoice.id);
+    /* A bill carrying storage with nothing in its history had it put there
+       before the history was kept. It is read as it stands — saying nothing
+       would have the ledger deny a charge the customer paid. */
+    if (!history || history.length === 0) {
+      const amount = invoice.items.reduce((sum, i) => sum.add(i.amount), new Prisma.Decimal(0));
+      if (amount.lessThanOrEqualTo(0.005)) return [];
+      const days = invoice.items.reduce((sum, i) => sum.add(i.quantity), new Prisma.Decimal(0));
+      return [
+        {
+          ...head,
+          kind: "storage",
+          figure: `${invoice.currency} ${amount.toFixed(2)}`,
+          book: null,
+          volume: `${days.toString()} ${days.equals(1) ? "day" : "days"}`,
+          by: null,
+          at: null,
+          undo: null,
+        },
+      ];
+    }
+    let on: { amount: string; days: string } | null = null;
+    let off: { amount: string | null; reason: string; by: string | null } | null = null;
+    for (const h of history) {
+      if (h.at.getTime() > at.getTime()) break;
+      if (h.field === "storage") {
+        /* Written by lib/storage-charge.ts as "N day(s) · USD 35". */
+        const figure = h.newValue?.match(/^([\d.]+) day\(s\) · (\S+ [\d.]+)/);
+        on = figure ? { days: figure[1], amount: figure[2] } : null;
+        off = null;
+      } else if (h.newValue === "Waived") {
+        const figure = h.oldValue?.match(/^(\S+ [\d.]+) storage/);
+        on = null;
+        off = { amount: figure?.[1] ?? null, reason: h.reason ?? "", by: h.by };
+      } else {
+        /* Put back on: the next "storage" line says what it came to. */
+        off = null;
+      }
+    }
+    if (on) {
+      return [
+        {
+          ...head,
+          kind: "storage",
+          figure: on.amount,
+          book: null,
+          volume: `${on.days} ${Number(on.days) === 1 ? "day" : "days"}`,
+          by: null,
+          at: null,
+          undo: null,
+        },
+      ];
+    }
+    if (off) {
+      return [
+        {
+          ...head,
+          kind: "storageWaived",
+          figure: off.amount ?? "",
+          book: [off.reason, off.by].filter(Boolean).join(" — ") || null,
+          volume: null,
+          by: null,
+          at: null,
+          undo: null,
+        },
+      ];
+    }
+    return [];
+  };
+
   const rows: LedgerRow[] = [];
 
   for (const e of register) {
@@ -259,7 +404,10 @@ export async function ledgerRows(locale: Locale = "en"): Promise<LedgerRow[]> {
       const receipt = p.receipts[0] ?? null;
       rows.push({
         ...base,
-        changes: billChanges.get(p.invoice.id) ?? [],
+        changes: [
+          ...(billChanges.get(p.invoice.id) ?? []),
+          ...storageAt(p.invoice, e.at),
+        ],
         transport,
         credit: credit && !transport,
         title: p.customer.fullName,

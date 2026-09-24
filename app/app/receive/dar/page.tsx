@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { KpiCard } from "@/components/app/kpi-card";
-import { MarkArrivedButton } from "@/components/app/container-controls";
+import { ArrivalButton } from "@/components/app/arrival-button";
 import { UndoArrivalButton } from "@/components/app/undo-arrival-button";
 import { StatStrip } from "@/components/app/stat-strip";
 import { EmptyState } from "@/components/app/empty-state";
@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { storageSettings } from "@/lib/cargo-events";
 import { formatCbm, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -91,16 +92,35 @@ async function inboundContainers() {
 /** One row per container. The same table serves both halves of the dock. */
 type QueueRow = Awaited<ReturnType<typeof inboundContainers>>[number];
 
+/*
+  ONE SIZE FOR EVERY PRESS IN THE LAST COLUMN.
+
+  Twenty-eight pixels tall, eleven-pixel type, and an icon cut to match it. A
+  row of a table is not a page of forms: at the button's own default size the
+  pair on a landed row wrapped, and even at the label counter's size they sat
+  louder than the figures they belong to.
+*/
+const ROW_ACTION = "h-7 gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold [&_svg]:size-3.5";
+/* The correction beside the work: the same height and an outline rather than a
+   fill, so it reads as a button somebody may press and never as the decision
+   the row is actually about. Bare ghost text beside a filled press looked like
+   a stray label. */
+const ROW_UNDO = `${ROW_ACTION} border border-input font-medium text-muted-foreground hover:text-foreground`;
+
 function Queue({
   rows,
   query,
   emptyTitle,
   emptyDescription,
+  terms,
 }: {
   rows: QueueRow[];
   query: string;
   emptyTitle: string;
   emptyDescription: string;
+  /* The company's own storage terms, for the sentence the arrival dialog puts
+     in front of the press. */
+  terms: { freeDays: number; perDay: string; currency: string };
 }) {
   return rows.length === 0 ? (
           <EmptyState
@@ -327,25 +347,40 @@ function Queue({
                         /* At the port: check each consignment in on the
                            floor — that is "Arrived in Dar" for the customer,
                            and the first day of storage. */
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <Button asChild size="sm" variant={left > 0 ? "default" : "outline"}>
+                        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                          {untouched ? (
+                            <UndoArrivalButton
+                              containerId={container.id}
+                              reference={container.reference}
+                              waiting={container.cargoLines.length}
+                              className={ROW_UNDO}
+                            />
+                          ) : null}
+                          <Button
+                            asChild
+                            className={ROW_ACTION}
+                            variant={left > 0 ? "default" : "outline"}
+                          >
                             <Link href={`/app/receive/dar/${container.id}`}>
                               {left > 0 ? `${T("Check in")} (${left})` : T("Finish")}
                             </Link>
                           </Button>
-                          {untouched ? (
-                            <UndoArrivalButton containerId={container.id} reference={container.reference} />
-                          ) : null}
                         </div>
                       ) : sailing ? (
-                        <MarkArrivedButton containerId={container.id} />
+                        <ArrivalButton
+                          containerId={container.id}
+                          reference={container.reference}
+                          waiting={container.cargoLines.length}
+                          terms={terms}
+                          className={ROW_ACTION}
+                        />
                       ) : (
                         /* Nothing for Dar to do with a box still being filled
                            in Foshan — and arriving cannot be recorded for a
                            container that has not left. */
                         <Link
                           href={`/app/containers/${container.id}`}
-                          className="text-sm text-muted-foreground hover:underline"
+                          className="text-[11px] text-muted-foreground hover:underline"
                         >
                           {T("See what is in it")}
                         </Link>
@@ -381,6 +416,9 @@ export default async function DarReceivePage({
   const query = q?.trim().toLowerCase() ?? "";
 
   const arrived = await inboundContainers();
+  /* The company's own storage terms, for the sentence the arrival dialog puts
+     in front of the press. Read once for the page, never typed. */
+  const terms = await storageSettings(prisma);
 
   /*
     THE DOCK, IN NUMBERS.
@@ -621,6 +659,11 @@ export default async function DarReceivePage({
           query={query}
           emptyTitle={T("Nothing inbound")}
           emptyDescription={T("No container is on the water or waiting to be checked in.")}
+          terms={{
+            freeDays: terms.freeStorageDays,
+            perDay: terms.storagePerDay.toString(),
+            currency: terms.storageCurrency,
+          }}
         />
       </Card>
 

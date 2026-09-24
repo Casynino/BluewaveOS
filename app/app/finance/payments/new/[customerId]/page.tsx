@@ -58,7 +58,7 @@ export default async function MergePaymentForCustomer({
           orderBy: { issuedAt: "asc" },
           include: {
             payments: true,
-            items: { select: { category: true, amount: true, unit: true } },
+            items: { select: { category: true, amount: true, unit: true, quantity: true } },
             cargo: {
               select: {
                 reference: true,
@@ -121,24 +121,13 @@ export default async function MergePaymentForCustomer({
       continue;
     }
 
-    /* Storage accrued against what is already on the bill. The difference is
-       named on the row rather than folded in: folding it in would promise a
-       total the payment would then be refused for. */
-    const accrued = storageOnCargo(invoice.cargo, settings);
-    const onBill = invoice.items
-      .filter((i) => i.category === "Storage")
-      .reduce((s, i) => s.add(i.amount), new Prisma.Decimal(0));
+    /* What the nightly run has put on this bill. It is part of the figure the
+       customer is being asked for, so it is named on the row — the desk has to
+       know what it can take off. */
+    const storageLines = invoice.items.filter((i) => i.category === "Storage");
+    const onBill = storageLines.reduce((s, i) => s.add(i.amount), new Prisma.Decimal(0));
+    const storageDays = storageLines.reduce((s, i) => s + Number(i.quantity), 0);
     const rate = Number(invoice.fxRate) > 1 ? Number(invoice.fxRate) : null;
-    /* The rate the bill was pinned at, through the one place money changes
-       currency — a shilling worked out in a double here and to the shilling
-       in the action is a row that refuses the figure it printed. */
-    const accruedInBill =
-      accrued.currency === invoice.currency
-        ? accrued.amount
-        : invoice.fxRate && invoice.fxRate.greaterThan(1)
-          ? convert(accrued.amount, accrued.currency, invoice.currency, invoice.fxRate)
-          : null;
-    const uncharged = accruedInBill ? Prisma.Decimal.max(0, accruedInBill.sub(onBill)) : null;
 
     bills.push({
       invoiceId: invoice.id,
@@ -152,7 +141,10 @@ export default async function MergePaymentForCustomer({
       outstanding: Number(outstandingOf(invoice)),
       outstandingTzs: balanceOf(invoice).outstandingTzs?.toNumber() ?? null,
       rate,
-      storageUncharged: uncharged ? Number(uncharged) : 0,
+      /* What the nightly run has put on this bill, so the counter can take the
+         whole lot off in one press while the customer is here. */
+      storageOnBill: Number(onBill),
+      storageDays,
       standardRate: invoice.standardRate ? Number(invoice.standardRate) : null,
       appliedRate: invoice.appliedRate ? Number(invoice.appliedRate) : null,
       cbm: invoice.billableCbm ? Number(invoice.billableCbm) : null,

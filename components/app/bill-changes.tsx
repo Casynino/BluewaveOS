@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeftRight, BadgePercent, Scale, Undo2 } from "lucide-react";
+import { ArrowLeftRight, BadgePercent, Ban, Scale, Undo2, Warehouse } from "lucide-react";
 
 import { undoDiscount, undoInvoiceRate, undoReprice } from "@/lib/actions/invoices";
 import { FormMessage } from "@/components/app/form-message";
@@ -23,7 +23,7 @@ export type BillChange = {
   /** Always carried: a merged payment covers several bills, and every change
       belongs to exactly one of them. */
   invoiceNumber: string;
-  kind: "discount" | "reprice" | "fx";
+  kind: "discount" | "reprice" | "fx" | "storage" | "storageWaived";
   /** What the bill says now: "USD 50.00", "USD 380.00/CBM", "1 USD = 2,650 TZS". */
   figure: string;
   /** What the rate book said, on a re-price. */
@@ -51,6 +51,9 @@ export function mayUndo(
   tools: { canChangeBill: boolean; canChangeRate: boolean }
 ) {
   if (!change.undo) return false;
+  /* Storage is a fact about the money, not a change to undo from here: it is
+     taken off on the bill, with a reason. */
+  if (change.kind === "storage" || change.kind === "storageWaived") return false;
   /* Putting a change back takes the authority that made it: the bill's own
      desk for the exchange rate, the counter's for a price. */
   return change.kind === "fx" ? tools.canChangeRate : tools.canChangeBill;
@@ -60,6 +63,8 @@ const ICON = {
   discount: BadgePercent,
   reprice: Scale,
   fx: ArrowLeftRight,
+  storage: Warehouse,
+  storageWaived: Ban,
 } as const;
 
 /**
@@ -88,7 +93,14 @@ export function BillChangeBadges({
             ? `${tx("Discounted")} ${change.figure}`
             : change.kind === "fx"
               ? `${tx("Rate changed to")} ${change.figure}`
-              : [
+              : /* Storage as it stood when this money came in — not as the
+                   bill reads today. A payment made inside the free days
+                   carries neither tag. */
+                change.kind === "storage"
+                ? `${tx("Includes storage")} ${change.figure}${change.volume ? ` · ${change.volume}` : ""}`
+                : change.kind === "storageWaived"
+                  ? `${tx("Storage removed")}${change.figure ? ` ${change.figure}` : ""}${change.book ? ` · ${change.book}` : ""}`
+                  : [
                   `${tx("Re-priced")} ${change.figure}`,
                   change.volume,
                   `${tx("book")} ${change.book ?? tx("not recorded")}`,
@@ -195,7 +207,12 @@ function UndoOne({
       /* Finance agreeing to today's rate for a bill whose own rate is gone is
          a decision, not a default: the action refuses without this. */
       if (change.kind === "fx" && !change.undo?.recovered) data.set("useToday", "1");
-      const answer = await ACTION[change.kind]({}, data).catch(
+      /* Only the three that can be put back reach here — `canUndo` refuses the
+         storage tags, which are facts about the money rather than changes with
+         an undo. */
+      const undoable = ACTION[change.kind as keyof typeof ACTION];
+      if (!undoable) return;
+      const answer = await undoable({}, data).catch(
         (): { error?: string; ok?: string } => ({ error: "That did not work." })
       );
       setSaid(answer);

@@ -1,10 +1,13 @@
 /**
  * THE STORAGE CLOCK.
  *
- * It starts when Dar confirms the boxes on its floor — the physical arrival,
- * recorded on the receiving row — and at nothing else: not receipt in China,
- * not the departure, not the ship's arrival, not the ETA, not the invoice, not
- * the price being confirmed. Days are counted on the Dar es Salaam calendar
+ * It starts the day the container lands in Dar es Salaam — the arrival stamped
+ * on the consignment when the box is marked arrived — and at nothing else: not
+ * receipt in China, not the departure, not the ETA, not the invoice, not the
+ * price being confirmed. Dar's check-in afterwards is the warehouse's own count
+ * and never moves the date; a consignment whose container was never marked
+ * arrived falls back to the day Dar booked it in, so the clock always has a
+ * day. Days are counted on the Dar es Salaam calendar
  * (UTC+3, no summer time), so a consignment booked in at 01:00 local time is on
  * its first day, not the previous one's.
  *

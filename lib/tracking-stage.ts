@@ -367,8 +367,8 @@ const STAGE_LABEL: Record<StageCode, string> = {
   PACKED: "Container packed and sealed in Foshan",
   SHIPPED: "Shipped from China",
   AT_SEA: "At sea",
-  AT_DAR_PORT: "Arrived in Dar es Salaam — being checked in at our warehouse",
-  DAR_VERIFICATION: "Arrived in Dar — being checked in",
+  AT_DAR_PORT: "Arrived in Dar es Salaam — at our warehouse",
+  DAR_VERIFICATION: "At our Dar es Salaam warehouse",
   RECEIVED_DAR: "At our Dar warehouse — invoice being prepared",
   PRICING: "At our Dar warehouse — price being confirmed",
   PAYMENT_PENDING: "At our Dar warehouse — payment required before pickup",
@@ -570,8 +570,8 @@ export function publicJourney(input: JourneyInput): Journey {
   const late = Boolean(delay);
 
   const arrivedDetail: Partial<Record<StageCode, string>> = {
-    AT_DAR_PORT: "Being checked in at our warehouse",
-    DAR_VERIFICATION: "Being checked in",
+    AT_DAR_PORT: "Your free storage days have started",
+    DAR_VERIFICATION: "Your free storage days have started",
     PRICING: "Price being confirmed",
     RECEIVED_DAR: "Invoice being prepared",
     PAYMENT_PENDING: "Pay first, then collect",

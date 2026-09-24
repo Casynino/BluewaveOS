@@ -13,6 +13,7 @@ import {
   updateVoyage,
   type ActionState,
 } from "@/lib/actions/containers";
+import { ArrivalButton, type StorageTerms } from "@/components/app/arrival-button";
 import { FormMessage } from "@/components/app/form-message";
 import {
   ClosePanel,
@@ -389,6 +390,7 @@ export function AdvancePanel({
   canArrive,
   canClose,
   close,
+  arrival,
   sailing,
 }: {
   containerId: string;
@@ -396,6 +398,14 @@ export function AdvancePanel({
   canDepart: boolean;
   canArrive: boolean;
   canClose: boolean;
+  /* What the arrival dialog has to say before it is pressed: how many
+     consignments land with the box, and the company's storage terms. Arriving
+     is the one milestone that starts a customer's money running. */
+  arrival?: {
+    reference: string;
+    waiting: number;
+    terms: StorageTerms;
+  } | null;
   /* What the close has to ask about before it can happen. Null for every
      other milestone: departing and arriving are one press and ask nothing. */
   close?: {
@@ -502,6 +512,16 @@ export function AdvancePanel({
           outstanding={close.outstanding}
           targets={close.targets}
           mayReportMissing={close.mayReportMissing}
+        />
+      ) : allowed && step.to === "ARRIVED" && arrival ? (
+        /* LANDING THE BOX IS ASKED FOR IN A DIALOG. Everything on it counts as
+           arrived that day, every customer is told and every storage clock
+           starts — so the press says so first, in the company's own terms. */
+        <ArrivalButton
+          containerId={containerId}
+          reference={arrival.reference}
+          waiting={arrival.waiting}
+          terms={arrival.terms}
         />
       ) : allowed ? (
         /* ONE PRESS, NOT A FORM. The moment of the press is the date: the

@@ -146,7 +146,7 @@ export default async function PortalCargoPage({
           <p className="mt-1.5 text-sm text-muted-foreground">
             {t(
               locale,
-              "Your cargo has arrived in Dar es Salaam and is being checked in at our warehouse. Free storage started the day it arrived."
+              "Your cargo has arrived in Dar es Salaam and is at our warehouse. Free storage started the day it arrived."
             )}
           </p>
         </Card>

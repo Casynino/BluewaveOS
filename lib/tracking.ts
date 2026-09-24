@@ -649,8 +649,9 @@ export function publicTracking(input: {
   const counted = countedAs(packages, pieces);
   const charge = invoice ? chargeFrom(invoice) : null;
 
-  /* The floor clock, counted from the day Dar booked the boxes in — the day
-     they started taking up room. See lib/storage-fee.ts. */
+  /* The floor clock, counted from the day the container landed — the day the
+     goods became ours to hold. Dar's check-in afterwards is the warehouse's
+     own count and never moves it. See lib/storage-fee.ts. */
   let storage: PublicStorage | null = null;
   const clockFrom =
     cargo.status === "MISSING_AT_DAR"

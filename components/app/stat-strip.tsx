@@ -9,6 +9,9 @@ export type StatChip = {
   value: string;
   icon?: LucideIcon;
   tone?: "neutral" | "brand" | "marine" | "success" | "warning" | "danger";
+  /* What the figure means, for the clerk who reads two chips called Missing
+     and cannot tell which counts packages and which counts consignments. */
+  hint?: string;
   href?: string;
 };
 
@@ -46,6 +49,7 @@ export function StatStrip({
         const Icon = chip.icon;
         const body = (
           <span
+            title={chip.hint}
             className={cn(
               "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border bg-card px-3 py-1.5 text-xs shadow-soft transition-colors",
               chip.href && "hover:border-brand/40 hover:bg-muted/60"

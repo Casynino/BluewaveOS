@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowLeftRight, BadgePercent, Ban, CheckCircle2, Scale } from "lucide-react";
+import { ArrowLeftRight, BadgePercent, Ban, Scale } from "lucide-react";
 
 import { FormMessage } from "@/components/app/form-message";
 import { SubmitButton } from "@/components/app/submit-button";
@@ -229,6 +229,7 @@ function StorageControl({
     chargeStorage,
     {}
   );
+  const [removing, setRemoving] = useState(false);
 
   if (!storage.configured) {
     return (
@@ -246,27 +247,51 @@ function StorageControl({
           ? ` · ${storage.chargeableDays} day(s) late`
           : ""}
       </p>
-      <form action={action} className="flex flex-wrap gap-2">
-        <input type="hidden" name="invoiceId" value={invoiceId} />
-        {storage.onTheBill ? (
-          <>
-            <input type="hidden" name="remove" value="1" />
-            <SubmitButton size="sm" variant="outline">
+      {/* Storage puts itself on the bill each night past the free days. What
+          is left for the counter is the commercial answer, with the customer
+          standing there: take it off, and say why. */}
+      {!storage.onTheBill ? (
+        <p className="text-xs text-muted-foreground">
+          {storage.chargeableDays > 0
+            ? tx("Storage goes on this bill tonight.")
+            : tx("Storage goes on by itself once the free days are over.")}
+        </p>
+      ) : removing ? (
+        <form action={action} className="space-y-2">
+          <input type="hidden" name="invoiceId" value={invoiceId} />
+          <input type="hidden" name="remove" value="1" />
+          <input
+            name="reason"
+            required
+            maxLength={300}
+            autoFocus
+            placeholder={tx("Why — e.g. agreed with the manager")}
+            className="h-8 w-full rounded-md border bg-background px-2.5 text-xs"
+          />
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton size="sm" variant="destructive">
               <Ban />
-              {tx("Remove the storage fee")}
+              {tx("Remove storage")}
             </SubmitButton>
-          </>
-        ) : (
-          <SubmitButton
-            size="sm"
-            variant="outline"
-            disabled={storage.chargeableDays <= 0}
-          >
-            <CheckCircle2 />
-            Add storage · {currency} {storage.amount}
-          </SubmitButton>
-        )}
-      </form>
+            <button
+              type="button"
+              onClick={() => setRemoving(false)}
+              className="h-9 rounded-md px-3 text-sm text-muted-foreground hover:text-foreground"
+            >
+              {tx("Keep it")}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setRemoving(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-warning/40 px-3 text-xs font-medium text-warning hover:bg-warning/10"
+        >
+          <Ban className="size-3.5" />
+          {tx("Remove storage")}
+        </button>
+      )}
       <FormMessage error={state.error} ok={state.ok} />
     </div>
   );

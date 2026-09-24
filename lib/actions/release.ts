@@ -9,6 +9,7 @@ import { announceCargoEvent, announceIfReady } from "@/lib/cargo-events";
 import { nextDeliveryReference, nextReleaseNumber } from "@/lib/ids";
 import { notifyCustomer, notifyStaff, staffInDepartment } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
+import { accrueStorageQuietly } from "@/lib/storage-charge";
 import { checkRelease, RELEASE_INCLUDE } from "@/lib/release";
 import { authorize, authorizeCustomer } from "@/lib/session";
 import { store, UploadError } from "@/lib/storage";
@@ -79,6 +80,9 @@ export async function releaseCargo(
     return { error: parsed.error.issues[0]?.message ?? "Check the form." };
   }
   const data = parsed.data;
+
+  /* Storage up to the moment of handover, so the check below reads it. */
+  await accrueStorageQuietly([data.cargoId]);
 
   /* Null when nobody was asked. Recording "the note was presented" because a
      box went unticked on a screen that never showed the question would be the
@@ -236,6 +240,9 @@ export async function markReadyForRelease(
   const actor = await authorize("release.execute");
 
   const cargoId = String(formData.get("cargoId") ?? "");
+  /* The same count the handover takes: "ready" must mean ready at today's
+     figure, not at last night's. */
+  await accrueStorageQuietly([cargoId]);
   const cargo = await prisma.cargo.findFirst({
     where: { id: cargoId, deletedAt: null },
     include: RELEASE_INCLUDE,

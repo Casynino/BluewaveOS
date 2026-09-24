@@ -214,7 +214,11 @@ describe("public journey", () => {
     assert.equal(j.stage, "SHIPPED");
   });
 
-  test("a container marked arrived means the goods have arrived in Dar, being checked in", () => {
+  /* CHECK-IN IS OURS, NOT THE CUSTOMER'S. By the owner's decision, once the
+     box lands the goods are simply at our warehouse as far as a customer is
+     concerned; what the floor does next is internal and is never a sentence on
+     a public page. */
+  test("a container marked arrived means the goods are at our Dar warehouse", () => {
     const j = publicJourney(
       input({
         status: "ARRIVED_TANZANIA",
@@ -227,14 +231,14 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.stage, "AT_DAR_PORT");
-    assert.equal(j.headline, "Arrived in Dar es Salaam — being checked in at our warehouse");
+    assert.equal(j.headline, "Arrived in Dar es Salaam — at our warehouse");
     assert.equal(j.current, "ARRIVED_IN_DAR");
     assert.equal(state(j, "IN_TRANSIT"), "done");
     assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
     assert.equal(j.eta, null, "no ETA once the ship is in");
   });
 
-  test("booked in but not signed off is under verification, not received", () => {
+  test("booked in but not signed off still reads as at our warehouse, never as a count", () => {
     const j = publicJourney(
       input({
         status: "RECEIVED_DAR",
@@ -244,9 +248,9 @@ describe("public journey", () => {
       })
     );
     assert.equal(j.stage, "DAR_VERIFICATION");
-    assert.equal(j.headline, "Arrived in Dar — being checked in");
+    assert.equal(j.headline, "At our Dar es Salaam warehouse");
     assert.equal(state(j, "ARRIVED_IN_DAR"), "current");
-    assert.equal(detail(j, "ARRIVED_IN_DAR"), "Being checked in");
+    assert.equal(detail(j, "ARRIVED_IN_DAR"), "Your free storage days have started");
   });
 
   test("a price waiting on the list is not a bill", () => {
