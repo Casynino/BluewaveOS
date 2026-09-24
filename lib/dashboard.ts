@@ -1190,20 +1190,11 @@ export async function financeDesk() {
         },
       },
     }),
-    /*
-      MEASURED ANYWHERE AND NOT YET BILLED.
-
-      Finance prices from Foshan's figures the day the boxes are received —
-      the price list has always shown them — so a counter that only looked at
-      Dar left the desk with no card, no figure and no way in until the
-      container landed. It asks the same question the list it links to asks.
-    */
     prisma.cargo.count({
       where: {
         deletedAt: null,
-        OR: [{ chinaReceiving: { isNot: null } }, { darReceiving: { isNot: null } }],
-        status: { notIn: ["MISSING_AT_DAR", "CANCELLED"] },
-        invoices: { none: { status: { notIn: ["DRAFT", "CANCELLED"] } } },
+        darReceiving: { isNot: null },
+        invoices: { none: { status: { not: "CANCELLED" } } },
       },
     }),
     prisma.invoice.count({ where: { status: "DRAFT" } }),

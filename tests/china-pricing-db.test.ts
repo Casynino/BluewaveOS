@@ -12,6 +12,11 @@ import { requireScratchDatabase } from "./scratch-db";
 /*
   A PRICE MAY BE CONFIRMED THE DAY THE BOXES ARE RECEIVED.
 
+  Every press here names the consignments it is pressing. The button with
+  nothing ticked confirms the whole China floor, which on a database several
+  suites are committing to would bill their fixtures as well as ours — the
+  action is the same one either way, and the rows it takes are the rows named.
+
   Finance prices from Foshan's measurement; waiting for a container, a sailing
   or a Dar check-in is a queue nobody is working. The same list, the same one
   press, the same rate book — the only thing that changes is that a consignment
@@ -91,9 +96,9 @@ const liveBills = (cargoId: string) =>
     where: { cargoId, status: { notIn: ["DRAFT", "CANCELLED"] } },
   });
 
-/** The row this consignment has on the list with no container behind it. */
+/** The row this consignment has on the China floor's own price list. */
 async function rowFor(cargoId: string) {
-  const list = await priceList.priceListWithoutContainer();
+  const list = await priceList.priceListForChinaFloor();
   return list.rows.find((r) => r.cargoId === cargoId) ?? null;
 }
 
@@ -187,6 +192,15 @@ before(async () => {
 after(() => as(null));
 
 describe("cargo received in China is waiting for a price, with the price already worked out", () => {
+  test("it is on the China floor's list, and nowhere Dar is asked to look", async () => {
+    const dar = await priceList.priceListWithoutContainer();
+    assert.equal(
+      dar.rows.some((r) => r.cargoId === s.early.cargoId),
+      false,
+      "a consignment in Foshan is not on the screen about arrived containers"
+    );
+  });
+
   test("it is on the list the moment Foshan measures it — no container, no check-in", async () => {
     const row = await rowFor(s.early.cargoId);
     assert.ok(row, `${s.early.reference} is not on the price list`);
@@ -205,7 +219,7 @@ describe("cargo received in China is waiting for a price, with the price already
 
   test("one press confirms it, and the bill is issued", async () => {
     as("finance");
-    const done = await priceActions.confirmPrices({}, form({ containerId: "" }));
+    const done = await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
     assert.ok(done.ok, done.error);
     as(null);
 
@@ -221,8 +235,8 @@ describe("cargo received in China is waiting for a price, with the price already
 
   test("pressing again bills nobody twice", async () => {
     as("finance");
-    await priceActions.confirmPrices({}, form({ containerId: "" }));
-    await priceActions.confirmPrices({}, form({ containerId: "" }));
+    await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
+    await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
     as(null);
     assert.equal(await liveBills(s.early.cargoId), 1);
   });
@@ -299,7 +313,7 @@ describe("pricing is Finance's, wherever the boxes are", () => {
     /* Refused either way — thrown by the guard or returned as a sentence.
        What matters is that nothing was billed. */
     const tried = await priceActions
-      .confirmPrices({}, form({ containerId: "" }))
+      .confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }))
       .catch((error: unknown) => ({ error: String(error) }));
     assert.ok(!("ok" in tried && tried.ok), "the China floor was refused");
     as(null);
@@ -309,7 +323,7 @@ describe("pricing is Finance's, wherever the boxes are", () => {
   test("the manager and the owner may", async () => {
     for (const desk of ["manager", "admin"]) {
       as(desk);
-      const done = await priceActions.confirmPrices({}, form({ containerId: "" }));
+      const done = await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
       assert.ok(done.ok || done.error, `${desk} reached the action`);
       as(null);
     }

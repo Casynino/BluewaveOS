@@ -8265,6 +8265,9 @@ const ZH: Record<string, string> = {
     "已在佛山或达累斯萨拉姆量好但尚未开账单——财务确认前无法向客户收款",
   "Measured in Foshan and not yet loaded, or checked in at Dar before this system held its sailing. Open each one to raise and confirm its bill.":
     "已在佛山量好但尚未装柜，或在本系统记录该航次之前就已在达累斯萨拉姆入库。逐票打开即可出具并确认账单。",
+  "Waiting for a price in Foshan": "佛山待确认价格",
+  "Cargo appears here as soon as Dar checks it in. What Foshan has measured is priced from Cargo in China.":
+    "货物在达累斯萨拉姆入库后即出现在此。佛山已量好的货物请在“在华货物”页面确认价格。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

@@ -14,7 +14,7 @@ import {
   setWaitingPrice,
   setWaitingRate,
 } from "@/lib/price-confirmation";
-import { PRICE_LIST_PAGE, WAITING_ON_CONTAINER } from "@/lib/price-list";
+import { CHINA_TO_PRICE, PRICE_LIST_PAGE, WAITING_ON_CONTAINER } from "@/lib/price-list";
 import { refreshInvoiceStatus } from "@/lib/invoice-status";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
@@ -47,11 +47,17 @@ export async function confirmPrices(
   const actor = await authorize("invoice.priceConfirm");
 
   const containerId = String(formData.get("containerId") ?? "").trim() || null;
+  /* Three lists, one press. A container's, the China floor's — priced from
+     Foshan's own figures, which is what the rate book asks for — and what is
+     standing in Dar with no sailing on record. */
+  const china = !containerId && String(formData.get("scope") ?? "") === "china";
   const where: Prisma.CargoWhereInput = containerId
     ? WAITING_ON_CONTAINER(containerId)
-    : UNSAILED_TO_PRICE;
+    : china
+      ? CHINA_TO_PRICE
+      : UNSAILED_TO_PRICE;
 
-  let reference = "cargo in Dar with no container";
+  let reference = china ? "cargo in China" : "cargo in Dar with no container";
   if (containerId) {
     const container = await prisma.container.findFirst({
       where: { id: containerId, deletedAt: null },

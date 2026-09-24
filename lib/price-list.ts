@@ -385,3 +385,25 @@ export const priceListForContainer = (containerId: string) =>
   priceListFor(WAITING_ON_CONTAINER(containerId));
 
 export const priceListWithoutContainer = () => priceListFor(UNSAILED_TO_PRICE);
+
+/**
+ * WHAT FOSHAN HAS MEASURED AND NOBODY HAS BILLED.
+ *
+ * Finance prices from China's figures the day the boxes are received, so this
+ * is the same list and the same one press as a container's — asked of the
+ * China floor instead, which is where the goods are and where the desk is
+ * already looking. It stops at the water: once a sailing has left, the
+ * consignment is priced from its container's own list.
+ */
+export const CHINA_TO_PRICE = {
+  deletedAt: null,
+  chinaReceiving: { isNot: null },
+  status: { in: ["RECEIVED_CHINA", "ASSIGNED_TO_CONTAINER", "CONTAINER_LOADED"] },
+  invoices: { none: { status: { notIn: ["DRAFT", "CANCELLED"] } } },
+} satisfies Prisma.CargoWhereInput;
+
+export const priceListForChinaFloor = () => priceListFor(CHINA_TO_PRICE);
+
+/** How many are waiting, however long the list the screen draws. */
+export const chinaWaitingToPrice = (client: TxClient | typeof prisma = prisma) =>
+  client.cargo.count({ where: CHINA_TO_PRICE });

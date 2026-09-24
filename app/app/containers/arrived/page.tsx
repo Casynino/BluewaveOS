@@ -654,7 +654,7 @@ export default async function ArrivedContainersPage({
           <PriceList
             heading={
               <span className="font-medium text-foreground">
-                {t(locale, "No container on record")}
+                {t(locale, "In Dar with no container on record")}
               </span>
             }
             containerId={null}
@@ -671,7 +671,7 @@ export default async function ArrivedContainersPage({
                 title={t(locale, "Nothing is waiting for a price")}
                 description={t(
                   locale,
-                  "Cargo appears here as soon as Foshan measures it — a container is not needed."
+                  "Cargo appears here as soon as Dar checks it in. What Foshan has measured is priced from Cargo in China."
                 )}
               />
             </Card>
@@ -683,7 +683,7 @@ export default async function ArrivedContainersPage({
         <Card>
           <div className="border-b px-4 py-3">
             <p className="text-sm font-medium">
-              {t(locale, "No container on record")}
+              {t(locale, "In Dar with no container on record")}
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {t(

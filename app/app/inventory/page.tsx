@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { PriceList } from "@/components/app/price-list";
 import { KpiCard } from "@/components/app/kpi-card";
 import { ListCap } from "@/components/app/list-cap";
 import { PageHeader } from "@/components/app/page-header";
@@ -35,6 +36,7 @@ import { CARGO_EVENT_ACTION } from "@/lib/cargo-notices";
 import { composeMessage, composeNotice, whatsappNumber } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { priceListForChinaFloor } from "@/lib/price-list";
 import { cargoTypeOptions } from "@/lib/valuation";
 import { requirePermission } from "@/lib/session";
 
@@ -92,7 +94,7 @@ export default async function InventoryPage({
     at?: string;
   }>;
 }) {
-  await primeLocale();
+  const locale = await primeLocale();
   const user = await requirePermission("inventory.view");
   const { q, state, type, from, to, at } = await searchParams;
   const query = q?.trim() ?? "";
@@ -315,6 +317,24 @@ export default async function InventoryPage({
     return sum + Number(cbm ?? 0);
   }, 0);
 
+  /*
+    THE PRICES, WHERE THE GOODS ARE.
+
+    Finance prices from Foshan's measurement — waiting for a container, a
+    sailing or a Dar check-in is a queue nobody works — so the same list and
+    the same one press the container screens carry sit on the floor the goods
+    are standing on. Read only by a desk that may see money, and pressed only
+    by one that may confirm a price.
+  */
+  const pricing =
+    inChina && can(user.role, "finance.view")
+      ? await (async () => {
+          const mayConfirm = can(user.role, "invoice.priceConfirm");
+          const list = await priceListForChinaFloor();
+          return list.rows.length > 0 ? { list, mayConfirm } : null;
+        })()
+      : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -443,6 +463,22 @@ export default async function InventoryPage({
           {T("Filter")}
         </Button>
       </form>
+
+      {pricing ? (
+        <PriceList
+          heading={
+            <span className="font-medium text-foreground">
+              {T("Waiting for a price in Foshan")}
+            </span>
+          }
+          containerId={null}
+          scope="china"
+          list={pricing.list}
+          cargoTypes={categories}
+          canConfirm={pricing.mayConfirm}
+          locale={locale}
+        />
+      ) : null}
 
       <section>
         <SectionLabel count={held}>

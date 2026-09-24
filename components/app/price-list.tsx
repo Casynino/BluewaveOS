@@ -41,6 +41,7 @@ const usd = (value: string | null) =>
 export function PriceList({
   heading,
   containerId,
+  scope,
   list,
   cargoTypes,
   canConfirm,
@@ -49,6 +50,8 @@ export function PriceList({
   /** What this list is — a container, or the group with none. */
   heading?: React.ReactNode;
   containerId: string | null;
+  /** Which list this is, when it is not a container's. Posted as it stands. */
+  scope?: "china";
   list: PriceListData;
   cargoTypes: string[];
   canConfirm: boolean;
@@ -60,6 +63,7 @@ export function PriceList({
     <ConfirmPricesBanner
       heading={heading}
       containerId={containerId}
+      scope={scope}
       list={list}
       canConfirm={canConfirm}
       locale={locale}
@@ -109,6 +113,7 @@ export function PriceList({
 export function ConfirmPricesBanner({
   heading,
   containerId,
+  scope,
   list,
   canConfirm,
   locale,
@@ -116,6 +121,7 @@ export function ConfirmPricesBanner({
 }: {
   heading?: React.ReactNode;
   containerId: string | null;
+  scope?: "china";
   list: PriceListData;
   canConfirm: boolean;
   locale: Locale;
@@ -193,6 +199,7 @@ export function ConfirmPricesBanner({
         {canConfirm && list.ready > 0 ? (
           <form action={action} className="shrink-0">
             {containerId ? <input type="hidden" name="containerId" value={containerId} /> : null}
+            {scope ? <input type="hidden" name="scope" value={scope} /> : null}
             {/* Exactly the rows the button counts. Without them the press would
                 reach the whole container and come back reporting the rows still
                 with Dar as failures, which reads as a fault rather than as the
