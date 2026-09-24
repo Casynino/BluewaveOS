@@ -37,7 +37,7 @@ import { CARGO_EVENT_ACTION, isCargoEvent } from "@/lib/cargo-notices";
 import { formatCurrency, formatRate, tzsToUsd } from "@/lib/currency";
 import { balanceOf, paymentTzs } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
-import { storagePosition } from "@/lib/storage-fee";
+import { storageOnCargo } from "@/lib/storage-fee";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { storageStart } from "@/lib/storage-clock";
@@ -73,6 +73,9 @@ export default async function InvoicePage({
         include: {
           darReceiving: true,
           pickupNote: true,
+          /* The day the boxes went stops the floor clock, so it is read with
+             the bill rather than left out and assumed away. */
+          release: { select: { releasedAt: true } },
           containerLines: { include: { container: true } },
         },
       },
@@ -103,13 +106,7 @@ export default async function InvoicePage({
   const settings = await prisma.companySetting.findUnique({
     where: { id: "singleton" },
   });
-  const storage = storagePosition({
-    receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
-    collectedAt: null,
-    freeDays: settings?.freeStorageDays ?? 7,
-    perDay: settings?.storagePerDay ?? 0,
-    currency: settings?.storageCurrency ?? "USD",
-  });
+  const storage = storageOnCargo(invoice.cargo, settings);
 
   const otherUnpaid = await prisma.invoice.count({
     where: {
