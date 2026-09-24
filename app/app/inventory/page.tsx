@@ -495,7 +495,7 @@ export default async function InventoryPage({
                       floor is looking for a person — the tracking number is how
                       they confirm it, not how they find it. */}
                   <TableHead>{T("Customer")}</TableHead>
-                  <TableHead>{T("Tracking no.")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{T("Tracking no.")}</TableHead>
                   <TableHead className="hidden lg:table-cell">{T("Goods")}</TableHead>
                   <TableHead className="text-right">{T("Pkgs")}</TableHead>
                   {/* Weight is not what this floor is sold or planned on —
@@ -503,7 +503,7 @@ export default async function InventoryPage({
                       somebody to price on the wrong one. It is still on the
                       consignment, where a claim needs it. */}
                   <TableHead className="text-right">{T("Pieces")}</TableHead>
-                  <TableHead className="text-right">CBM</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">CBM</TableHead>
                   <TableHead>{T("Proof")}</TableHead>
                   {/* "Received in China" on the Foshan floor is every row
                       saying the name of the page. It is the customer's sentence,
@@ -575,7 +575,7 @@ export default async function InventoryPage({
                       <TableCell className="tnum text-right text-sm text-muted-foreground">
                         {pieces > 0 ? pieces.toLocaleString() : "—"}
                       </TableCell>
-                      <TableCell className="tnum text-right text-sm font-medium">
+                      <TableCell className="tnum whitespace-nowrap text-right text-sm font-medium">
                         {formatCbm(receiving?.cbm)}
                       </TableCell>
                       <TableCell>
@@ -657,7 +657,7 @@ export default async function InventoryPage({
                           {receiving?.weightKg ? <span className="tnum block">{formatWeight(receiving.weightKg)}</span> : null}
                         </TableCell>
                       ) : null}
-                      <TableCell className="tnum hidden text-sm text-muted-foreground xl:table-cell">
+                      <TableCell className="tnum hidden whitespace-nowrap text-sm text-muted-foreground xl:table-cell">
                         {formatDate(receiving?.receivedAt)}
                       </TableCell>
                       {/* WHAT THE BOOK MAKES IT, AND THE PRESS THAT AGREES IT.

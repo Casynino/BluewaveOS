@@ -65,9 +65,12 @@ export function NotifyRow({
       ) : (
         <span className="text-xs font-medium text-warning">{tx("Not notified yet")}</span>
       )}
+      {/* Row-sized. A table cell is not a page, and a full-height button
+          beside six columns of figures pushes them into two lines each. */}
       <Button
         type="button"
         size="sm"
+        className="h-7 px-2.5 text-xs [&_svg]:size-3.5"
         variant={notified ? "outline" : "default"}
         disabled={!phone}
         onClick={() => {

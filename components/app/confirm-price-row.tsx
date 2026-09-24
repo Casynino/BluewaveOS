@@ -44,13 +44,14 @@ export function ConfirmPriceRow({
   const [state, action] = useActionState<PriceListState, FormData>(confirmPrices, {});
 
   return (
-    <div className="space-y-1">
-      <p className="tnum text-sm font-semibold">{row.totalLabel}</p>
+    <div className="space-y-1.5">
+      <p className="tnum text-sm font-semibold leading-tight">{row.totalLabel}</p>
       {row.totalTzsLabel ? (
-        <p className="tnum text-xs text-muted-foreground">{row.totalTzsLabel}</p>
+        <p className="tnum text-xs leading-tight text-muted-foreground">{row.totalTzsLabel}</p>
       ) : null}
       {canConfirm ? (
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        /* Both presses on one line, at the size of the row they sit in. */
+        <div className="flex flex-nowrap items-center justify-end gap-1.5">
           {/* The same dialog the container lists open: the rate, what it is
               multiplied by, and what the bill will come to. */}
           <RowPriceEditor
@@ -74,9 +75,13 @@ export function ConfirmPriceRow({
           <form action={action}>
             <input type="hidden" name="scope" value="china" />
             <input type="hidden" name="cargoIds" value={row.cargoId} />
-            <SubmitButton size="sm" variant="outline" pendingLabel={tx("Confirming…")}>
+            <SubmitButton
+              size="sm"
+              className="h-7 whitespace-nowrap px-2.5 text-xs [&_svg]:size-3.5"
+              pendingLabel={tx("Confirming…")}
+            >
               <BadgeCheck />
-              {tx("Confirm price")}
+              {tx("Confirm")}
             </SubmitButton>
           </form>
         </div>
@@ -118,7 +123,7 @@ export function CargoTypeOnRow({
         name="cargoType"
         defaultValue={current}
         aria-label={`${tx("Cargo type for")} ${reference}`}
-        className={cn("h-8 min-w-36 text-xs", !current && "border-warning text-warning")}
+        className={cn("h-7 w-full min-w-28 max-w-40 text-xs", !current && "border-warning text-warning")}
         onChange={(event) => {
           if (event.currentTarget.value) formRef.current?.requestSubmit();
         }}
@@ -142,7 +147,11 @@ export function ConfirmAllPrices({ waiting }: { waiting: number }) {
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="scope" value="china" />
-      <SubmitButton size="sm" pendingLabel={tx("Confirming…")}>
+      <SubmitButton
+        size="sm"
+        className="h-8 whitespace-nowrap px-3 text-xs [&_svg]:size-3.5"
+        pendingLabel={tx("Confirming…")}
+      >
         <BadgeCheck />
         {tx("Confirm all")} {waiting} {waiting === 1 ? tx("price") : tx("prices")}
       </SubmitButton>
