@@ -8258,6 +8258,13 @@ const ZH: Record<string, string> = {
   "It leaves every list. Its box labels stop scanning to it, and any draft bill is cancelled with it. The owner can put it back from Deleted records.":
     "它将从所有列表中消失，箱唛标签也不再扫得到它，草稿账单会一并作废。老板可在“已删除记录”中恢复。",
   "Scanned twice, entered against the wrong customer…": "扫了两次、录错了客户…",
+  "No container on record": "没有对应的货柜",
+  "Cargo appears here as soon as Foshan measures it — a container is not needed.":
+    "佛山一量好尺寸，货物就会出现在这里——无需先装柜。",
+  "Measured in Foshan or at Dar and not yet billed — nobody can be asked for it until Finance confirms":
+    "已在佛山或达累斯萨拉姆量好但尚未开账单——财务确认前无法向客户收款",
+  "Measured in Foshan and not yet loaded, or checked in at Dar before this system held its sailing. Open each one to raise and confirm its bill.":
+    "已在佛山量好但尚未装柜，或在本系统记录该航次之前就已在达累斯萨拉姆入库。逐票打开即可出具并确认账单。",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

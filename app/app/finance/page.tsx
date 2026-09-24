@@ -224,7 +224,7 @@ export default async function FinanceHubPage() {
   }[] = [
     {
       title: `${desk.awaitingPricing} ${L(desk.awaitingPricing === 1 ? "consignment waiting for a price" : "consignments waiting for a price")}`,
-      detail: L("Counted at Dar and not yet billed — nobody can be asked for it until Finance confirms"),
+      detail: L("Measured in Foshan or at Dar and not yet billed — nobody can be asked for it until Finance confirms"),
       tzs: null,
       href: "/app/containers/arrived?view=pricing",
       action: L("Confirm prices"),
