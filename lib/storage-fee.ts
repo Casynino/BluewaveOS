@@ -2,7 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 
-import { storageState } from "@/lib/storage-clock";
+import { storageStart, storageState } from "@/lib/storage-clock";
 
 /**
  * WHAT A CONSIGNMENT HAS COST IN FLOOR SPACE.
@@ -84,4 +84,58 @@ export function storagePosition(input: {
     configured: perDay.greaterThan(0),
     onTheBill: input.onTheBill ?? null,
   };
+}
+
+/**
+ * THE COLUMNS THE CLOCK IS READ FROM, AND NO OTHERS.
+ *
+ * Three facts decide the figure — the day the boxes landed, the day they went,
+ * and the settings — and every screen that shows floor rent was working them
+ * out for itself. The one easiest to leave out is the day they went: a
+ * consignment handed over on credit is still unpaid, still on every chase
+ * list, and its rent went on climbing there while the charge button, which
+ * reads the release row, refused to add a day of it. Selecting through this
+ * and going through `storageOnCargo` means a screen cannot show a figure the
+ * button will not honour.
+ */
+export const STORAGE_CARGO_SELECT = {
+  darArrivedAt: true,
+  darReceiving: { select: { receivedAt: true } },
+  release: { select: { releasedAt: true } },
+} satisfies Prisma.CargoSelect;
+
+/** What `STORAGE_CARGO_SELECT` yields, and what any wider query must carry. */
+export type StorageCargo = {
+  darArrivedAt: Date | null;
+  darReceiving?: { receivedAt: Date } | null;
+  release?: { releasedAt: Date } | null;
+};
+
+/** The three settings the clock is kept by. Absent means the defaults. */
+export type StorageSettings = {
+  freeStorageDays?: number | null;
+  storagePerDay?: Prisma.Decimal | number | null;
+  storageCurrency?: string | null;
+} | null;
+
+/**
+ * The floor clock on one consignment.
+ *
+ * The handover is the release row's own date, which is the date the charge
+ * action bills to. A consignment still standing on the floor has none and the
+ * clock runs to today.
+ */
+export function storageOnCargo(
+  cargo: StorageCargo,
+  settings: StorageSettings,
+  onTheBill?: Prisma.Decimal | null
+): StoragePosition {
+  return storagePosition({
+    receivedAt: storageStart(cargo.darReceiving?.receivedAt, cargo.darArrivedAt),
+    collectedAt: cargo.release?.releasedAt ?? null,
+    freeDays: settings?.freeStorageDays ?? 7,
+    perDay: settings?.storagePerDay ?? 0,
+    currency: settings?.storageCurrency ?? "USD",
+    onTheBill,
+  });
 }

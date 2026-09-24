@@ -7,7 +7,7 @@ import { accountsForInvoice, type InvoiceAccount } from "@/lib/invoice-accounts"
 import { balanceOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { storageState, storageStart } from "@/lib/storage-clock";
-import { storagePosition } from "@/lib/storage-fee";
+import { storageOnCargo } from "@/lib/storage-fee";
 import { BLUEWAVE_STAGE_LABEL, bluewaveStageOf } from "@/lib/tracking-stage";
 import { referenceFromInput } from "@/lib/tracking";
 
@@ -93,8 +93,21 @@ export type MergedStorage = {
   freeDays: number;
   lastFreeDay: Date;
   chargeableDays: number;
+  /** What the clock works out to. A calculation, and nobody's bill. */
   amount: Prisma.Decimal;
   currency: string;
+  /**
+   * WHAT THE BILLS IN THE GROUP ACTUALLY CARRY, added off their storage lines.
+   *
+   * A different figure from `amount` and the only one a customer may be shown
+   * as a charge: storage becomes money when Finance presses the button, and a
+   * letter that names the clock's reading as a charge is asking for shillings
+   * no invoice in the group is asking for. Null when the bills carrying
+   * storage are not all in one currency — dollars are not added to shillings
+   * to make a sentence read.
+   */
+  charged: Prisma.Decimal | null;
+  chargedCurrency: string | null;
   state: "free" | "charged" | "waived";
 };
 
@@ -136,6 +149,9 @@ const INVOICE_INCLUDE = {
       createdAt: true,
     },
   },
+  /* The storage lines only: what the group has actually been charged for the
+     floor, as against what the clock reads. */
+  items: { where: { category: "Storage" }, select: { amount: true } },
   cargo: {
     select: {
       reference: true,
@@ -143,6 +159,9 @@ const INVOICE_INCLUDE = {
       status: true,
       darArrivedAt: true,
       darReceiving: { select: { packagesCount: true, piecesCount: true, cbm: true, receivedAt: true } },
+      /* The day the boxes went. The clock stops there — a consignment handed
+         over on credit is still in this group and is not still accruing. */
+      release: { select: { releasedAt: true } },
       chinaReceiving: { select: { packagesCount: true, piecesCount: true, cbm: true } },
       containerLines: {
         take: 1,
@@ -303,9 +322,14 @@ export function mergeLetterContextFor(
     freeStorageDays: merged.storage?.freeDays ?? null,
     storageFrom: merged.storage?.arrivedAt ?? null,
     lastFreeDay: merged.storage?.lastFreeDay ?? null,
+    /* "Storage iliyokwisha tozwa" is a statement that money has been charged,
+       so it names the storage the bills carry and never the clock's reading.
+       The clock is a figure Finance may decide to bill; quoting it to the
+       customer alongside an amount due that excludes it is asking them to pay
+       for something no invoice in the group is asking for. */
     storageCharge:
-      merged.storage && merged.storage.state === "charged" && merged.storage.amount.greaterThan(0)
-        ? formatCurrency(merged.storage.amount, merged.storage.currency)
+      merged.storage && merged.storage.charged && merged.storage.charged.greaterThan(0)
+        ? formatCurrency(merged.storage.charged, merged.storage.chargedCurrency ?? merged.storage.currency)
         : null,
     pickupAddress: options.pickupAddress ?? null,
     trackLink: links.track,
@@ -470,17 +494,27 @@ function storageOf(
   let amount = ZERO();
   let chargeableDays = 0;
   let configured = false;
+  /* What the bills carry, kept in the currency they carry it in. Two bills in
+     two currencies cannot be added, and the group then says nothing rather
+     than a figure made of both. */
+  let charged = ZERO();
+  let chargedCurrency: string | null = null;
+  let mixed = false;
   for (const invoice of invoices) {
-    const position = storagePosition({
-      receivedAt: storageStart(invoice.cargo.darReceiving?.receivedAt, invoice.cargo.darArrivedAt),
-      collectedAt: null,
-      freeDays,
-      perDay,
-      currency,
+    const position = storageOnCargo(invoice.cargo, {
+      freeStorageDays: freeDays,
+      storagePerDay: perDay,
+      storageCurrency: currency,
     });
     amount = amount.add(position.amount);
     chargeableDays = Math.max(chargeableDays, position.chargeableDays);
     configured ||= position.configured;
+
+    const onBill = invoice.items.reduce((sum, item) => sum.add(item.amount), ZERO());
+    if (onBill.isZero()) continue;
+    if (chargedCurrency !== null && chargedCurrency !== invoice.currency) mixed = true;
+    chargedCurrency = invoice.currency;
+    charged = charged.add(onBill);
   }
 
   return {
@@ -490,6 +524,8 @@ function storageOf(
     chargeableDays,
     amount,
     currency,
+    charged: mixed || charged.isZero() ? null : charged,
+    chargedCurrency: mixed ? null : chargedCurrency,
     /* Nothing is charged where the business has set no rate: saying "free" of a
        clock that is not running would promise the customer a deadline. */
     state: !configured ? "waived" : chargeableDays > 0 ? "charged" : "free",
