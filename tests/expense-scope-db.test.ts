@@ -348,6 +348,45 @@ describe("a sailing's cost names its container, and only a sailing's kind", () =
   });
 });
 
+describe("what the boss takes out is filed as a draw, not a running cost", () => {
+  test("profit, business and personal draw kinds are all on the executive's list", async () => {
+    const kinds = await prisma.expenseType.findMany({
+      where: {
+        name: {
+          in: [
+            "Profit withdrawal",
+            "Dividend",
+            "Sourcing trip to China",
+            "Business float — to account for",
+            "School fees",
+          ],
+        },
+      },
+      select: { name: true, forExecutive: true, forContainer: true },
+    });
+    assert.equal(kinds.length, 5, "every one of them exists");
+    for (const kind of kinds) {
+      assert.equal(kind.forExecutive, true, `${kind.name} is a draw`);
+      assert.equal(kind.forContainer, false, `${kind.name} is never a sailing's`);
+    }
+  });
+
+  test("a profit withdrawal cannot be filed as the office's cost", async () => {
+    const profit = await prisma.expenseType.findUniqueOrThrow({ where: { name: "Profit withdrawal" } });
+    const tried = await expenseActions.recordExpense(
+      {},
+      form({
+        scope: "OFFICE",
+        expenseTypeId: profit.id,
+        amount: "1000",
+        currency: "USD",
+        description: `Profit as a running cost ${RUN}`,
+      })
+    );
+    assert.match(tried.error ?? "", /is an executive's draw/);
+  });
+});
+
 describe("the picker offers each answer its own list", () => {
   test("the box shows what is on it, and the owner shows their draw", async () => {
     const choices = await picker.expenseChoices(undefined, { executives: true });

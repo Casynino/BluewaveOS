@@ -152,6 +152,32 @@ const SCOPES: { key: Scope; label: string; hint: string }[] = [
   { key: "EXECUTIVE", label: "Executive", hint: "An owner's or director's own draw" },
 ];
 
+/*
+  WHY THE MONEY LEFT, BEFORE WHAT IT WAS.
+
+  An owner takes money out for three different reasons, and a partner or an
+  accountant reading the draws asks about them in that order: the profit that
+  is theirs, money taken to spend on the business itself — which should come
+  back as receipts — and personal spending. So the draw kinds are shown under
+  those three headings. Read by name: a kind the office adds later that
+  matches none of them is still offered, under "Other draws".
+*/
+const DRAW_SECTIONS: { title: string; match: RegExp }[] = [
+  { title: "Profit & capital", match: /profit|dividend|capital|drawing|loan to|advance/i },
+  {
+    title: "For the business",
+    match: /business|sourcing|supplier|market visit|client|director's allowance|float/i,
+  },
+  {
+    title: "Personal",
+    match: /personal|school|medical|household|family|harambee|contribution|gift|meals/i,
+  },
+];
+const sectionOf = (item: PickerItem) => {
+  const name = item.typeName ?? item.label;
+  return DRAW_SECTIONS.find((sec) => sec.match.test(name))?.title ?? "Other draws";
+};
+
 const STATUS: Record<string, string> = {
   OPEN: "Open",
   LOADING: "Loading",
@@ -659,14 +685,41 @@ export function RecordExpense({
                             <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                               {tx("Record a new draw for")} {person.name}
                             </p>
-                            {drawList.map((item) => (
-                              <ItemRow
-                                key={`${item.scope}-${item.typeId ?? "none"}-${item.label}`}
-                                item={item}
-                                sub={subtitleOf(item, tx)}
-                                onClick={() => pick(item)}
-                              />
-                            ))}
+                            {/* Searching is one flat list of matches; browsing
+                                is what has been drawn before, then each
+                                section of why money leaves. */}
+                            {(searching
+                              ? [{ title: "", items: drawList }]
+                              : [
+                                  { title: "Drawn before", items: history },
+                                  ...[...DRAW_SECTIONS.map((sec) => sec.title), "Other draws"].map((title) => ({
+                                    title,
+                                    items: dedupe(kinds.flatMap((g) => g.items)).filter(
+                                      (item) =>
+                                        sectionOf(item) === title &&
+                                        !history.some((h) => h.label.toLowerCase() === item.label.toLowerCase())
+                                    ),
+                                  })),
+                                ]
+                            )
+                              .filter((sec) => sec.items.length > 0)
+                              .map((sec) => (
+                                <div key={sec.title || "matches"}>
+                                  {sec.title ? (
+                                    <p className="bg-secondary/30 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                      {tx(sec.title)}
+                                    </p>
+                                  ) : null}
+                                  {sec.items.map((item) => (
+                                    <ItemRow
+                                      key={`${sec.title}-${item.scope}-${item.typeId ?? "none"}-${item.label}`}
+                                      item={item}
+                                      sub={subtitleOf(item, tx)}
+                                      onClick={() => pick(item)}
+                                    />
+                                  ))}
+                                </div>
+                              ))}
                           </>
                         )}
                       </div>
@@ -990,6 +1043,15 @@ function iconOf(item: PickerItem | null) {
   if (/fuel|diesel|petrol/i.test(name)) return "Fuel";
   if (/handl|labour|labor|loading|unloading/i.test(name)) return "PackageOpen";
   if (/document|paper|stamp|permit/i.test(name)) return "FileText";
+  if (/profit|dividend|capital|drawing|loan to|advance|float/i.test(name)) return "Wallet";
+  if (/sourcing|supplier|market visit|business trip|travel|flight|hotel/i.test(name)) return "Plane";
+  if (/school|education/i.test(name)) return "GraduationCap";
+  if (/medical|hospital|health/i.test(name)) return "HeartPulse";
+  if (/household|family/i.test(name)) return "Home";
+  if (/gift|hospitality|harambee|contribution/i.test(name)) return "Gift";
+  if (/meal|entertainment/i.test(name)) return "Utensils";
+  if (/purchase|shopping/i.test(name)) return "ShoppingBag";
+  if (/business development/i.test(name)) return "Megaphone";
   if (/salary|salaries|payroll|staff|allowance/i.test(name)) return "Users";
   if (/rent|office|premises/i.test(name)) return "Building2";
   if (/electric|water|power|utilit/i.test(name)) return "Zap";
@@ -1108,7 +1170,7 @@ function ItemRow({
         <Glyph name={iconOf(item)} className="size-4 text-muted-foreground" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{item.label}</span>
+        <span className="block truncate text-sm font-medium">{tx(item.label)}</span>
         <span className={cn("block truncate text-xs", emphasis ? "text-warning" : "text-muted-foreground")}>
           {sub}
         </span>
