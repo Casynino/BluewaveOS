@@ -302,12 +302,14 @@ export function auditSentence(
     }
 
     case "expense.record": {
-      parts = m(`Recorded (\\w+) ${NUM} (?:against ${REF}|as a (\\w+) cost)(?: at (.+))?`);
+      parts = m(`Recorded (\\w+) ${NUM} (?:against ${REF}|as a draw by (.+?)|as a (\\w+) cost)(?: at (.+))?`);
       if (parts) {
-        const [, currency, amount, container, scope, rate] = parts;
+        const [, currency, amount, container, drawnBy, scope, rate] = parts;
         const what = container
           ? `${t(locale, "a cost against")} ${container}`
-          : `${t(locale, scope === "office" ? "an office cost" : `a ${scope} cost`)}`;
+          : drawnBy
+            ? `${t(locale, "a draw by")} ${drawnBy}`
+            : `${t(locale, scope === "office" ? "an office cost" : `a ${scope} cost`)}`;
         const at = rate && currency !== "TZS" ? ` ${t(locale, "at")} ${formatRate(rate)}` : "";
         return `${t(locale, "Recorded")} ${what} ${t(locale, "of")} ${formatCurrency(amount, currency)}${at}`;
       }

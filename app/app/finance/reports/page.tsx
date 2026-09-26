@@ -463,7 +463,9 @@ export default async function ProfitAndLossPage({
             {[
               ["Container costs", sum(now.costs.filter((c) => c.scope === "CONTAINER"), (c) => c.amount)],
               ["Office costs", sum(now.costs.filter((c) => c.scope === "OFFICE"), (c) => c.amount)],
-              ["Special", sum(now.costs.filter((c) => c.scope === "SPECIAL" || c.scope === "EXECUTIVE"), (c) => c.amount)],
+              /* One tile for both, named for both: an owner's draws counted
+                 under a tile that said "Special" read as one-offs. */
+              ["Special & executive", sum(now.costs.filter((c) => c.scope === "SPECIAL" || c.scope === "EXECUTIVE"), (c) => c.amount)],
             ].map(([l, m]) => (
               <div key={l as string} className="bg-card px-4 py-3">
                 <p className={label}>{l as string}</p>

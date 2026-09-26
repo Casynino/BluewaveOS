@@ -5,7 +5,12 @@ import { Ban } from "lucide-react";
 
 import { cancelExpense, type ActionState } from "@/lib/actions/expenses";
 import { CorrectExpenseDialog } from "@/components/app/correct-expense-dialog";
-import { RecordExpense, type PickerGroup, type PickerItem } from "@/components/app/expense-picker";
+import {
+  RecordExpense,
+  type PickerContainer,
+  type PickerGroup,
+  type PickerHistory,
+} from "@/components/app/expense-picker";
 import { FormMessage } from "@/components/app/form-message";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Button } from "@/components/ui/button";
@@ -68,7 +73,11 @@ export function ContainerExpenses({
   rows: ContainerExpenseRow[];
   accounts: { id: string; label: string }[];
   /** What this business pays for, read off the register. See the picker. */
-  picker: { usedMost: PickerItem[]; groups: PickerGroup[] };
+  picker: {
+    history: PickerHistory;
+    groups: PickerGroup[];
+    containers: PickerContainer[];
+  };
   /** Usual costs with nothing recorded against this container yet. */
   missing: string[];
   totalLabel: string;
@@ -137,12 +146,12 @@ export function ContainerExpenses({
               : tx("Everything usual has been recorded against this container.")}
           </p>
           <RecordExpense
-            usedMost={picker.usedMost}
+            history={picker.history}
             groups={picker.groups}
+            containers={picker.containers}
+            executives={[]}
             accounts={accounts}
-            containers={[{ id: containerId, label: containerReference }]}
             containerId={containerId}
-            missing={missing}
             label={tx("Record a cost")}
           />
         </div>

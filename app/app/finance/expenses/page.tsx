@@ -103,7 +103,12 @@ export default async function ExpensesPage({
 
   /* What this business actually pays for, read off the register — the picker
      the Record button opens is built from it. */
-  const picker = await expenseChoices();
+  const mayRecord = can(user.role, "expense.record");
+  /* Read only for a desk that may record — and the executives' draws only
+     here, on the one page whose readers already see every cost. */
+  const picker = mayRecord
+    ? await expenseChoices(undefined, { executives: true })
+    : null;
 
   const [expenses, register, containers, accounts, types, rate, locale, options] = await Promise.all([
     prisma.containerExpense.findMany({
@@ -114,6 +119,9 @@ export default async function ExpensesPage({
         expenseType: { select: { name: true } },
         vendor: { select: { name: true } },
         account: { select: { id: true, bankName: true, currency: true } },
+        /* Whose draw an executive cost is — named on the row, because the
+           question asked of it is "whose", never "what". */
+        executive: { select: { name: true } },
       },
     }),
     accountRegister(),
@@ -168,7 +176,12 @@ export default async function ExpensesPage({
         id: `e-${e.id}`,
         kind: "expense",
         recordId: e.id,
-        title: e.description || (e.container ? `${category} · ${e.container.reference}` : category),
+        title: [
+          e.description || (e.container ? `${category} · ${e.container.reference}` : category),
+          e.executive ? `${T("drawn by")} ${e.executive.name}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
         reference: e.reference,
         category,
         groups: cancelled
@@ -252,11 +265,12 @@ export default async function ExpensesPage({
         title={T("Expenses")}
         description={T("What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left.")}
         actions={
-          can(user.role, "expense.record") ? (
+          picker ? (
             <RecordExpense
-              usedMost={picker.usedMost}
+              history={picker.history}
               groups={picker.groups}
-              containers={containers.map((c) => ({ id: c.id, label: c.reference }))}
+              containers={picker.containers}
+              executives={picker.executives}
               accounts={accounts.map((a) => ({ id: a.id, label: `${a.bankName} (${a.currency})` }))}
             />
           ) : null

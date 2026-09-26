@@ -163,7 +163,16 @@ export default async function AccountPage({
     isCash && mayRecordCost
       ? prisma.containerExpense.groupBy({
           by: ["description", "expenseTypeId"],
-          where: { deletedAt: null, cancelledAt: null, description: { not: null } },
+          /* The office's own spending only, cut to twelve after that — a top
+             twelve across every kind let the sailings' costs push every office
+             tap off, and an untyped draw was offered as an office cost. */
+          where: {
+            deletedAt: null,
+            cancelledAt: null,
+            description: { not: null },
+            scope: { in: ["OFFICE", "SPECIAL"] },
+            payrollRun: { is: null },
+          },
           _count: { description: true },
           orderBy: { _count: { description: "desc" } },
           take: 12,
@@ -173,7 +182,7 @@ export default async function AccountPage({
       ? prisma.expenseType.findMany({
           where: { active: true, name: { not: "Salaries" } },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, forContainer: true },
+          select: { id: true, name: true, forContainer: true, forExecutive: true },
         })
       : Promise.resolve([]),
     isCash && mayRecordCost
@@ -198,14 +207,23 @@ export default async function AccountPage({
 
   /* Most-recorded first, then the kinds of cost the business has named, so a
      tin that has never paid for anything still offers something to tap. */
+  /* The tin pays the office's running costs. A tap files what it names as an
+     office cost, so only the office's own kinds are offered: a sailing's
+     wharfage or an owner's school fees tapped here would be refused, or worse,
+     filed where they do not belong. */
+  const officeKinds = new Set(types.filter((ty) => !ty.forContainer && !ty.forExecutive).map((ty) => ty.id));
   const usual: UsualCost[] = (() => {
     const seen = new Set<string>();
     return [
-      ...usedMost.map((r) => ({
-        label: (r.description ?? "").trim(),
-        expenseTypeId: r.expenseTypeId,
-      })),
-      ...types.map((ty) => ({ label: ty.name, expenseTypeId: ty.id })),
+      ...usedMost
+        .filter((r) => r.expenseTypeId === null || officeKinds.has(r.expenseTypeId))
+        .map((r) => ({
+          label: (r.description ?? "").trim(),
+          expenseTypeId: r.expenseTypeId,
+        })),
+      ...types
+        .filter((ty) => officeKinds.has(ty.id))
+        .map((ty) => ({ label: ty.name, expenseTypeId: ty.id })),
     ]
       .filter((item) => {
         const key = item.label.toLowerCase();

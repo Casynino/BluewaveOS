@@ -22,7 +22,7 @@ export function ExpenseForm({
   accounts = [],
 }: {
   containers: { id: string; label: string }[];
-  types: { id: string; name: string; forContainer?: boolean }[];
+  types: { id: string; name: string; forContainer?: boolean; forExecutive?: boolean }[];
   accounts?: { id: string; label: string }[];
 }) {
   const tx = useT();
@@ -182,7 +182,7 @@ export function RecordCostPanel({
   defaultCurrency = "TZS",
 }: {
   usual: UsualCost[];
-  types: { id: string; name: string; forContainer?: boolean }[];
+  types: { id: string; name: string; forContainer?: boolean; forExecutive?: boolean }[];
   accounts: { id: string; label: string }[];
   containers: { id: string; label: string }[];
   defaultAccountId?: string;
@@ -276,7 +276,9 @@ export function RecordCostPanel({
               onChange={(e) => setTypeId(e.target.value)}
             >
               <option value="">{tx("Uncategorised")}</option>
-              {types.filter((t) => !!t.forContainer === !!containerId).map((t) => (
+              {/* An owner's draws are recorded under Executive, in a name, and
+                  never from the tin's own panel. */}
+              {types.filter((t) => !t.forExecutive && !!t.forContainer === !!containerId).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

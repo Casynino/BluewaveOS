@@ -23,6 +23,7 @@ import { formatCurrency, toBase } from "@/lib/currency";
 import { formatDate } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { ledgerRows, type LedgerPerson, type LedgerRow } from "@/lib/ledger";
+import { withFamily } from "@/lib/expense-correction";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -109,7 +110,12 @@ export default async function LedgerPage({
       orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { bankName: "asc" }],
       select: { id: true, bankName: true, currency: true, active: true },
     }),
-    prisma.expenseType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.expenseType
+      .findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, forContainer: true, forExecutive: true },
+      })
+      .then(withFamily),
     /* A cost with no account named has not been paid. No money has moved, so it
        is not in the register — but it is money the business owes. */
     prisma.containerExpense.groupBy({

@@ -11,6 +11,7 @@ import { formatDateTime } from "@/lib/format";
 import { PAYMENT_STATUS_LABELS } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import { ledgerRows, methodLabel } from "@/lib/ledger";
+import { withFamily } from "@/lib/expense-correction";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -384,7 +385,12 @@ export default async function LedgerEntryPage({ params }: { params: Promise<{ id
       })
     : [];
   const categories = row.fix?.kind === "expense"
-    ? await prisma.expenseType.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+    ? await prisma.expenseType
+      .findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, forContainer: true, forExecutive: true },
+      })
+      .then(withFamily)
     : [];
 
   return (

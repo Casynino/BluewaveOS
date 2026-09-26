@@ -239,7 +239,18 @@ export async function ContainerMoney({
   const mayMovePricedBill = can(user.role, "invoice.discount");
   /* What this business pays for, read off the register — the same picker the
      expenses page opens, with this sailing already chosen. */
-  const picker = await expenseChoices();
+  /* Only what recording a cost on THIS sailing needs, and only for a desk
+     that may record one. Everything handed to the card is sent to the
+     browser, so the office's costs, other boxes and every executive's draws
+     stay on the server: a list of what the owner has taken out is not
+     something to ship to every desk that can open a container. */
+  const picker = mayRecordCost
+    ? await expenseChoices(container.id, { scopes: ["CONTAINER"] }).then((all) => ({
+        history: all.history,
+        groups: all.groups.filter((g) => g.family === "SAILING"),
+        containers: all.containers.filter((c) => c.id === container.id),
+      }))
+    : { history: { CONTAINER: [], OFFICE: [], SPECIAL: [], EXECUTIVE: [] }, groups: [], containers: [] };
 
   const [locale, correction, priceList, cargoTypes, settings] = await Promise.all([
     localeOf(user.id),

@@ -168,7 +168,9 @@ model User {
   sourcingAssigned   SourcingRequest[]      @relation("SourcingAssignee")
   sourcingCreated    SourcingRequest[]      @relation("SourcingCreator")
   visitsAssigned     BusinessVisitRequest[] @relation("VisitAssignee")
-  expensesRecorded   ContainerExpense[]
+  expensesRecorded   ContainerExpense[] @relation("ExpenseRecordedBy")
+  /// The draws taken in this person's name — an executive's own list.
+  executiveDraws     ContainerExpense[] @relation("ExpenseExecutive")
   cargoStatusEvents  CargoStatusHistory[]
   pickupNotesIssued  PickupNote[]           @relation("PickupNoteIssuedBy")
   contactsSent       CustomerContact[]      @relation("ContactSentBy")
@@ -1578,6 +1580,11 @@ model ExpenseType {
   /// offered inside a container; everything else is the business's own running
   /// cost and is recorded on the general expenses page.
   forContainer Boolean @default(false)
+  /// Money an owner or director takes out of the business — drawings, an
+  /// advance, school fees, a family's medical bill. Only these are offered for
+  /// an executive's draw, and none of them for the office: "school fees" filed
+  /// as a running cost makes the business's costs a lie in the other direction.
+  forExecutive Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -1645,6 +1652,15 @@ model ContainerExpense {
   accountId String?
   account   BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
+  /// WHOSE DRAW THIS IS. An EXECUTIVE cost is money one of the company's own
+  /// people took or spent — an owner's travel, a director's advance — and the
+  /// question asked of it later is never "what was it" but "whose". Named on
+  /// the row so each executive's draws can be read back as a list of their
+  /// own, which is what lets somebody check them. Only the Management desk is
+  /// offered; the office's costs and a sailing's never carry a name here.
+  executiveId String?
+  executive   User?   @relation("ExpenseExecutive", fields: [executiveId], references: [id], onDelete: SetNull)
+
   referenceNumber String?
   description     String?
   receiptUrl      String?
@@ -1657,7 +1673,7 @@ model ContainerExpense {
   payrollRun PayrollRun?
 
   recordedById String?
-  recordedBy   User?   @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  recordedBy   User?   @relation("ExpenseRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1672,6 +1688,8 @@ model ContainerExpense {
   /// The cost report adds a sailing up by what was bought and from whom.
   @@index([expenseTypeId])
   @@index([vendorId])
+  /// Each executive's own draws, read back as a list.
+  @@index([executiveId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
