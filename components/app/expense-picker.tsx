@@ -50,14 +50,34 @@ export type PickerItem = {
   vendor: string | null;
   monthly: boolean;
   scope: "CONTAINER" | "OFFICE" | "SPECIAL" | "EXECUTIVE";
+  forContainer: boolean;
   times: number;
 };
 export type PickerGroup = {
   id: string;
   name: string;
   icon: string;
+  forContainer: boolean;
   items: PickerItem[];
 };
+
+type Scope = "OFFICE" | "CONTAINER" | "SPECIAL" | "EXECUTIVE";
+
+/*
+  WHOSE MONEY THIS IS, ASKED FIRST.
+
+  A sailing's cost is part of that container's margin; the office's rent, a
+  one-off and a director's travel are the business's own and never touch a
+  sailing. Charging one to the other makes a container's profit a lie, so the
+  kind of spending is chosen before the cost is — and choosing "a sailing"
+  narrows the list to what a sailing can actually incur.
+*/
+const SCOPES: { key: Scope; label: string; hint: string }[] = [
+  { key: "OFFICE", label: "The office", hint: "The business's own running costs" },
+  { key: "CONTAINER", label: "A sailing", hint: "Charged to one container's margin" },
+  { key: "SPECIAL", label: "Special", hint: "A one-off, outside the usual running costs" },
+  { key: "EXECUTIVE", label: "Executive", hint: "An owner's or director's own cost" },
+];
 
 const ICONS: Record<string, LucideIcon> = {
   Ship,
@@ -139,6 +159,10 @@ export function RecordExpense({
   const [chosen, setChosen] = useState<PickerItem | null>(null);
   const [groupId, setGroupId] = useState<string>("used-most");
   const [query, setQuery] = useState("");
+  /* A cost opened from a sailing's own page is that sailing's and nothing
+     else; everywhere else the desk says which kind of spending it is. */
+  const [scope, setScope] = useState<Scope>(containerId ? "CONTAINER" : "OFFICE");
+  const [onContainer, setOnContainer] = useState<string>(containerId ?? "");
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEscape(open, () => setOpen(false));
@@ -158,11 +182,22 @@ export function RecordExpense({
   /* Searching is across everything, not inside the group on screen: somebody
      who types "fuel" wants the fuel, wherever it was filed. */
   const searching = query.trim().length > 0;
+  /* Only what this kind of spending can be. A sailing is offered the costs a
+     sailing incurs; the office is offered everything else. */
+  const wantContainer = scope === "CONTAINER";
+  const inScope = useMemo(
+    () => groups.filter((g) => g.forContainer === wantContainer),
+    [groups, wantContainer]
+  );
+  const mostInScope = useMemo(
+    () => usedMost.filter((item) => item.forContainer === wantContainer),
+    [usedMost, wantContainer]
+  );
   const results = useMemo(() => {
     if (!searching) return [];
     const needle = query.trim().toLowerCase();
     const seen = new Set<string>();
-    return groups
+    return inScope
       .flatMap((g) => g.items)
       .filter((item) => {
         const key = item.label.toLowerCase();
@@ -174,10 +209,14 @@ export function RecordExpense({
         return true;
       })
       .slice(0, 24);
-  }, [groups, query, searching]);
+  }, [inScope, query, searching]);
 
-  const group = groups.find((g) => g.id === groupId) ?? null;
-  const shown = searching ? results : groupId === "used-most" ? usedMost : (group?.items ?? []);
+  const group = inScope.find((g) => g.id === groupId) ?? null;
+  const shown = searching
+    ? results
+    : groupId === "used-most"
+      ? mostInScope
+      : (group?.items ?? []);
   const heading = searching
     ? `${results.length} ${results.length === 1 ? tx("match") : tx("matches")}`
     : groupId === "used-most"
@@ -237,6 +276,57 @@ export function RecordExpense({
               {tx("Search, or pick from a group. Anything new is saved for next time.")}
             </p>
 
+            {/* WHOSE MONEY THIS IS, BEFORE WHAT IT WENT ON. Hidden when the
+                picker was opened from a sailing's own page: there the answer
+                is already that sailing. */}
+            {!containerId ? (
+              <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                {SCOPES.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    title={tx(option.hint)}
+                    onClick={() => {
+                      setScope(option.key);
+                      setGroupId("used-most");
+                      setQuery("");
+                    }}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      scope === option.key
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "text-muted-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {tx(option.label)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Which sailing, asked here rather than after the amount: the
+                costs a container can be charged are the list underneath, and
+                naming it is what makes this that sailing's cost. */}
+            {!containerId && scope === "CONTAINER" ? (
+              <div className="mt-3 space-y-1.5">
+                <Label htmlFor="picker-container" className="text-xs">
+                  {tx("Which container")}
+                </Label>
+                <NativeSelect
+                  id="picker-container"
+                  value={onContainer}
+                  onChange={(e) => setOnContainer(e.target.value)}
+                >
+                  <option value="">{tx("Choose the sailing…")}</option>
+                  {containers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            ) : null}
+
             <div className="relative mt-4">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -254,14 +344,14 @@ export function RecordExpense({
                 <GroupRow
                   icon="Sparkles"
                   name={tx("Used most")}
-                  count={usedMost.length}
+                  count={mostInScope.length}
                   active={!searching && groupId === "used-most"}
                   onClick={() => {
                     setQuery("");
                     setGroupId("used-most");
                   }}
                 />
-                {groups.map((g) => (
+                {inScope.map((g) => (
                   <GroupRow
                     key={g.id}
                     icon={g.icon}
@@ -281,7 +371,11 @@ export function RecordExpense({
                   {heading}
                 </p>
                 <div className="flex-1 overflow-y-auto">
-                  {shown.length === 0 ? (
+                  {scope === "CONTAINER" && !onContainer ? (
+                    <p className="px-4 py-6 text-sm text-muted-foreground">
+                      {tx("Choose the container first — a cost belongs to one sailing or to none.")}
+                    </p>
+                  ) : shown.length === 0 ? (
                     <p className="px-4 py-6 text-sm text-muted-foreground">
                       {tx("Nothing here yet — add it below.")}
                     </p>
@@ -317,6 +411,7 @@ export function RecordExpense({
                 </div>
                 <button
                   type="button"
+                  disabled={scope === "CONTAINER" && !onContainer}
                   onClick={() =>
                     pick({
                       label: query.trim(),
@@ -324,11 +419,12 @@ export function RecordExpense({
                       typeName: null,
                       vendor: null,
                       monthly: false,
-                      scope: containerId ? "CONTAINER" : "OFFICE",
+                      forContainer: scope === "CONTAINER",
+                      scope,
                       times: 0,
                     })
                   }
-                  className="flex items-center gap-2 border-t px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-secondary/60"
+                  className="flex items-center gap-2 border-t px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-secondary/60 disabled:opacity-50"
                 >
                   <Plus className="size-4" />
                   {searching
@@ -350,7 +446,13 @@ export function RecordExpense({
                   {chosen?.label || tx("A new cost")}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {chosen ? subtitleOf(chosen, tx, missing) : tx("Not filed under a kind")}
+                  {[
+                    chosen ? subtitleOf(chosen, tx, missing) : tx("Not filed under a kind"),
+                    scope === "CONTAINER"
+                      ? (containers.find((c) => c.id === (containerId ?? onContainer))?.label ??
+                        tx("this container"))
+                      : tx(SCOPES.find((o) => o.key === scope)?.label ?? ""),
+                  ].join(" · ")}
                 </span>
               </span>
               <button
@@ -365,12 +467,10 @@ export function RecordExpense({
             <h2 className="mt-4 text-xl font-semibold tracking-tight">{tx("How much was it?")}</h2>
 
             <input type="hidden" name="expenseTypeId" value={chosen?.typeId ?? ""} />
-            <input
-              type="hidden"
-              name="scope"
-              value={containerId ? "CONTAINER" : (chosen?.scope ?? "OFFICE")}
-            />
-            {containerId ? <input type="hidden" name="containerId" value={containerId} /> : null}
+            <input type="hidden" name="scope" value={scope} />
+            {scope === "CONTAINER" ? (
+              <input type="hidden" name="containerId" value={containerId ?? onContainer} />
+            ) : null}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* Typed for a cost nobody has paid before, and offered for
@@ -442,23 +542,6 @@ export function RecordExpense({
                 <Label htmlFor="referenceNumber">{tx("Their reference")}</Label>
                 <Input id="referenceNumber" name="referenceNumber" />
               </div>
-              {/* Naming a sailing is what makes this that sailing's cost, and
-                  nothing else does. */}
-              {!containerId && chosen?.scope === "CONTAINER" ? (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="containerId">{tx("Which container")}</Label>
-                  <NativeSelect id="containerId" name="containerId" required defaultValue="">
-                    <option value="" disabled>
-                      {tx("Choose…")}
-                    </option>
-                    {containers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-              ) : null}
             </div>
 
             <FormMessage error={state.error} ok={state.ok} />

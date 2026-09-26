@@ -50,6 +50,7 @@ type Correcting = {
  */
 export function ContainerExpenses({
   containerId,
+  containerReference,
   rows,
   accounts,
   picker,
@@ -62,6 +63,8 @@ export function ContainerExpenses({
   correctionCategories,
 }: {
   containerId: string;
+  /** The sailing's own reference, so the second step names it. */
+  containerReference: string;
   rows: ContainerExpenseRow[];
   accounts: { id: string; label: string }[];
   /** What this business pays for, read off the register. See the picker. */
@@ -137,7 +140,7 @@ export function ContainerExpenses({
             usedMost={picker.usedMost}
             groups={picker.groups}
             accounts={accounts}
-            containers={[]}
+            containers={[{ id: containerId, label: containerReference }]}
             containerId={containerId}
             missing={missing}
             label={tx("Record a cost")}

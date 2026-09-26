@@ -37,6 +37,12 @@ export type ExpenseChoice = {
   monthly: boolean;
   /** Container cost, or one of the business's own. Chosen with the item. */
   scope: "CONTAINER" | "OFFICE" | "SPECIAL" | "EXECUTIVE";
+  /**
+   * A cost a sailing incurs — THC, demurrage, wharfage. Only these are offered
+   * once a container is named, because charging the office's electricity to a
+   * sailing makes that container's margin a lie.
+   */
+  forContainer: boolean;
   /** How many times it has been paid. Orders the list; never shown as a figure. */
   times: number;
 };
@@ -46,6 +52,8 @@ export type ExpenseGroup = {
   name: string;
   /** A lucide name the picker maps to an icon. */
   icon: string;
+  /** This whole kind of cost belongs to a sailing. */
+  forContainer: boolean;
   items: ExpenseChoice[];
 };
 
@@ -117,7 +125,7 @@ export async function expenseChoices(): Promise<{
         expenseDate: true,
         createdAt: true,
         expenseTypeId: true,
-        expenseType: { select: { name: true } },
+        expenseType: { select: { name: true, forContainer: true } },
         vendor: { select: { name: true } },
       },
     }),
@@ -153,6 +161,7 @@ export async function expenseChoices(): Promise<{
       typeName: row.expenseType?.name ?? null,
       vendor: row.vendor?.name ?? null,
       monthly: false,
+      forContainer: row.expenseType?.forContainer ?? row.scope === "CONTAINER",
       scope: row.scope as Scope,
       times: 1,
       months: new Set([month]),
@@ -172,6 +181,7 @@ export async function expenseChoices(): Promise<{
       id: type.id,
       name: type.name,
       icon: iconFor(type.name),
+      forContainer: type.forContainer,
       items:
         mine.length > 0
           ? mine
@@ -182,6 +192,7 @@ export async function expenseChoices(): Promise<{
                 typeName: type.name,
                 vendor: null,
                 monthly: false,
+                forContainer: type.forContainer,
                 scope: type.forContainer ? "CONTAINER" : "OFFICE",
                 times: 0,
               },
@@ -194,7 +205,13 @@ export async function expenseChoices(): Promise<{
      one here is the desk that can file it. */
   const loose = items.filter((item) => !item.typeId);
   if (loose.length > 0) {
-    groups.push({ id: "uncategorised", name: "Not filed under a kind", icon: "CircleHelp", items: loose });
+    groups.push({
+      id: "uncategorised",
+      name: "Not filed under a kind",
+      icon: "CircleHelp",
+      forContainer: false,
+      items: loose,
+    });
   }
 
   return { usedMost: items.slice(0, MOST_USED), groups };

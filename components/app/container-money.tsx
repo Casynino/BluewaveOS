@@ -751,6 +751,7 @@ export async function ContainerMoney({
 
       <ContainerExpenses
         containerId={container.id}
+        containerReference={container.reference}
         rows={expenseRows}
         picker={picker}
         accounts={accounts.map((a) => ({
