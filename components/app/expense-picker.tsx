@@ -110,6 +110,9 @@ export function RecordExpense({
   containers,
   defaultCurrency = "TZS",
   label,
+  containerId,
+  missing,
+  triggerClassName,
 }: {
   usedMost: PickerItem[];
   groups: PickerGroup[];
@@ -117,6 +120,15 @@ export function RecordExpense({
   containers: { id: string; label: string }[];
   defaultCurrency?: string;
   label?: string;
+  /**
+   * Opened from a sailing's own page: every cost recorded here is that
+   * sailing's, so the second half never asks which container and the scope is
+   * not a choice somebody can get wrong.
+   */
+  containerId?: string;
+  /** Usual costs nothing has been recorded against on this sailing yet. */
+  missing?: string[];
+  triggerClassName?: string;
 }) {
   const tx = useT();
   const [open, setOpen] = useState(false);
@@ -179,7 +191,7 @@ export function RecordExpense({
 
   if (!open) {
     return (
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setOpen(true)} className={triggerClassName}>
         <Plus />
         {label ?? tx("Record a cost")}
       </Button>
@@ -287,9 +299,7 @@ export function RecordExpense({
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{item.label}</span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {[item.typeName ?? tx("Not filed under a kind"), item.vendor ? `${tx("to")} ${item.vendor}` : null]
-                              .filter(Boolean)
-                              .join(" · ")}
+                            {subtitleOf(item, tx, missing)}
                           </span>
                         </span>
                         {/* Paid in three separate months or more: one of the
@@ -314,7 +324,7 @@ export function RecordExpense({
                       typeName: null,
                       vendor: null,
                       monthly: false,
-                      scope: "OFFICE",
+                      scope: containerId ? "CONTAINER" : "OFFICE",
                       times: 0,
                     })
                   }
@@ -340,7 +350,7 @@ export function RecordExpense({
                   {chosen?.label || tx("A new cost")}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {chosen?.typeName ?? tx("Not filed under a kind")}
+                  {chosen ? subtitleOf(chosen, tx, missing) : tx("Not filed under a kind")}
                 </span>
               </span>
               <button
@@ -355,7 +365,12 @@ export function RecordExpense({
             <h2 className="mt-4 text-xl font-semibold tracking-tight">{tx("How much was it?")}</h2>
 
             <input type="hidden" name="expenseTypeId" value={chosen?.typeId ?? ""} />
-            <input type="hidden" name="scope" value={chosen?.scope ?? "OFFICE"} />
+            <input
+              type="hidden"
+              name="scope"
+              value={containerId ? "CONTAINER" : (chosen?.scope ?? "OFFICE")}
+            />
+            {containerId ? <input type="hidden" name="containerId" value={containerId} /> : null}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* Typed for a cost nobody has paid before, and offered for
@@ -429,7 +444,7 @@ export function RecordExpense({
               </div>
               {/* Naming a sailing is what makes this that sailing's cost, and
                   nothing else does. */}
-              {chosen?.scope === "CONTAINER" ? (
+              {!containerId && chosen?.scope === "CONTAINER" ? (
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="containerId">{tx("Which container")}</Label>
                   <NativeSelect id="containerId" name="containerId" required defaultValue="">
@@ -458,6 +473,32 @@ export function RecordExpense({
       </div>
     </div>
   );
+}
+
+/**
+ * The line under the name — never the name a second time.
+ *
+ * A cost nobody has paid yet is its category standing in for itself, and
+ * printing "Wharfage / Wharfage" tells the desk nothing while looking like a
+ * mistake. What is useful instead is that it has not been paid for yet, and on
+ * a sailing's own page, that this sailing has not been charged it.
+ */
+function subtitleOf(
+  item: PickerItem,
+  tx: (s: string) => string,
+  missing?: string[]
+) {
+  const said: string[] = [];
+  if (item.typeName && item.typeName.toLowerCase() !== item.label.toLowerCase()) {
+    said.push(item.typeName);
+  }
+  if (item.vendor) said.push(`${tx("to")} ${item.vendor}`);
+  if (said.length > 0) return said.join(" · ");
+  if (missing?.some((m) => m.toLowerCase() === item.label.toLowerCase())) {
+    return tx("Not recorded on this container yet");
+  }
+  if (item.times === 0) return tx("Never recorded yet");
+  return tx("Recorded before");
 }
 
 function iconOf(item: PickerItem | null) {

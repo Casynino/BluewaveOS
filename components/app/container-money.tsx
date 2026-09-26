@@ -28,6 +28,7 @@ import { formatCbm, formatDate, formatMoney } from "@/lib/format";
 import { bookCategories } from "@/lib/rate-categories";
 import { billLetter, composeMessage, whatsappNumber } from "@/lib/messages";
 import { outstandingOf } from "@/lib/invoice-balance";
+import { expenseChoices } from "@/lib/expense-picker";
 import { prisma } from "@/lib/prisma";
 import { expectedRevenueOf } from "@/lib/container-value";
 import type { Role } from "@prisma/client";
@@ -236,6 +237,10 @@ export async function ContainerMoney({
   /* Moving a figure the customer has already been given. Finance's, and the
      counter's, which is where the conversation about it happens. */
   const mayMovePricedBill = can(user.role, "invoice.discount");
+  /* What this business pays for, read off the register — the same picker the
+     expenses page opens, with this sailing already chosen. */
+  const picker = await expenseChoices();
+
   const [locale, correction, priceList, cargoTypes, settings] = await Promise.all([
     localeOf(user.id),
     mayRecordCost
@@ -747,7 +752,7 @@ export async function ContainerMoney({
       <ContainerExpenses
         containerId={container.id}
         rows={expenseRows}
-        types={expenseTypes}
+        picker={picker}
         accounts={accounts.map((a) => ({
           id: a.id,
           label: `${a.bankName} (${a.currency})`,
