@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Search } from "lucide-react";
 
 import { CorrectExpenseDialog } from "@/components/app/correct-expense-dialog";
-import { ExpenseForm } from "@/components/app/expense-form";
+import { RecordExpense } from "@/components/app/expense-picker";
 import { FinanceTabs } from "@/components/app/finance-tabs";
 import { LedgerRowActions } from "@/components/app/ledger-row-actions";
 import { PageHeader } from "@/components/app/page-header";
@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { expenseChoices } from "@/lib/expense-picker";
 import { cn } from "@/lib/utils";
 import { localeOf } from "@/lib/viewer-locale";
 
@@ -99,6 +100,10 @@ export default async function ExpensesPage({
   const group: Group = sp.group && sp.group in GROUPS ? (sp.group as Group) : "all";
   const from = since(period);
   const query = sp.q?.trim().toLowerCase() ?? "";
+
+  /* What this business actually pays for, read off the register — the picker
+     the Record button opens is built from it. */
+  const picker = await expenseChoices();
 
   const [expenses, register, containers, accounts, types, rate, locale, options] = await Promise.all([
     prisma.containerExpense.findMany({
@@ -248,9 +253,10 @@ export default async function ExpensesPage({
         description={T("What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left.")}
         actions={
           can(user.role, "expense.record") ? (
-            <ExpenseForm
+            <RecordExpense
+              usedMost={picker.usedMost}
+              groups={picker.groups}
               containers={containers.map((c) => ({ id: c.id, label: c.reference }))}
-              types={types}
               accounts={accounts.map((a) => ({ id: a.id, label: `${a.bankName} (${a.currency})` }))}
             />
           ) : null
