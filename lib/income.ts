@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import type { BillChange } from "@/lib/bill-changes";
+import { isUsableRate, toBase } from "@/lib/currency";
 import { darFields, darMidnight } from "@/lib/dar-time";
 import type { Locale } from "@/lib/i18n";
 import { BALANCE_SELECT, balanceOf } from "@/lib/invoice-balance";
@@ -67,6 +68,8 @@ export type IncomeRow = {
   merged: boolean;
   changes: BillChange[];
   fix: LedgerFixPayment | null;
+  /** The receipt the customer was given, when one was printed. */
+  receiptId: string | null;
 };
 
 /** A Dar calendar day as yyyy-mm-dd. darFields counts months from 0. */
@@ -125,6 +128,7 @@ export async function incomeBetween(from: string, to: string, locale: Locale = "
         paidAt: true,
         createdAt: true,
         account: { select: { accountNumber: true } },
+        receipts: { select: { id: true }, take: 1 },
         invoice: {
           select: {
             number: true,
@@ -192,6 +196,7 @@ export async function incomeBetween(from: string, to: string, locale: Locale = "
       merged: slices.length > 1,
       changes: r.changes,
       fix: r.fix?.kind === "payment" ? r.fix : null,
+      receiptId: head.receipts[0]?.id ?? null,
     });
   }
   return rows;
@@ -238,6 +243,8 @@ const AT_SEA = new Set(["DEPARTED_CHINA", "IN_TRANSIT", "CONTAINER_LOADED", "ASS
 export async function owingCustomers(now = new Date()): Promise<{
   customers: OwingCustomer[];
   tzs: number;
+  /** The part of `tzs` owed for goods already handed over on credit. */
+  creditTzs: number;
   unconverted: { currency: string; amount: number }[];
 }> {
   /* ONE SNAPSHOT. Prisma reads the bills, their customers and their cargo in
@@ -273,6 +280,7 @@ export async function owingCustomers(now = new Date()): Promise<{
 
   const byCustomer = new Map<string, OwingCustomer>();
   let tzs = 0;
+  let creditTzs = 0;
   const loose = new Map<string, number>();
   for (const bill of bills) {
     const balance = balanceOf(bill);
@@ -295,6 +303,7 @@ export async function owingCustomers(now = new Date()): Promise<{
       const owed = Number(balance.outstandingTzs.toDecimalPlaces(0));
       row.tzs += owed;
       tzs += owed;
+      if (state === "CREDIT") creditTzs += owed;
     } else {
       const owed = Number(new Prisma.Decimal(balance.outstanding).toDecimalPlaces(2));
       const held = row.unconverted.find((u) => u.currency === bill.currency);
@@ -315,6 +324,48 @@ export async function owingCustomers(now = new Date()): Promise<{
   return {
     customers,
     tzs,
+    creditTzs,
     unconverted: [...loose.entries()].map(([currency, amount]) => ({ currency, amount })),
   };
+}
+
+/* ----------------------------------------------------------------- billed */
+
+const BILLED = ["ISSUED", "PARTIALLY_PAID", "PAID", "OVERDUE"] as const;
+
+/**
+ * WHAT THE BILLS ISSUED IN A STRETCH WERE MADE OF — BILLED, NOT COLLECTED.
+ *
+ * A payment answers a whole bill, never one line of it, so no shilling that
+ * arrived can honestly be called freight or storage. The bill can: each of
+ * its lines goes into shillings at the rate that bill pinned when it was
+ * issued. A discount comes off the freight it was given on. A bill with no
+ * rate pinned is left out rather than priced at a rate nobody agreed to.
+ */
+export async function billedBetween(from: string, to: string) {
+  const bills = await prisma.invoice.findMany({
+    where: {
+      status: { in: [...BILLED] },
+      issuedAt: { gte: dayBounds(from).start, lt: dayBounds(to).next },
+    },
+    select: { currency: true, fxRate: true, items: { select: { category: true, amount: true } } },
+  });
+  const out = { freight: 0, storage: 0, other: 0 };
+  for (const bill of bills) {
+    if (bill.currency !== "TZS" && !isUsableRate(bill.fxRate)) continue;
+    const sum = { freight: new Prisma.Decimal(0), storage: new Prisma.Decimal(0), other: new Prisma.Decimal(0) };
+    for (const item of bill.items) {
+      const key =
+        item.category === "Freight" || item.category === "Discount"
+          ? "freight"
+          : item.category === "Storage"
+            ? "storage"
+            : "other";
+      sum[key] = sum[key].add(item.amount);
+    }
+    for (const key of ["freight", "storage", "other"] as const) {
+      out[key] += Number(toBase(sum[key], bill.currency, bill.fxRate));
+    }
+  }
+  return out;
 }

@@ -137,6 +137,18 @@ before(async () => {
 
   s.paidOff = s.lclInvoice;
   s.owed = s.fclInvoice;
+
+  /* A bill issued on a day nothing else was, broken into its lines. */
+  const old = await cargoWithBill("OLD", "LCL", 385);
+  await prisma.invoice.update({ where: { id: old }, data: { status: "PAID", issuedAt: new Date("2001-02-03T09:00:00+03:00") } });
+  await prisma.invoiceItem.createMany({
+    data: [
+      { invoiceId: old, description: "Freight", amount: 400, category: "Freight" },
+      { invoiceId: old, description: "Discount", amount: -30, category: "Discount" },
+      { invoiceId: old, description: "Storage", amount: 12, category: "Storage" },
+      { invoiceId: old, description: "Loading", amount: 3, category: "Other" },
+    ],
+  });
 });
 
 after(async () => {
@@ -205,6 +217,17 @@ describe("income is the ledger's money in, and nothing else", () => {
       (r) => r.account.id === s.accountId
     );
     assert.equal(rows.length, 0);
+  });
+});
+
+describe("what the bills were made of", () => {
+  test("freight less its discount, storage, and the rest, each at the bill's own rate", async () => {
+    const billed = await income.billedBetween("2001-02-03", "2001-02-03");
+    assert.deepEqual(billed, { freight: 370 * 2650, storage: 12 * 2650, other: 3 * 2650 });
+  });
+
+  test("a day with no bills issued has nothing billed", async () => {
+    assert.deepEqual(await income.billedBetween("2001-02-04", "2001-02-04"), { freight: 0, storage: 0, other: 0 });
   });
 });
 
