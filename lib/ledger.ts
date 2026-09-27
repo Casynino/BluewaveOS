@@ -96,10 +96,10 @@ export type LedgerRow = {
   fix: LedgerFixPayment | LedgerFixExpense | LedgerFixTransfer | null;
 };
 
-type RateRow = { rate: Prisma.Decimal; effectiveFrom: Date };
+export type RateRow = { rate: Prisma.Decimal; effectiveFrom: Date };
 
 /** The rate posted on the day, or the first one ever posted for anything older. */
-function rateOn(rates: RateRow[], at: Date): Prisma.Decimal | null {
+export function rateOn(rates: RateRow[], at: Date): Prisma.Decimal | null {
   let chosen: RateRow | null = null;
   for (const r of rates) {
     if (r.effectiveFrom.getTime() <= at.getTime()) chosen = r;
@@ -107,7 +107,9 @@ function rateOn(rates: RateRow[], at: Date): Prisma.Decimal | null {
   return (chosen ?? rates[0] ?? null)?.rate ?? null;
 }
 
-function shillings(
+/** An amount in whole shillings, at its own rate — the ledger's one conversion,
+    shared so the income page cannot come to a different figure. */
+export function shillings(
   amount: Prisma.Decimal.Value,
   currency: string,
   rate: Prisma.Decimal.Value | null

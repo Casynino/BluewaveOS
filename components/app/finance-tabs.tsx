@@ -10,7 +10,7 @@ import { useT } from "@/components/app/locale-provider";
  * THE DEPARTMENT'S OWN TABS.
  *
  * These are not the sidebar again — the sidebar is every screen a desk can
- * reach, and this is the nine faces of one thing: the company's money. A person
+ * reach, and this is the ten faces of one thing: the company's money. A person
  * working the books moves between them dozens of times an hour, and reaching up
  * to a menu for each move is a menu press per thought.
  *
@@ -25,6 +25,7 @@ const TABS = [
   ["/app/finance/credit", "Credit"],
   ["/app/finance/ledger", "General ledger"],
   ["/app/finance/expenses", "Expenses"],
+  ["/app/finance/income", "Income"],
   ["/app/finance/payroll", "Payroll"],
   ["/app/finance/reports", "Profit & loss"],
   ["/app/finance/audit", "Money audit"],

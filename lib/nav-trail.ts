@@ -156,6 +156,7 @@ const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/finance/invoices", label: "Invoices" },
   { prefix: "/app/finance/receipts", label: "Receipts" },
   { prefix: "/app/finance/expenses", label: "Expenses" },
+  { prefix: "/app/finance/income", label: "Income" },
   { prefix: "/app/finance/accounts", label: "Accounts" },
   { prefix: "/app/finance/credit", label: "Credit" },
   { prefix: "/app/finance/payroll", label: "Payroll" },
