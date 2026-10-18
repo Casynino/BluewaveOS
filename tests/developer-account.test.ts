@@ -328,3 +328,35 @@ describe("the developer's audit lines cannot be rewritten", () => {
       await tx.auditLog.delete({ where: { id: staff.id } });
     }));
 });
+
+describe("deleting an account", () => {
+  test("removes the way in and keeps the name and everything recorded", () =>
+    inRollback(async (tx) => {
+      const { removeAccess, isDeletedEmail } = await import("@/lib/developer-accounts");
+      const u = await tx.user.create({ data: { name: "Real Person", email: "real@example.test", passwordHash: "secret-hash", role: "FINANCE", department: "FINANCE" } });
+      const note = await tx.notification.create({ data: { userId: u.id, kind: "probe", title: "hello", body: "x" } });
+      const line = await tx.auditLog.create({ data: { action: "probe", entity: "Probe", summary: "did a thing", actorType: "STAFF", actorId: u.id, actorName: "Real Person" } });
+      await removeAccess(tx, u.id);
+      const after = await tx.user.findUniqueOrThrow({ where: { id: u.id } });
+      assert.equal(after.name, "Real Person", "the name stays on what they did");
+      assert.equal(after.role, "FINANCE");
+      assert.ok(isDeletedEmail(after.email), "the address is freed");
+      assert.notEqual(after.passwordHash, "secret-hash");
+      assert.equal(after.active, false);
+      assert.equal(after.status, "INACTIVE");
+      assert.equal((await tx.auditLog.findUniqueOrThrow({ where: { id: line.id } })).actorId, u.id, "their record still points at them");
+      assert.ok(await tx.notification.findUnique({ where: { id: note.id } }));
+    }));
+
+  test("the last active owner is protected; with another owner it is not", () =>
+    inRollback(async (tx) => {
+      const { wouldLeaveNoOwner } = await import("@/lib/developer-accounts");
+      await tx.user.updateMany({ where: { role: "ADMIN" }, data: { status: "SUSPENDED" } });
+      const only = await tx.user.create({ data: { name: "Only Owner", email: "only@example.test", passwordHash: "x", role: "ADMIN", department: "MANAGEMENT" } });
+      assert.equal(await wouldLeaveNoOwner(tx, only), true);
+      await tx.user.create({ data: { name: "Second Owner", email: "second-owner@example.test", passwordHash: "x", role: "ADMIN", department: "MANAGEMENT" } });
+      assert.equal(await wouldLeaveNoOwner(tx, only), false);
+      const fin = await tx.user.create({ data: { name: "Fin2", email: "fin2@example.test", passwordHash: "x", role: "FINANCE", department: "FINANCE" } });
+      assert.equal(await wouldLeaveNoOwner(tx, fin), false);
+    }));
+});

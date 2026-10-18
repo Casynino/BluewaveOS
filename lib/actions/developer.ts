@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { recordAudit } from "@/lib/audit";
 import { startWorkingAs, stopWorkingAs, workingAs } from "@/lib/developer";
+import { isDeletedEmail, removeAccess, wouldLeaveNoOwner } from "@/lib/developer-accounts";
 import { prisma } from "@/lib/prisma";
 import { realDeveloper } from "@/lib/session";
 
@@ -55,7 +56,7 @@ export async function stopWorkAs() {
 export type AccessState = { error?: string; ok?: string };
 
 /**
- * SUSPEND A STAFF ACCOUNT, AND ONLY WITH A REASON AND A CONFIRMATION.
+ * SUSPEND AN ACCOUNT — ASKED ONCE, IN A DIALOG, BEFORE IT IS SENT.
  *
  * Blocks the account at once — every request re-reads it, so an open session
  * stops with the next click. Never the owner, never another developer, never
@@ -66,22 +67,19 @@ export async function suspendAccount(_prev: AccessState, formData: FormData): Pr
   if (!dev) return { error: "Not allowed." };
   if (await workingAs(dev.user.id, dev.sid)) return { error: "Stop working as someone first." };
   const id = String(formData.get("userId") ?? "");
-  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
-  if (String(formData.get("confirm") ?? "").trim() !== "CONFIRM") return { error: "Type CONFIRM to suspend." };
-  if (reason.length < 3) return { error: "Say why." };
-  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, status: true } });
-  if (!target || ["ADMIN", "DEVELOPER", "CUSTOMER"].includes(target.role) || target.id === dev.user.id) {
+  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, status: true, email: true } });
+  if (!target || target.role === "DEVELOPER" || target.id === dev.user.id || isDeletedEmail(target.email)) {
     return { error: "That account cannot be suspended here." };
   }
   if (target.status !== "ACTIVE") return { error: "It is not active." };
+  if (await wouldLeaveNoOwner(prisma, target)) return { error: "That is the only active owner account. Open another owner account first." };
   await prisma.user.update({ where: { id: target.id }, data: { status: "SUSPENDED" } });
   await recordAudit({
     actor: dev.user,
     action: "developer.suspend",
     entity: "User",
     entityId: target.id,
-    summary: `${dev.user.name} suspended ${target.name} — ${reason}`,
-    metadata: { reason },
+    summary: `${dev.user.name} suspended ${target.name}`,
   });
   revalidatePath("/app/developer/users");
   return { ok: `${target.name} is suspended.` };
@@ -111,4 +109,37 @@ export async function reactivateAccount(_prev: AccessState, formData: FormData):
   });
   revalidatePath("/app/developer/users");
   return { ok: `${target.name} can sign in again.` };
+}
+
+/**
+ * DELETE AN ACCOUNT: REMOVE THE PERSON'S WAY IN, KEEP EVERYTHING THEY DID.
+ *
+ * Any account but another developer's, one's own, or the last active owner's.
+ * They can never sign in again and disappear from every list, but the records
+ * they made — payments, receiving, bills, messages — stay exactly as they
+ * were, under their name (lib/developer-accounts.ts). Recorded under the
+ * developer first, with who it was and the address they signed in with.
+ */
+export async function deleteAccount(_prev: AccessState, formData: FormData): Promise<AccessState> {
+  const dev = await realDeveloper();
+  if (!dev) return { error: "Not allowed." };
+  if (await workingAs(dev.user.id, dev.sid)) return { error: "Stop working as someone first." };
+  const id = String(formData.get("userId") ?? "");
+  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true } });
+  if (!target || target.role === "DEVELOPER" || target.id === dev.user.id || isDeletedEmail(target.email)) {
+    return { error: "That account cannot be deleted here." };
+  }
+  if (await wouldLeaveNoOwner(prisma, target)) return { error: "That is the only active owner account. Open another owner account first." };
+
+  await prisma.$transaction((tx) => removeAccess(tx, id));
+  await recordAudit({
+    actor: dev.user,
+    action: "developer.delete",
+    entity: "User",
+    entityId: id,
+    summary: `${dev.user.name} deleted the account of ${target.name} (${target.role})`,
+    metadata: { was: { name: target.name, email: target.email, role: target.role } },
+  });
+  revalidatePath("/app/developer/users");
+  return { ok: `${target.name}'s account is deleted. What they recorded is kept.` };
 }
