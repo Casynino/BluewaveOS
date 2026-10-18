@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle, BarChart3, Info, ScrollText, TriangleAlert } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, ChevronDown, Info, ScrollText, XCircle } from "lucide-react";
 
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { Legend, RankedBars, ScoreRing, StackedBars } from "@/components/app/dev-charts";
 import { WorkAsDialog } from "@/components/app/work-as-dialog";
+import { Badge } from "@/components/ui/badge";
 import { startWorkAs } from "@/lib/actions/developer";
 import { ROLE_LABELS } from "@/lib/constants";
 import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overview";
-import { systemChecks } from "@/lib/developer-checks";
+import { runSystemChecks, type CheckStatus } from "@/lib/developer-checks";
 import { activityKpis, businessPulse, dataPulse, messagesPulse, peoplePulse, securityPulse, settingsPulse, speedPulse } from "@/lib/developer-system";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -28,10 +29,11 @@ const GROUP_COLOR: Record<string, string> = {
   Developer: "bg-slate-400",
 };
 
-const TONE: Record<Finding["tone"], { icon: typeof Info; ring: string; badge: string; label: string }> = {
-  fix: { icon: TriangleAlert, ring: "border-destructive/40 bg-destructive/5", badge: "bg-destructive/15 text-destructive", label: "Fix now" },
-  look: { icon: AlertTriangle, ring: "border-warning/40 bg-warning/5", badge: "bg-warning/15 text-warning", label: "Look at it" },
-  info: { icon: Info, ring: "border-border bg-card", badge: "bg-secondary text-muted-foreground", label: "Good to know" },
+/* How a problem looks, by how urgent it is — the ORA control room's levels. */
+const TONE: Record<Finding["tone"], { icon: typeof Info; box: string; chip: string; label: string }> = {
+  fix: { icon: XCircle, box: "border-destructive/30 bg-destructive/10", chip: "bg-destructive/15 text-destructive", label: "Fix now" },
+  look: { icon: AlertTriangle, box: "border-warning/30 bg-warning/10", chip: "bg-warning/20 text-warning", label: "Look at it" },
+  info: { icon: Info, box: "border-info/25 bg-info/10", chip: "bg-info/15 text-info", label: "Good to know" },
 };
 
 const ago = (d: Date | null) => {
@@ -62,9 +64,9 @@ const Card = ({ title, hint, children, className }: { title: string; hint?: stri
 export default async function DeveloperHome() {
   await primeLocale();
   const user = await requirePermission("developer.activity");
-  const [o0, extra, warehouses, people] = await Promise.all([
+  const [o0, checks, warehouses, people] = await Promise.all([
     developerOverview(),
-    systemChecks(),
+    runSystemChecks(),
     prisma.warehouse.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     prisma.user.findMany({
       where: { active: true, status: "ACTIVE", role: { notIn: ["CUSTOMER", "DEVELOPER"] } },
@@ -74,7 +76,7 @@ export default async function DeveloperHome() {
   ]);
 
   /* What the business is waiting on counts toward the health of the whole. */
-  const findings = [...o0.findings, ...extra.map((f) => ({ ...f }))] as Finding[];
+  const findings = [...o0.findings, ...checks.findings] as Finding[];
   const counts = {
     fix: findings.filter((f) => f.tone === "fix").length,
     look: findings.filter((f) => f.tone === "look").length,
@@ -104,8 +106,6 @@ export default async function DeveloperHome() {
   const hour = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Dar_es_Salaam" })) % 24;
   const greeting = hour >= 5 && hour < 12 ? T("Good morning") : hour >= 12 && hour < 17 ? T("Good afternoon") : T("Good evening");
   const hello = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" });
-  const need = o.findings.filter((f) => f.tone !== "info");
-  const good = o.findings.filter((f) => f.tone === "info");
   const verdict = o.counts.fix > 0 ? "Something is broken" : o.counts.look > 0 ? "Working, with a few things to look at" : "Everything is working";
 
   return (
@@ -181,91 +181,7 @@ export default async function DeveloperHome() {
         </dl>
       </section>
 
-      {o.findings.length > 0 ? (
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-semibold">{T("Needs your attention")} · {need.length}</h2>
-            <p className="text-sm text-muted-foreground">{T("Checked just now.")}</p>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {[...need, ...good].map((f) => {
-              const t = TONE[f.tone];
-              return (
-                <details key={f.key} open={f.tone !== "info"} className={cn("group rounded-xl border px-4 py-3 lg:col-span-2", t.ring)}>
-                  <summary className="flex cursor-pointer list-none items-center gap-3">
-                    <t.icon className="size-5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold">{f.title}</span>
-                    </span>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", t.badge)}>{T(t.label)}</span>
-                  </summary>
-                  <p className="mt-2 pl-8 text-sm text-muted-foreground">{f.detail}</p>
-                  {f.lines?.length ? (
-                    <ul className="mt-2 space-y-0.5 pl-8 text-xs text-muted-foreground">
-                      {f.lines.map((l, i) => <li key={i} className="truncate font-mono">• {l}</li>)}
-                    </ul>
-                  ) : null}
-                  {f.fix ? (
-                    <p className="mt-3 pl-8 text-sm"><span className="font-semibold">{T("What to do:")}</span> {f.fix}</p>
-                  ) : null}
-                  {f.href || f.workAs ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
-                      {f.href ? (
-                        <Link href={f.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Look at it")}</Link>
-                      ) : null}
-                      {(() => {
-                        const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
-                        return who ? (
-                          <form action={startWorkAs}>
-                            <input type="hidden" name="userId" value={who.id} />
-                            {f.href ? <input type="hidden" name="next" value={f.href} /> : null}
-                            <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {who.name.split(" ")[0]} · {ROLE_LABELS[who.role as keyof typeof ROLE_LABELS]}</button>
-                          </form>
-                        ) : null;
-                      })()}
-                    </div>
-                  ) : null}
-                  {f.items?.length ? (
-                    <ul className="mt-3 space-y-2 pl-8">
-                      {f.items.map((it, i) => (
-                        <li key={i} className="flex flex-wrap items-center gap-3 rounded-lg border bg-card/60 px-3 py-2.5">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{it.title}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {T("For")} {it.who} · {ROLE_LABELS[it.role as keyof typeof ROLE_LABELS]} · {it.age}
-                              {it.body ? ` — ${it.body}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            {it.href ? (
-                              <Link href={it.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Open")}</Link>
-                            ) : null}
-                            <form action={startWorkAs}>
-                              <input type="hidden" name="userId" value={it.whoId} />
-                              {it.href ? <input type="hidden" name="next" value={it.href} /> : null}
-                              <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {it.who.split(" ")[0]}</button>
-                            </form>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </details>
-              );
-            })}
-          </div>
-        </section>
-      ) : (
-        <section className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-success/15 text-success"><Info className="size-4" /></span>
-          <span>
-            <span className="block text-sm font-semibold">{T("Nothing needs your attention")}</span>
-            <span className="block text-xs text-muted-foreground">{T("Nothing is broken and nothing is waiting too long.")}</span>
-          </span>
-        </section>
-      )}
-
-
+      <Attention findings={o.findings} checks={checks.list} people={people} />
 
       <Section id="activity" title="Activity" hint="Who is using the system, and what they are doing.">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -653,5 +569,188 @@ function SpeedTab({ d, speed }: { d: Awaited<ReturnType<typeof dataPulse>>; spee
         </ul>
       </Card>
     </div>
+  );
+}
+
+/* ───────────────────────── needs your attention ───────────────────────── */
+
+type Person = { id: string; name: string; role: string };
+
+/** A problem as a compact card; tap to see what it means and what to do. */
+function ProblemCard({ f, people, showLevel = false }: { f: Finding; people: Person[]; showLevel?: boolean }) {
+  const t = TONE[f.tone];
+  const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
+  return (
+    <details className={cn("group min-w-0 rounded-xl border open:shadow-soft md:[&:last-child:nth-child(odd)]:col-span-2", t.box)}>
+      <summary className="flex cursor-pointer list-none items-center gap-3 p-3.5 [&::-webkit-details-marker]:hidden">
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", t.chip)}>
+          <t.icon className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 text-sm font-semibold leading-snug">{f.title}</span>
+          <span className="block truncate text-xs text-muted-foreground">{f.detail}</span>
+        </span>
+        {showLevel ? (
+          <span className={cn("hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:inline", t.chip)}>{T(t.label)}</span>
+        ) : null}
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="space-y-2 border-t border-border/60 px-3.5 py-3 text-sm leading-relaxed">
+        <p className="text-muted-foreground">{f.detail}</p>
+        {f.lines?.length ? (
+          <ul className="space-y-0.5 text-xs text-muted-foreground">
+            {f.lines.map((l, i) => <li key={i} className="truncate font-mono">• {l}</li>)}
+          </ul>
+        ) : null}
+        {f.fix ? (
+          <p className="text-foreground/90"><span className="font-semibold">{T("What to do:")} </span>{f.fix}</p>
+        ) : null}
+        {f.href || who ? (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {f.href ? (
+              <Link href={f.href} className="inline-flex items-center rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-border transition-colors hover:bg-secondary">
+                {T("Look at it")} →
+              </Link>
+            ) : null}
+            {who ? (
+              <form action={startWorkAs}>
+                <input type="hidden" name="userId" value={who.id} />
+                {f.href ? <input type="hidden" name="next" value={f.href} /> : null}
+                <button type="submit" className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">
+                  {T("Work as")} {who.name.split(" ")[0]} · {ROLE_LABELS[who.role as keyof typeof ROLE_LABELS]}
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+        {f.items?.length ? (
+          <ul className="space-y-2 pt-1">
+            {f.items.map((it, i) => (
+              <li key={i} className="flex flex-wrap items-center gap-3 rounded-lg border bg-card/60 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{it.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {T("For")} {it.who} · {ROLE_LABELS[it.role as keyof typeof ROLE_LABELS]} · {it.age}
+                    {it.body ? ` — ${it.body}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {it.href ? (
+                    <Link href={it.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Open")}</Link>
+                  ) : null}
+                  <form action={startWorkAs}>
+                    <input type="hidden" name="userId" value={it.whoId} />
+                    {it.href ? <input type="hidden" name="next" value={it.href} /> : null}
+                    <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {it.who.split(" ")[0]}</button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+const CHECK_ORDER: Record<CheckStatus, number> = { fix: 0, look: 1, unknown: 2, ok: 3 };
+const CHECK_LOOK: Record<CheckStatus, { icon: typeof Info; tone: string; badge: "good" | "bad" | "warn" | "neutral"; label: string }> = {
+  ok: { icon: CheckCircle2, tone: "text-success", badge: "good", label: "Fine" },
+  fix: { icon: XCircle, tone: "text-destructive", badge: "bad", label: "Fix now" },
+  look: { icon: AlertTriangle, tone: "text-warning", badge: "warn", label: "Look at it" },
+  unknown: { icon: Info, tone: "text-muted-foreground", badge: "neutral", label: "Not checked yet" },
+};
+
+/** Every check that was made, passing or not, folded away until asked for. */
+function CheckList({ checks }: { checks: { label: string; status: CheckStatus; detail: string }[] }) {
+  const okCount = checks.filter((c) => c.status === "ok").length;
+  const unknown = checks.filter((c) => c.status === "unknown").length;
+  const sorted = [...checks].sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status]);
+  return (
+    <details className="group border-t">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <span>
+          {T("What was checked")} · {okCount} {T("of")} {checks.length} {T("fine")}
+          {unknown > 0 ? `, ${unknown} ${T("not checked yet")}` : ""}
+        </span>
+        <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      <ul className="divide-y border-t">
+        {sorted.map((c) => {
+          const l = CHECK_LOOK[c.status];
+          return (
+            <li key={c.label} className="flex items-start gap-3 px-5 py-2.5">
+              <l.icon className={cn("mt-0.5 size-4 shrink-0", l.tone)} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm">{T(c.label)}</p>
+                <p className="text-xs text-muted-foreground">{c.detail}</p>
+              </div>
+              <Badge tone={l.badge} className="shrink-0 whitespace-nowrap">{T(l.label)}</Badge>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  );
+}
+
+/** Problems, most urgent first, in one bounded panel. "Good to know" stays folded at the bottom. */
+function Attention({ findings, checks, people }: { findings: Finding[]; checks: { label: string; status: CheckStatus; detail: string }[]; people: Person[] }) {
+  const act = findings.filter((f) => f.tone !== "info").sort((a, b) => (a.tone === b.tone ? 0 : a.tone === "fix" ? -1 : 1));
+  const know = findings.filter((f) => f.tone === "info");
+  const crit = act.filter((f) => f.tone === "fix").length;
+  const warn = act.length - crit;
+  /* Name the level on a card only when the list mixes levels, or the card is critical. */
+  const mixed = crit > 0 && warn > 0;
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">{T("Needs your attention")}</h2>
+          <p className="text-xs text-muted-foreground">{T("Checked just now. Tap a card to see what it means and what to do.")}</p>
+        </div>
+        {act.length === 0 ? (
+          <Badge tone="good">{T("All clear")}</Badge>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {crit > 0 ? <Badge tone="bad">{crit} {T("to fix now")}</Badge> : null}
+            {warn > 0 ? <Badge tone="warn">{warn} {T("to look at")}</Badge> : null}
+          </div>
+        )}
+      </div>
+      <div className="p-4 sm:p-5">
+        {act.length === 0 ? (
+          <div className="flex items-center gap-3.5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-success/15 text-success">
+              <CheckCircle2 className="size-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">{T("Nothing needs your attention")}</p>
+              <p className="text-sm text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+            {act.map((f) => (
+              <ProblemCard key={f.key} f={f} people={people} showLevel={mixed || f.tone === "fix"} />
+            ))}
+          </div>
+        )}
+      </div>
+      <CheckList checks={checks} />
+      {know.length > 0 ? (
+        <details className="group border-t">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+            <span>{T("Good to know")} · {know.length}</span>
+            <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid grid-cols-1 items-start gap-3 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-2">
+            {know.map((f) => (
+              <ProblemCard key={f.key} f={f} people={people} />
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
   );
 }
