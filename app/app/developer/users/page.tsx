@@ -75,7 +75,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
       <section className="grid gap-3 md:grid-cols-3">
         {[
           { icon: LogIn, title: "Work as", body: "Opens that person's screens with their real permissions. A bar at the top shows who you are working as; press Stop to come back here. It ends by itself after 4 hours." },
-          { icon: AlertTriangle, title: "Suspend or delete", body: "Suspend blocks the account at once; type CONFIRM. Delete ends it for good; type DELETE — an account with no history is removed completely, one with history is closed and keeps its name on what it did. Always with a reason. Never your own account, and never the last owner who can sign in." },
+          { icon: AlertTriangle, title: "Suspend or delete", body: "Suspend blocks the account at once. Delete removes the account and its access for good; everything the person recorded stays, with their name on it. Never your own account, and never the last owner who can sign in." },
           { icon: Lock, title: "Safety while working as someone", body: "You cannot change passwords or roles, or create accounts, while working as someone — so it can never be used to take over an account." },
         ].map((c) => (
           <div key={c.title} className="rounded-2xl border bg-card p-4">

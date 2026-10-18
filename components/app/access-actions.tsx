@@ -1,31 +1,87 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import { Trash2, UserRoundX, UserRoundCheck } from "lucide-react";
 
 import { deleteAccount, reactivateAccount, suspendAccount, type AccessState } from "@/lib/actions/developer";
+import { FormMessage } from "@/components/app/form-message";
+import { Modal } from "@/components/app/modal";
+import { SubmitButton } from "@/components/app/submit-button";
+import { Button } from "@/components/ui/button";
 
-/** Suspend: a reason and the word CONFIRM, so it cannot be an accident. */
-export function SuspendForm({ userId, name }: { userId: string; name: string }) {
-  const [state, action, pending] = useActionState<AccessState, FormData>(suspendAccount, {});
+/**
+ * SUSPEND AND DELETE: ONE PRESS, ONE PLAIN QUESTION, CONFIRM OR CANCEL.
+ *
+ * By the owner's decision nothing is typed — the pop-up says what will happen
+ * and the confirm button does it. The rules that matter (never yourself, never
+ * the last owner) are the server's, and its answer shows here.
+ */
+function ConfirmAccount({
+  trigger,
+  title,
+  body,
+  confirmLabel,
+  pendingLabel,
+  userId,
+  run,
+}: {
+  trigger: React.ReactNode;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  pendingLabel: string;
+  userId: string;
+  run: (prev: AccessState, data: FormData) => Promise<AccessState>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState<AccessState, FormData>(run, {});
+  const close = useCallback(() => setOpen(false), []);
+  useEffect(() => {
+    if (state.ok) setOpen(false);
+  }, [state]);
   return (
-    <details className="relative">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
-        <UserRoundX className="size-4" />
-        Suspend
-      </summary>
-      <form action={action} className="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-xl border bg-card p-3 shadow-lg">
-        <input type="hidden" name="userId" value={userId} />
-        <p className="text-sm font-medium">Suspend {name}?</p>
-        <input name="reason" required placeholder="Why" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
-        <input name="confirm" required placeholder="Type CONFIRM" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
-        {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
-        {state.ok ? <p className="text-xs text-success">{state.ok}</p> : null}
-        <button disabled={pending} className="h-9 w-full rounded-lg bg-destructive text-sm font-medium text-destructive-foreground disabled:opacity-50">
-          {pending ? "Suspending…" : "Suspend"}
-        </button>
-      </form>
-    </details>
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="contents">
+        {trigger}
+      </button>
+      {state.ok ? <span className="text-xs text-success">{state.ok}</span> : null}
+      {open ? (
+        <Modal title={title} onClose={close} className="max-w-md">
+          <p className="text-sm text-muted-foreground">{body}</p>
+          <form action={action} className="space-y-3">
+            <input type="hidden" name="userId" value={userId} />
+            <FormMessage error={state.error} />
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={close}>
+                Cancel
+              </Button>
+              <SubmitButton size="sm" variant="destructive" pendingLabel={pendingLabel}>
+                {confirmLabel}
+              </SubmitButton>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+export function SuspendForm({ userId, name }: { userId: string; name: string }) {
+  return (
+    <ConfirmAccount
+      userId={userId}
+      run={suspendAccount}
+      title={`Suspend ${name}?`}
+      body="They are signed out and cannot sign in until the account is re-activated."
+      confirmLabel="Confirm"
+      pendingLabel="Suspending…"
+      trigger={
+        <span className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
+          <UserRoundX className="size-4" />
+          Suspend
+        </span>
+      }
+    />
   );
 }
 
@@ -43,34 +99,21 @@ export function ReactivateForm({ userId }: { userId: string }) {
   );
 }
 
-/**
- * Delete: a reason and the word DELETE. An account with no history goes
- * completely; one with history is closed and keeps its name on what it did.
- */
 export function DeleteForm({ userId, name }: { userId: string; name: string }) {
-  const [state, action, pending] = useActionState<AccessState, FormData>(deleteAccount, {});
   return (
-    <details className="relative">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10">
-        <Trash2 className="size-4" />
-        Delete
-      </summary>
-      <form action={action} className="absolute right-0 z-20 mt-2 w-80 space-y-2 rounded-xl border bg-card p-3 shadow-lg">
-        <input type="hidden" name="userId" value={userId} />
-        <p className="text-sm font-medium">Delete {name}&apos;s account?</p>
-        <p className="text-xs text-muted-foreground">
-          They can never sign in again. If they have done nothing in the system the account is removed completely; otherwise it is
-          closed and their name stays on what they did.
-        </p>
-        <input name="reason" required placeholder="Why" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
-        <input name="confirm" required placeholder="Type DELETE" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
-        {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
-        {state.ok ? <p className="text-xs text-success">{state.ok}</p> : null}
-        <button disabled={pending} className="h-9 w-full rounded-lg bg-destructive text-sm font-medium text-destructive-foreground disabled:opacity-50">
-          {pending ? "Deleting…" : "Delete account"}
-        </button>
-      </form>
-    </details>
+    <ConfirmAccount
+      userId={userId}
+      run={deleteAccount}
+      title={`Delete ${name}'s account?`}
+      body="They can no longer sign in, and the account is removed. Everything they recorded stays, with their name on it."
+      confirmLabel="Confirm"
+      pendingLabel="Deleting…"
+      trigger={
+        <span className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10">
+          <Trash2 className="size-4" />
+          Delete
+        </span>
+      }
+    />
   );
 }
-

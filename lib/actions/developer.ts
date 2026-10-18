@@ -56,7 +56,7 @@ export async function stopWorkAs() {
 export type AccessState = { error?: string; ok?: string };
 
 /**
- * SUSPEND AN ACCOUNT, AND ONLY WITH A REASON AND A CONFIRMATION.
+ * SUSPEND AN ACCOUNT — ONE CONFIRM.
  *
  * Blocks the account at once — every request re-reads it, so an open session
  * stops with the next click. By the owner's decision the developer may
@@ -70,9 +70,8 @@ export async function suspendAccount(_prev: AccessState, formData: FormData): Pr
   if (!dev) return { error: "Not allowed." };
   if (await workingAs(dev.user.id, dev.sid)) return { error: "Stop working as someone first." };
   const id = String(formData.get("userId") ?? "");
+  /* By the owner's decision a plain confirm is enough; a reason, when given, is kept. */
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
-  if (String(formData.get("confirm") ?? "").trim() !== "CONFIRM") return { error: "Type CONFIRM to suspend." };
-  if (reason.length < 3) return { error: "Say why." };
   const target = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, role: true, status: true } });
   if (!target || target.role === "CUSTOMER" || target.id === dev.user.id) {
     return { error: "That account cannot be suspended here." };
@@ -85,7 +84,7 @@ export async function suspendAccount(_prev: AccessState, formData: FormData): Pr
     action: "developer.suspend",
     entity: "User",
     entityId: target.id,
-    summary: `${dev.user.name} suspended ${target.name} — ${reason}`,
+    summary: `${dev.user.name} suspended ${target.name}${reason ? ` — ${reason}` : ""}`,
     metadata: { reason },
   });
   revalidatePath("/app/developer/users");
@@ -119,7 +118,7 @@ export async function reactivateAccount(_prev: AccessState, formData: FormData):
 }
 
 /**
- * DELETE AN ACCOUNT — WITH A REASON AND THE WORD DELETE.
+ * DELETE AN ACCOUNT — ONE CONFIRM.
  *
  * Any staff or developer account but one's own, never the last owner who can
  * still sign in, and never while working as somebody. An account nothing names
@@ -134,8 +133,6 @@ export async function deleteAccount(_prev: AccessState, formData: FormData): Pro
   if (await workingAs(dev.user.id, dev.sid)) return { error: "Stop working as someone first." };
   const id = String(formData.get("userId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
-  if (String(formData.get("confirm") ?? "").trim() !== "DELETE") return { error: "Type DELETE to delete." };
-  if (reason.length < 3) return { error: "Say why." };
   const target = await prisma.user.findUnique({ where: { id }, select: { id: true, role: true, status: true } });
   if (!target || target.role === "CUSTOMER" || target.id === dev.user.id || target.status === "INACTIVE") {
     return { error: "That account cannot be deleted here." };
@@ -150,8 +147,8 @@ export async function deleteAccount(_prev: AccessState, formData: FormData): Pro
     entityId: target.id,
     summary:
       done.outcome === "deleted"
-        ? `${dev.user.name} deleted the account of ${done.name} (${done.email}) — ${reason}`
-        : `${dev.user.name} closed the account of ${done.name} (${done.email}); their name stays on ${done.history} record(s) — ${reason}`,
+        ? `${dev.user.name} deleted the account of ${done.name} (${done.email})${reason ? ` — ${reason}` : ""}`
+        : `${dev.user.name} deleted the account of ${done.name} (${done.email}); their name stays on ${done.history} record(s)${reason ? ` — ${reason}` : ""}`,
     metadata: { reason, outcome: done.outcome, email: done.email, role: done.role, history: done.history },
   });
   revalidatePath("/app/developer/users");
@@ -159,7 +156,7 @@ export async function deleteAccount(_prev: AccessState, formData: FormData): Pro
     ok:
       done.outcome === "deleted"
         ? `${done.name}'s account is deleted.`
-        : `${done.name}'s account is closed. Their name stays on what they did.`,
+        : `${done.name}'s account is deleted. Their name stays on what they did.`,
   };
 }
 
