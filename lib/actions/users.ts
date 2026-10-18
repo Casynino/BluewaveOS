@@ -79,7 +79,14 @@ type Guarded = { error: string | null; ok?: string };
 
 async function gate(): Promise<SessionUser | { error: string }> {
   try {
-    return await authorize("user.manage");
+    const actor = await authorize("user.manage");
+    /* A developer working as somebody cannot hand out accounts, passwords or
+       roles under that person's screens: it would be a way to take over, or
+       plant a way into, somebody else's account. */
+    if (actor.impersonatedBy) {
+      return { error: "Accounts, passwords and roles cannot be changed while working as someone else. Stop first." };
+    }
+    return actor;
   } catch (error) {
     return {
       error:
@@ -137,7 +144,9 @@ export async function createUser(
 
   // No transaction needed: this account does not exist yet, so there is no row
   // whose role could change underneath the check.
-  if (role === OWNER && actor.role !== OWNER) {
+  /* The owner opens the owner's own kind of account — and so does the
+     developer, who opens every account. Nobody else can. */
+  if (role === OWNER && actor.role !== OWNER && actor.role !== "DEVELOPER") {
     await recordAudit({
       actor,
       action: "user.escalationBlocked",
@@ -235,6 +244,7 @@ export async function createUser(
   });
 
   revalidatePath("/app/admin/users");
+  revalidatePath("/app/developer/users");
   return { ok: `${user.name} can now sign in.` };
 }
 
@@ -256,7 +266,7 @@ export async function setUserActive(
       where: { id: userId },
       select: { id: true, name: true, role: true, status: true },
     });
-    if (!target || target.role === "CUSTOMER") {
+    if (!target || target.role === "CUSTOMER" || target.role === "DEVELOPER") {
       return { error: "That staff member no longer exists." };
     }
 
@@ -361,7 +371,7 @@ export async function resetUserPassword(
       where: { id: userId },
       select: { id: true, name: true, role: true },
     });
-    if (!target || target.role === "CUSTOMER") {
+    if (!target || target.role === "CUSTOMER" || target.role === "DEVELOPER") {
       return { error: "That staff member no longer exists." };
     }
 
@@ -433,7 +443,7 @@ export async function changeUserRole(
       where: { id: userId },
       select: { id: true, name: true, role: true, department: true, warehouseId: true },
     });
-    if (!target || target.role === "CUSTOMER") {
+    if (!target || target.role === "CUSTOMER" || target.role === "DEVELOPER") {
       return { error: "That staff member no longer exists." };
     }
 
@@ -564,7 +574,7 @@ export async function setBaseSalary(
       where: { id: userId },
       select: { id: true, name: true, role: true, baseSalary: true },
     });
-    if (!target || target.role === "CUSTOMER") {
+    if (!target || target.role === "CUSTOMER" || target.role === "DEVELOPER") {
       return { error: "That staff member no longer exists." };
     }
     const before = target.baseSalary === null ? null : Number(target.baseSalary);

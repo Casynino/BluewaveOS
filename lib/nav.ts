@@ -469,14 +469,30 @@ const ADMIN_SECTIONS: NavSection[] = [
   },
 ];
 
+/* THE DEVELOPER'S OWN MENU: four doors and nothing else. Everything else in
+   the system is reached by working as the person who uses it. */
+const DEVELOPER_SECTIONS: NavSection[] = [
+  {
+    label: "",
+    icon: "",
+    items: [
+      { label: "Audit", href: "/app/developer/activity", icon: "ScrollText", permissions: ["developer.activity"] },
+      { label: "Access", href: "/app/developer/users", icon: "ShieldCheck", permissions: ["developer.activity"] },
+      { label: "Business", href: "/app/developer/business", icon: "BarChart3", permissions: ["developer.activity"] },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
   CUSTOMER_SUPPORT: SUPPORT_SECTIONS,
   MANAGER: MANAGER_SECTIONS,
   ADMIN: ADMIN_SECTIONS,
+  DEVELOPER: DEVELOPER_SECTIONS,
 };
 
 /** Where Home takes this desk. Support's home is the support desk itself. */
 export function homeFor(role: Role | null | undefined): NavItem {
+  if (role === "DEVELOPER") return { ...HOME, href: "/app/developer", icon: "LayoutDashboard" };
   if (role === "CUSTOMER_SUPPORT") {
     return { ...HOME, href: "/app/support", icon: "Headset" };
   }

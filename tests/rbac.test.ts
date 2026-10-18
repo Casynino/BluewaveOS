@@ -188,14 +188,15 @@ describe("the support desk explains; it does not do", () => {
     assert.equal(can("CUSTOMER", "customer.create"), false);
     assert.equal(can("CUSTOMER", "customer.manage"), false);
     const deleters = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) => can(r, "customer.delete"));
-    assert.deepEqual(deleters.sort(), ["ADMIN", "MANAGER"]);
+    /* The developer holds everything the owner holds — see developer-account.test.ts. */
+    assert.deepEqual(deleters.sort(), ["ADMIN", "DEVELOPER", "MANAGER"]);
   });
 
   test("payment.verify is Finance's and nobody else's", () => {
     const holders = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) =>
       can(r, "payment.verify")
     );
-    assert.deepEqual(holders.sort(), ["ADMIN", "FINANCE", "MANAGER"]);
+    assert.deepEqual(holders.sort(), ["ADMIN", "DEVELOPER", "FINANCE", "MANAGER"]);
   });
 });
 

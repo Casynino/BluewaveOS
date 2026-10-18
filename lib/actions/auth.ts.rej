@@ -1,0 +1,13 @@
+diff a/lib/actions/auth.ts b/lib/actions/auth.ts	(rejected hunks)
+@@ -2,7 +2,10 @@
+ 
+ import { AuthError } from "next-auth";
+ 
+-import { signIn, signOut } from "@/auth";
++import { auth, signIn, signOut } from "@/auth";
++import { recordAudit } from "@/lib/audit";
++import { endDeveloperSession } from "@/lib/developer";
++import { prisma } from "@/lib/prisma";
+ 
+ export type LoginState = { error?: string };
+ 

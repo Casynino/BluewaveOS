@@ -2,7 +2,10 @@
 
 import { AuthError } from "next-auth";
 
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
+import { recordAudit } from "@/lib/audit";
+import { endDeveloperSession } from "@/lib/developer";
+import { prisma } from "@/lib/prisma";
 
 /* The address typed comes back with the error: React clears a form after its
    action runs, and a second attempt should not start from an empty box. */
@@ -40,6 +43,30 @@ export async function login(
   }
 }
 
+/** The signed-in account, read from the database — never from the request. */
+async function whoIsSigningOut() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, name: true, email: true, role: true, department: true, warehouseId: true, customerId: true },
+  });
+  return user ? { user, sid: session.user.sid } : null;
+}
+
 export async function logout() {
+  const who = await whoIsSigningOut();
+  if (who) {
+    /* Signing out ends the developer's server-side session too, so the cookie
+       is worth nothing the moment after, whoever still holds a copy. */
+    if (who.user.role === "DEVELOPER") await endDeveloperSession(who.user.id, who.sid, "signed-out");
+    await recordAudit({
+      actor: who.user,
+      action: "auth.logout",
+      entity: "User",
+      entityId: who.user.id,
+      summary: `${who.user.name} signed out`,
+    });
+  }
   await signOut({ redirectTo: "/login" });
 }

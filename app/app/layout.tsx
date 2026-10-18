@@ -3,6 +3,7 @@ import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { homeFor, navigationFor } from "@/lib/nav";
 import { can } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
+import { stopWorkAs } from "@/lib/actions/developer";
 import { requireStaff } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer-locale";
 
@@ -43,6 +44,21 @@ export default async function AppLayout({
           : null,
       }}
     >
+      {/* Working as somebody: a small pill in the corner, out of the way, with
+          the one thing needed — Stop. Hover for who is really behind it. */}
+      {user.impersonatedBy ? (
+        <div
+          title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg lg:bottom-4"
+        >
+          <span>Working as {user.name}</span>
+          <form action={stopWorkAs}>
+            <button type="submit" className="rounded-full bg-white/25 px-2.5 py-1 font-semibold hover:bg-white/35">
+              Stop
+            </button>
+          </form>
+        </div>
+      ) : null}
       {children}
     </AppShell>
   );

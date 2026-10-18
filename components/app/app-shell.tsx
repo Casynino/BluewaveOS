@@ -257,7 +257,7 @@ function UserFooter({
   user,
   locale,
 }: {
-  user: { name: string; email: string; roleLabel: string };
+  user: { name: string; email: string; role: Role; roleLabel: string };
   locale: Locale;
 }) {
   return (

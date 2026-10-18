@@ -21,10 +21,11 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; revoked?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; revoked?: string; reason?: string }>;
 }) {
   const params = await searchParams;
   const revoked = params.revoked === "1";
+  const sessionEnded = revoked && params.reason === "session-ended";
 
   return (
     <AuthPanel
@@ -52,7 +53,11 @@ export default async function LoginPage({
           className="mt-6 flex gap-3 rounded-[2px] border border-amber-500/40 border-l-[3px] border-l-amber-500 bg-amber-500/15 p-3 text-sm text-amber-100"
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>Your account is no longer active. Speak to your manager if you think this is wrong.</p>
+          <p>
+            {sessionEnded
+              ? "That sign-in has ended. Sign in again to continue."
+              : "Your account is no longer active. Speak to your manager if you think this is wrong."}
+          </p>
         </div>
       ) : null}
 

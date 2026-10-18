@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { Department, Role } from "@prisma/client";
 
 import { auth } from "@/auth";
+import { auditIdentity } from "@/lib/audit-identity";
+import { standingOf, workingAs } from "@/lib/developer";
 import { prisma } from "@/lib/prisma";
 import { can, isStaff, type Permission } from "@/lib/rbac";
 
@@ -15,6 +17,14 @@ export type SessionUser = {
   warehouseId: string | null;
   /** Set only for role CUSTOMER. The only thing that scopes a portal query. */
   customerId: string | null;
+  /** "DEVELOPER" only for the developer account in developer mode. */
+  accountType?: "DEVELOPER" | "STAFF";
+  /**
+   * Set while the developer is working as this person. The session IS that
+   * person — their role, their permissions, their menu — and this says who is
+   * really behind it, so everything recorded is recorded under the developer.
+   */
+  impersonatedBy?: { id: string; name: string; email: string } | null;
 };
 
 /**
@@ -77,6 +87,32 @@ async function viewer(): Promise<SessionUser | null> {
     return null;
   }
 
+  /* THE DEVELOPER ACTS ONLY IN DEVELOPER MODE, AND THE DATABASE SAYS WHEN.
+     The token proves the account; the server-side session row says whether the
+     account has chosen developer mode and has not since left it. Anything else
+     is treated as signed out — so a stale cookie, a token for a session that
+     was switched to a staff account, or one that never made the choice keeps
+     no privilege at all. */
+  if (user.role === "DEVELOPER") {
+    const standing = await standingOf(user.id, session.user.sid);
+    if (standing !== "active") return null;
+    /* WORKING AS. The target's own role and permissions apply, never the
+       developer's — a refusal for that person is a refusal. */
+    const target = await workingAs(user.id, session.user.sid);
+    if (target) {
+      return {
+        id: target.id,
+        name: target.name,
+        email: target.email,
+        role: target.role,
+        department: target.department,
+        warehouseId: target.warehouseId,
+        customerId: target.customerId,
+        accountType: "DEVELOPER",
+        impersonatedBy: { id: user.id, name: user.name, email: user.email },
+      };
+    }
+  }
   return {
     id: user.id,
     name: user.name,
@@ -85,6 +121,7 @@ async function viewer(): Promise<SessionUser | null> {
     department: user.department,
     warehouseId: user.warehouseId,
     customerId: user.customerId,
+    accountType: user.role === "DEVELOPER" ? "DEVELOPER" : "STAFF",
   };
 }
 
@@ -96,6 +133,18 @@ export async function currentUser(): Promise<SessionUser | null> {
 export async function requireUser(): Promise<SessionUser> {
   const user = await viewer();
   if (!user) {
+    /* A developer who has not chosen yet goes to the choice; one whose sign-in
+       was ended goes to the login page and is told so. Asked of the database
+       here, on the one path that needs it, rather than carried in a flag that
+       a concurrent request could overwrite. */
+    if (!revoked) {
+      const held = await auth();
+      if (held?.user?.id && held.user.role === "DEVELOPER") {
+        const standing = await standingOf(held.user.id, held.user.sid);
+        if (standing === "pending") redirect("/login");
+        if (standing === "none") redirect("/login?revoked=1&reason=session-ended");
+      }
+    }
     /*
       A SUSPENDED ACCOUNT MUST NOT LOOP.
 
@@ -139,9 +188,49 @@ export async function authorize(permission: Permission): Promise<SessionUser> {
   if (!user) throw new Error("Not signed in.");
   if (!isStaff(user.role)) throw new Error("Not permitted.");
   if (!can(user.role, permission)) {
+    await recordDenied(user, permission);
     throw new Error("You do not have permission to do that.");
   }
   return user;
+}
+
+/**
+ * The developer themselves, whatever they are working as — for the few things
+ * only the developer may do (start or stop working as someone). Null for
+ * anybody else, and for a developer who has not chosen developer mode.
+ */
+export async function realDeveloper() {
+  const session = await auth();
+  if (!session?.user?.id || session.user.role !== "DEVELOPER") return null;
+  if ((await standingOf(session.user.id, session.user.sid)) !== "active") return null;
+  const row = await liveUser(session.user.id);
+  if (!row || !row.active || row.status !== "ACTIVE") return null;
+  return { user: row, sid: session.user.sid! };
+}
+
+/**
+ * A REFUSAL IS A SECURITY EVENT.
+ *
+ * A signed-in person asking for something their role does not hold — through a
+ * button that was never rendered, or by calling the endpoint directly — is
+ * written down under their own name, so the pattern is visible. Never allowed
+ * to stop the refusal itself.
+ */
+async function recordDenied(user: SessionUser, permission: string) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        ...auditIdentity(user),
+        action: "security.denied",
+        entity: "Permission",
+        summary: `${user.name} was refused ${permission}`,
+        outcome: "DENIED",
+        metadata: { permission },
+      },
+    });
+  } catch {
+    /* The refusal stands whether or not the line was written. */
+  }
 }
 
 /** As `authorize`, for an act more than one desk does as part of its own job. */
@@ -150,6 +239,7 @@ export async function authorizeAny(permissions: Permission[]): Promise<SessionUs
   if (!user) throw new Error("Not signed in.");
   if (!isStaff(user.role)) throw new Error("Not permitted.");
   if (!permissions.some((permission) => can(user.role, permission))) {
+    await recordDenied(user, permissions.join(" | "));
     throw new Error("You do not have permission to do that.");
   }
   return user;

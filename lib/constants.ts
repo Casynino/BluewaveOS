@@ -26,6 +26,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   CHINA_WAREHOUSE: "China Warehouse",
   DAR_WAREHOUSE: "Dar Warehouse",
   FINANCE: "Finance",
+  DEVELOPER: "Developer account",
   CUSTOMER: "Customer",
 };
 
@@ -45,6 +46,8 @@ export const ROLE_DEPARTMENT: Record<Role, Department | null> = {
   CHINA_WAREHOUSE: "CHINA_WAREHOUSE",
   DAR_WAREHOUSE: "DAR_WAREHOUSE",
   FINANCE: "FINANCE",
+  /* The developer belongs to no department: it is not a member of the staff. */
+  DEVELOPER: null,
   CUSTOMER: null,
 };
 
