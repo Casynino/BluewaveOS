@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle, BarChart3, ChevronUp, CircleCheck, Info, ScrollText, TriangleAlert } from "lucide-react";
+import { BarChart3, ChevronDown, CircleCheck, Info, ScrollText } from "lucide-react";
 
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { Legend, MiniBars, RankedBars, Sparkline, StackedBars } from "@/components/app/dev-charts";
 import { WorkAsDialog } from "@/components/app/work-as-dialog";
-import { startWorkAs } from "@/lib/actions/developer";
+import { AttentionList, type AttentionRow } from "@/components/app/attention-list";
 import { ROLE_LABELS } from "@/lib/constants";
 import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overview";
 import { runChecks, type CheckResult } from "@/lib/developer-checks";
@@ -28,12 +28,6 @@ const GROUP_COLOR: Record<string, string> = {
   Support: "bg-amber-500",
   Customers: "bg-rose-400",
   Developer: "bg-slate-400",
-};
-
-const TONE: Record<Finding["tone"], { icon: typeof Info; ring: string; badge: string; label: string }> = {
-  fix: { icon: TriangleAlert, ring: "border-destructive/40 bg-destructive/5", badge: "bg-destructive/15 text-destructive", label: "Fix now" },
-  look: { icon: AlertTriangle, ring: "border-warning/40 bg-warning/5", badge: "bg-warning/15 text-warning", label: "Look at it" },
-  info: { icon: Info, ring: "border-border bg-card", badge: "bg-secondary text-muted-foreground", label: "Good to know" },
 };
 
 const ago = (d: Date | null) => {
@@ -168,7 +162,7 @@ export default async function DeveloperHome() {
 
       <StatusCard o={o} speed={speed} />
 
-      <AttentionPanel need={need} good={good} checks={checks} dbMs={o.db.ms} people={people} />
+      <AttentionPanel need={need} good={good} checks={checks} people={people} />
 
 
 
@@ -593,136 +587,113 @@ function SpeedTab({ d, times, size }: { d: Awaited<ReturnType<typeof dataPulse>>
   );
 }
 
-const ROW_ICON: Record<CheckResult["status"], { icon: typeof Info; cls: string; label: string; pill: string }> = {
-  ok: { icon: CircleCheck, cls: "text-success", label: "Fine", pill: "text-success" },
-  fix: { icon: TriangleAlert, cls: "text-destructive", label: "Fix now", pill: "bg-destructive/15 text-destructive" },
-  look: { icon: AlertTriangle, cls: "text-warning", label: "Look at it", pill: "bg-warning/15 text-warning" },
-  unknown: { icon: Info, cls: "text-muted-foreground", label: "Not checked yet", pill: "bg-secondary text-muted-foreground" },
-};
-const ORDER: Record<CheckResult["status"], number> = { fix: 0, look: 1, unknown: 2, ok: 3 };
-
 /**
- * NEEDS YOUR ATTENTION — one panel: what is wrong (each with what to do), then
- * every check that ran, so "nothing wrong" can be told from "nothing looked".
+ * NEEDS YOUR ATTENTION — one panel, as the Vegas console has it: the title with
+ * "Checked just now…" under it and the verdict at the right; inside, either one
+ * quiet line or the problems as a compact list (components/app/attention-list);
+ * and under it a closed row, "What was checked · 12 of 13 fine, 1 not checked
+ * yet", that opens to every check — what could not be checked first, then the
+ * fine ones, then what is good to know. A problem is written once, in the list,
+ * never again among the checks.
  */
-function AttentionPanel({ need, good, checks, dbMs, people }: { need: Finding[]; good: Finding[]; checks: CheckResult[]; dbMs: number; people: { id: string; name: string; role: string }[] }) {
-  const fine = checks.filter((c) => c.status === "ok").length;
-  const unknown = checks.filter((c) => c.status === "unknown").length;
-  const fix = need.filter((f) => f.tone === "fix").length;
-  const sorted = [...checks].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
-  const all = [...need, ...good];
-  const badge = fix > 0 ? { t: `${fix} ${T("to fix now")}`, c: "text-destructive" } : need.length > 0 ? { t: `${need.length} ${T("to look at")}`, c: "text-warning" } : { t: T("All clear"), c: "text-success" };
+function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good: Finding[]; checks: CheckResult[]; people: { id: string; name: string; role: string }[] }) {
+  const fixN = need.filter((f) => f.tone === "fix").length;
+  const lookN = need.length - fixN;
+  const verdict = fixN > 0 ? { t: `${fixN} ${T("to fix now")}`, c: "text-destructive" } : lookN > 0 ? { t: `${lookN} ${T("to look at")}`, c: "text-warning" } : { t: T("All clear"), c: "text-success" };
+  const rows: AttentionRow[] = need.map((f) => {
+    const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
+    const desk = f.workAs ? (ROLE_LABELS[f.workAs as keyof typeof ROLE_LABELS] ?? f.workAs) : T("System");
+    return {
+      id: f.key,
+      severity: f.tone === "fix" ? "fix" : "look",
+      title: f.title,
+      summary: f.detail,
+      todo: f.fix ?? null,
+      examples: f.lines ?? [],
+      link: f.href ? { href: f.href, label: T("Look at it") } : null,
+      group: desk,
+      workAs: who ? { id: who.id, label: `${who.name.split(" ")[0]} · ${desk}` } : null,
+      items: (f.items ?? []).map((it) => ({
+        title: it.title,
+        detail: `${T("For")} ${it.who} · ${ROLE_LABELS[it.role as keyof typeof ROLE_LABELS] ?? it.role} · ${it.age}${it.body ? ` — ${it.body}` : ""}`,
+        whoId: it.whoId,
+        who: it.who.split(" ")[0],
+        href: it.href,
+      })),
+    };
+  });
+  const fine = checks.filter((c) => c.status === "ok");
+  const notChecked = checks.filter((c) => c.status === "unknown");
+  const summary = [`${fine.length} ${T("of")} ${checks.length} ${T("fine")}`, ...(notChecked.length > 0 ? [`${notChecked.length} ${T("not checked yet")}`] : [])].join(", ");
+
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card">
-      <div className="flex items-start justify-between gap-4 px-5 py-4">
-        <div>
-          <h2 className="font-semibold">{T("Needs your attention")}</h2>
+    <section aria-labelledby="attention-title" className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-soft">
+      <header className="flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
+        <div className="min-w-0">
+          <h2 id="attention-title" className="text-base font-semibold">{T("Needs your attention")}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{T("Checked just now. Tap a card to see what it means and what to do.")}</p>
         </div>
-        <span className={cn("shrink-0 text-sm font-medium", badge.c)}>{badge.t}</span>
-      </div>
+        <span className={cn("shrink-0 pt-0.5 text-sm font-medium", verdict.c)}>{verdict.t}</span>
+      </header>
 
-      {all.length === 0 ? (
-        <div className="flex items-center gap-4 border-t px-5 py-4">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success/15 text-success"><CircleCheck className="size-5" /></span>
-          <span>
-            <span className="block font-semibold">{T("Nothing needs your attention")}</span>
+      {need.length === 0 ? (
+        <div className="flex items-center gap-4 border-t border-border/60 px-5 py-4 sm:px-6">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success/15 text-success"><CircleCheck className="size-5" aria-hidden /></span>
+          <p className="leading-snug">
+            <span className="block text-sm font-semibold">{T("Nothing needs your attention")}</span>
             <span className="block text-sm text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</span>
-          </span>
+          </p>
         </div>
       ) : (
-        <div className="divide-y border-t">
-          {all.map((f) => {
-              const t = TONE[f.tone];
-              return (
-                <details key={f.key} open={f.tone !== "info"} className={cn("group px-5 py-4", f.tone === "fix" ? "bg-destructive/5" : f.tone === "look" ? "bg-warning/5" : "")}>
-                  <summary className="flex cursor-pointer list-none items-center gap-3">
-                    <t.icon className="size-5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold">{f.title}</span>
-                    </span>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", t.badge)}>{T(t.label)}</span>
-                  </summary>
-                  <p className="mt-2 pl-8 text-sm text-muted-foreground">{f.detail}</p>
-                  {f.lines?.length ? (
-                    <ul className="mt-2 space-y-0.5 pl-8 text-xs text-muted-foreground">
-                      {f.lines.map((l, i) => <li key={i} className="truncate font-mono">• {l}</li>)}
-                    </ul>
-                  ) : null}
-                  {f.fix ? (
-                    <p className="mt-3 pl-8 text-sm"><span className="font-semibold">{T("What to do:")}</span> {f.fix}</p>
-                  ) : null}
-                  {f.href || f.workAs ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
-                      {f.href ? (
-                        <Link href={f.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Look at it")}</Link>
-                      ) : null}
-                      {(() => {
-                        const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
-                        return who ? (
-                          <form action={startWorkAs}>
-                            <input type="hidden" name="userId" value={who.id} />
-                            {f.href ? <input type="hidden" name="next" value={f.href} /> : null}
-                            <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {who.name.split(" ")[0]} · {ROLE_LABELS[who.role as keyof typeof ROLE_LABELS]}</button>
-                          </form>
-                        ) : null;
-                      })()}
-                    </div>
-                  ) : null}
-                  {f.items?.length ? (
-                    <ul className="mt-3 space-y-2 pl-8">
-                      {f.items.map((it, i) => (
-                        <li key={i} className="flex flex-wrap items-center gap-3 rounded-lg border bg-card/60 px-3 py-2.5">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{it.title}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {T("For")} {it.who} · {ROLE_LABELS[it.role as keyof typeof ROLE_LABELS]} · {it.age}
-                              {it.body ? ` — ${it.body}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            {it.href ? (
-                              <Link href={it.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Open")}</Link>
-                            ) : null}
-                            <form action={startWorkAs}>
-                              <input type="hidden" name="userId" value={it.whoId} />
-                              {it.href ? <input type="hidden" name="next" value={it.href} /> : null}
-                              <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {it.who.split(" ")[0]}</button>
-                            </form>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </details>
-              );
-            })}
-        </div>
+        <AttentionList
+          rows={rows}
+          labels={{
+            all: T("All"),
+            whatItMeans: T("What it means"),
+            whatToDo: T("What to do"),
+            whereToLook: T("Where to look"),
+            scrollMore: T("scroll for {n} more"),
+            workAs: T("Work as"),
+            open: T("Open"),
+          }}
+        />
       )}
 
-      <details open className="group border-t">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-sm font-medium">
-          <span>{T("What was checked")} · {fine} {T("of")} {checks.length} {T("fine")}{unknown ? `, ${unknown} ${T("not checked yet")}` : ""}</span>
-          <ChevronUp className="size-4 text-muted-foreground transition-transform group-[&:not([open])]:rotate-180" />
-        </summary>
-        <ul className="divide-y border-t">
-          {sorted.map((c) => {
-            const t = ROW_ICON[c.status];
-            const note = c.status === "ok" ? (c.id === "database" ? `${T("Answers in")} ${dbMs} ms.` : c.fine) : (c.note ?? c.finding?.title);
-            return (
-              <li key={c.id} className="flex items-center gap-3.5 px-5 py-3">
-                <t.icon className={cn("size-[18px] shrink-0", t.cls)} />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm">{T(c.name)}</span>
-                  {note ? <span className="block text-xs text-muted-foreground">{note}</span> : null}
-                </span>
-                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs font-medium", t.pill)}>{T(t.label)}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </details>
+      {checks.length === 0 ? (
+        <p className="border-t border-border/60 px-5 py-3 text-sm text-muted-foreground sm:px-6">{T("The checks could not be run just now.")}</p>
+      ) : (
+        <details className="group border-t border-border/60">
+          <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 px-5 py-3 text-sm marker:content-none sm:px-6 [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0 flex-1">{T("What was checked")} · {summary}</span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <ul className="divide-y divide-border/60 border-t border-border/60">
+            {notChecked.map((c) => (
+              <CheckLine key={c.id} icon={Info} iconTone="text-muted-foreground" title={c.name} summary={c.note ?? ""} status={{ text: T("Not checked yet"), pill: true }} />
+            ))}
+            {fine.map((c) => (
+              <CheckLine key={c.id} icon={CircleCheck} iconTone="text-success" title={c.name} summary={c.fine ?? ""} status={{ text: T("Fine"), pill: false, tone: "text-success" }} />
+            ))}
+            {good.map((f) => (
+              <CheckLine key={f.key} icon={Info} iconTone="text-info" title={f.title} summary={f.detail} status={{ text: T("Good to know"), pill: true }} />
+            ))}
+          </ul>
+        </details>
+      )}
     </section>
+  );
+}
+
+function CheckLine({ icon: Icon, iconTone, title, summary, status }: { icon: typeof Info; iconTone: string; title: string; summary: string; status: { text: string; pill: boolean; tone?: string } }) {
+  return (
+    <li className="flex items-center gap-3 px-5 py-3 sm:px-6">
+      <Icon className={cn("size-[18px] shrink-0", iconTone)} aria-hidden />
+      <span className="min-w-0 flex-1 leading-snug">
+        <span className="block text-sm text-foreground">{title}</span>
+        <span className="block text-xs text-muted-foreground">{summary}</span>
+      </span>
+      <span className={cn("shrink-0 text-xs font-medium", status.pill ? "rounded-full bg-muted px-3 py-1 text-foreground/80" : status.tone)}>{status.text}</span>
+    </li>
   );
 }
 
