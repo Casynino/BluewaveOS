@@ -2,7 +2,6 @@ import "server-only";
 
 import { impliedStatus } from "@/lib/invoice-balance";
 import type { Finding } from "@/lib/developer-overview";
-import { lastJobRuns } from "@/lib/job-runs";
 import { prisma } from "@/lib/prisma";
 import { readUpload } from "@/lib/storage";
 
@@ -23,9 +22,7 @@ import { readUpload } from "@/lib/storage";
 
 const DAY = 86_400_000;
 
-/** A check either finds problems, or says it is fine — or that it could not tell. */
-type Note = { ok: string } | { unknown: string };
-type Check = () => Promise<Finding[] | Note>;
+type Check = () => Promise<Finding[]>;
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -59,8 +56,7 @@ const errors: Check = async () => {
 
 const photos: Check = async () => {
   const last = await prisma.cargoPhoto.findFirst({ orderBy: { createdAt: "desc" }, select: { url: true } });
-  if (!last) return { unknown: "No cargo photo yet." };
-  if (!last.url.startsWith("/uploads/")) return { unknown: "The newest photo is not in file storage." };
+  if (!last?.url.startsWith("/uploads/")) return [];
   const segments = last.url.slice("/uploads/".length).split("/");
   const timeout = new Promise<"timeout">((r) => setTimeout(() => r("timeout"), 4000));
   const result = await Promise.race([readUpload(segments).then((f) => (f ? "ok" : "missing")).catch(() => "failed"), timeout]);
@@ -149,8 +145,7 @@ const chinaCount: Check = async () => {
 
 const storageNotCharging: Check = async () => {
   const company = await prisma.companySetting.findUnique({ where: { id: "singleton" }, select: { freeStorageDays: true, storagePerDay: true } });
-  if (!company) return { unknown: "The company settings are not saved yet." };
-  if (Number(company.storagePerDay) <= 0) return { ok: "Storage is switched off (rate 0)." };
+  if (!company || Number(company.storagePerDay) <= 0) return [];
   const cutoff = new Date(Date.now() - (company.freeStorageDays + 1) * DAY);
   const bills = await prisma.invoice.findMany({
     where: {
@@ -211,180 +206,9 @@ const missingSettings: Check = async () => {
   return [{ key: "env", tone: "fix", title: `${plural(missing.length, "required setting")} missing`, detail: "Parts of the system will not work without these.", fix: "Add them in Vercel → Settings → Environment Variables, then redeploy.", lines: missing }];
 };
 
-/* ---------------------------------------------- the platform under it all */
-
-/** How long the database takes for the simplest question, three times. */
-async function probe() {
-  const ms: number[] = [];
-  for (let i = 0; i < 3; i++) {
-    const t = Date.now();
-    await prisma.$queryRaw`SELECT 1`;
-    ms.push(Date.now() - t);
-  }
-  return Math.round(ms.reduce((a, b) => a + b, 0) / ms.length);
-}
-
-const reach: Check = async () => {
-  const t = Date.now();
-  await prisma.$queryRaw`SELECT 1`;
-  return { ok: `Answers in ${Date.now() - t} ms.` };
-};
-
-const database: Check = async () => {
-  const avg = await probe();
-  if (avg <= 400) return { ok: `Average ${avg} ms (healthy is under 150 ms).` };
-  return [
-    {
-      key: "slow-db",
-      tone: "look",
-      title: `The database is slow (${avg} ms)`,
-      detail: "The simplest question takes over 400 ms. Every page waits on the database, so the whole system feels slow.",
-      fix: "Check Neon for a suspended or overloaded database, and that the app and the database are in the same region (Frankfurt).",
-    },
-  ];
-};
-
-const pooled: Check = async () => {
-  let url: URL;
-  try {
-    url = new URL(process.env.DATABASE_URL ?? "");
-  } catch {
-    return { unknown: "The database address could not be read." };
-  }
-  if (["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return { unknown: "A local database." };
-  if (url.hostname.includes("-pooler") || url.searchParams.get("pgbouncer") === "true") return { ok: "Pooled." };
-  return [
-    {
-      key: "pooled",
-      tone: "look",
-      title: "The database link is not the pooled one",
-      detail: "Every page opens its own connection. On a busy day the database runs out of connections and pages fail.",
-      fix: "In Neon, copy the pooled connection string into DATABASE_URL in Vercel → Settings → Environment Variables (keep DIRECT_URL as the direct one), then redeploy.",
-    },
-  ];
-};
-
-const databaseSize: Check = async () => {
-  const [row] = await prisma.$queryRaw<{ size: bigint }[]>`SELECT pg_database_size(current_database()) AS size`;
-  const mb = Number(row?.size ?? 0) / 1048576;
-  if (!mb) return { unknown: "Could not be read just now." };
-  if (mb <= 400) return { ok: `${mb.toFixed(0)} MB.` };
-  return [
-    {
-      key: "db-size",
-      tone: "look",
-      title: `The database is ${mb.toFixed(0)} MB`,
-      detail: "It is close to the plan's limit. When it is full, nothing new can be saved.",
-      fix: "Check the plan in Neon and raise it before the limit is reached.",
-    },
-  ];
-};
-
-const failedSignIns: Check = async () => {
-  const n = await prisma.loginEvent.count({ where: { ok: false, createdAt: { gte: new Date(Date.now() - DAY) } } });
-  if (n < 10) return { ok: `${n} in 24 hours.` };
-  return [
-    {
-      key: "failed-logins",
-      tone: "look",
-      title: `${plural(n, "failed sign-in")} in 24 hours`,
-      detail: "A few are typing mistakes. Many, or many from one address, means somebody is guessing passwords.",
-      fix: "Open Sign-ins & security below and look at Failed tries by address. Suspend an account that is being guessed at, from Access.",
-    },
-  ];
-};
-
-/** One check per automatic job: has it run, did it work, is it on time. */
-async function jobChecks(): Promise<Line[]> {
-  const jobs = await lastJobRuns();
-  return jobs.map((j) => {
-    const label = `${j.title} runs on time`;
-    if (!j.last) return { label, status: "unknown", detail: "No run recorded yet.", findings: [] };
-    if (!j.last.ok) {
-      return {
-        label,
-        status: "fix",
-        detail: "Failed on its last run.",
-        findings: [
-          {
-            key: `job-${j.route}`,
-            tone: "fix",
-            title: `${j.title} failed on its last run`,
-            detail: `The job at ${j.route} did not finish. Until it does, ${j.route.endsWith("charge") ? "bills do not carry today's storage" : "customers are not told their free days are over"}.`,
-            fix: "Open Vercel → the project → Logs, find the job's last run and read the error. It runs again on its own at its next time.",
-          },
-        ],
-      };
-    }
-    if (Date.now() - j.last.at.getTime() > 36 * 3_600_000) {
-      return {
-        label,
-        status: "look",
-        detail: "Its last run is more than a day and a half old.",
-        findings: [
-          {
-            key: `job-${j.route}`,
-            tone: "look",
-            title: `${j.title} has not run for over a day`,
-            detail: `It should run every day at ${j.runsAt} Dar time.`,
-            fix: "Check that the job is listed under Vercel → Settings → Cron Jobs and that CRON_SECRET is set.",
-          },
-        ],
-      };
-    }
-    return { label, status: "ok", detail: "Ran on schedule.", findings: [] };
-  });
-}
-
-/* ------------------------------------------------------------ what is run */
-
-export type CheckStatus = "ok" | "look" | "fix" | "unknown";
-type Line = { label: string; status: CheckStatus; detail: string; findings: Finding[] };
-
-const LABELLED: { label: string; ok: string; run: Check }[] = [
-  { label: "The database can be reached", ok: "", run: reach },
-  { label: "The database is fast", ok: "", run: database },
-  { label: "The database link is the pooled one", ok: "", run: pooled },
-  { label: "Required settings are in place", ok: "All required settings are set.", run: missingSettings },
-  { label: "No server errors in the last 24 hours", ok: "Nothing broke.", run: errors },
-  { label: "Failed sign-ins are normal", ok: "", run: failedSignIns },
-  { label: "Cargo photos open", ok: "The newest photo opens.", run: photos },
-  { label: "Every bill's paid or unpaid mark matches its payments", ok: "No bill disagrees.", run: invoiceStatus },
-  { label: "Every bill's total matches its lines", ok: "No bill disagrees.", run: invoiceTotals },
-  { label: "Package counts match their lines", ok: "No consignment disagrees.", run: chinaCount },
-  { label: "Storage is added to bills past their free days", ok: "Every bill past its free days carries storage.", run: storageNotCharging },
-  { label: "No cargo shows at sea on a container that has arrived", ok: "None found.", run: contradiction },
-  { label: "The database size is healthy", ok: "", run: databaseSize },
-];
-
-const WORST = (fs: Finding[]): CheckStatus => (fs.some((f) => f.tone === "fix") ? "fix" : fs.some((f) => f.tone === "look") ? "look" : "ok");
-
-/**
- * Every check, passing or not — the "what was checked" list — and the
- * problems they found. A check that throws is "not checked yet", never a
- * false alarm, and never stops the others.
- */
-export async function runSystemChecks(): Promise<{ findings: Finding[]; list: Omit<Line, "findings">[] }> {
-  const [settled, jobs] = await Promise.all([
-    Promise.allSettled(LABELLED.map((c) => c.run())),
-    jobChecks().catch(() => [] as Line[]),
-  ]);
-  const lines: Line[] = settled.map((r, i) => {
-    const c = LABELLED[i];
-    if (r.status === "rejected") return { label: c.label, status: "unknown", detail: "Could not be checked just now.", findings: [] };
-    const v = r.value;
-    if ("unknown" in v) return { label: c.label, status: "unknown", detail: v.unknown, findings: [] };
-    if ("ok" in v) return { label: c.label, status: "ok", detail: v.ok, findings: [] };
-    if (v.length === 0) return { label: c.label, status: "ok", detail: c.ok, findings: [] };
-    return { label: c.label, status: WORST(v), detail: v.map((f) => f.title).join(" · "), findings: v };
-  });
-  const all = [...lines, ...jobs];
-  return {
-    findings: all.flatMap((l) => l.findings),
-    list: all.map(({ label, status, detail }) => ({ label, status, detail })),
-  };
-}
+const ALL: Check[] = [errors, photos, invoiceStatus, invoiceTotals, chinaCount, storageNotCharging, contradiction, missingSettings];
 
 export async function systemChecks(): Promise<Finding[]> {
-  return (await runSystemChecks()).findings;
+  const settled = await Promise.allSettled(ALL.map((c) => c()));
+  return settled.flatMap((r) => (r.status === "fulfilled" ? r.value : [])) as Finding[];
 }

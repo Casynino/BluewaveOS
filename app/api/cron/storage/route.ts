@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { cronPermitted } from "@/lib/cron-door";
-import { recordJobRun } from "@/lib/job-runs";
 import { sendStorageNotices } from "@/lib/storage-notices";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +30,6 @@ export async function GET(req: Request) {
 
   try {
     const result = await sendStorageNotices();
-    await recordJobRun("/api/cron/storage", true, "ran");
     return NextResponse.json(
       { ok: true, ...result, ranAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }
@@ -41,7 +39,6 @@ export async function GET(req: Request) {
        screen. It goes to the platform log with the status, so a day the
        customers were not told is a day somebody can find. */
     console.error("[cron/storage] the daily storage notices did not run", error);
-    await recordJobRun("/api/cron/storage", false, "the run failed");
     return NextResponse.json(
       { ok: false, error: "The run failed." },
       { status: 500, headers: { "Cache-Control": "no-store" } }
