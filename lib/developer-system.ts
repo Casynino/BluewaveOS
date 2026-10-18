@@ -1,22 +1,127 @@
 import "server-only";
 
-import { darDay } from "@/lib/income";
+import { darDay, incomeBetween, owingCustomers } from "@/lib/income";
 import { prisma } from "@/lib/prisma";
 
 /**
  * WHAT IS REALLY GOING ON, BEYOND WHO SIGNED IN.
  *
- * Who uses the system, the security picture, what it has told customers and
- * the size of the data — never the business's money or cargo — counted from
- * the records themselves. Nothing is stored for it, so it cannot disagree with
- * the screens it summarises.
+ * The business flow (cargo, containers, money), the security picture and the
+ * size of the data, counted from the records themselves. Nothing is stored for
+ * it, so it cannot disagree with the screens it summarises.
  */
 
 const DAY = 86_400_000;
 
+export const PIPELINE: { key: string; label: string; statuses: string[] }[] = [
+  { key: "china", label: "In China", statuses: ["REGISTERED", "RECEIVED_CHINA", "ASSIGNED_TO_CONTAINER", "CONTAINER_LOADED"] },
+  { key: "sea", label: "At sea", statuses: ["DEPARTED_CHINA", "IN_TRANSIT"] },
+  { key: "dar", label: "In Dar", statuses: ["ARRIVED_TANZANIA", "RECEIVED_DAR", "READY_FOR_RELEASE"] },
+  { key: "done", label: "Collected", statuses: ["COLLECTED", "DELIVERED"] },
+  { key: "issue", label: "Missing or cancelled", statuses: ["MISSING_AT_DAR", "CANCELLED"] },
+];
+
 const days14 = () => Array.from({ length: 14 }, (_, i) => darDay(new Date(Date.now() - (13 - i) * DAY)));
 const label = (d: string) =>
   new Date(`${d}T12:00:00+03:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Dar_es_Salaam" });
+
+export async function businessPulse() {
+  const now = Date.now();
+  const since14 = new Date(now - 14 * DAY);
+  const [byStatus, containers, cargoNew, invoicesNew, owing, pendingPay, income, storing] = await Promise.all([
+    prisma.cargo.groupBy({ by: ["status"], where: { deletedAt: null }, _count: true }),
+    prisma.container.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        reference: true,
+        status: true,
+        containerNumber: true,
+        shipment: { select: { vessel: true, eta: true, actualArrival: true } },
+        _count: { select: { cargoLines: true } },
+      },
+    }),
+    prisma.cargo.findMany({ where: { deletedAt: null, createdAt: { gte: since14 } }, select: { createdAt: true } }),
+    prisma.invoice.findMany({ where: { issuedAt: { gte: since14 } }, select: { issuedAt: true } }),
+    owingCustomers(),
+    prisma.payment.findMany({ where: { status: "PENDING" }, select: { createdAt: true } }),
+    incomeBetween(darDay(since14), darDay(new Date(now))),
+    /* Open bills carrying a storage line nobody has taken off. */
+    prisma.invoice.findMany({
+      where: {
+        status: { in: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"] },
+        storageWaivedAt: null,
+        items: { some: { category: "Storage" } },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  const count = (statuses: string[]) => byStatus.filter((s) => statuses.includes(s.status)).reduce((n, s) => n + s._count, 0);
+  const pipeline = PIPELINE.map((p) => ({ name: p.label, count: count(p.statuses) }));
+
+  const days = days14();
+  const perDay = (rows: { at: Date | null }[]) => days.map((d) => ({ label: label(d), value: rows.filter((r) => r.at && darDay(r.at) === d).length }));
+  const cargoPerDay = perDay(cargoNew.map((c) => ({ at: c.createdAt })));
+  const invoicesPerDay = perDay(invoicesNew.map((i) => ({ at: i.issuedAt })));
+  const receivedPerDay = days.map((d) => ({
+    label: label(d),
+    value: Math.round(income.filter((r) => r.counted && r.day === d).reduce((s, r) => s + r.tzs, 0) / 1000),
+  }));
+
+  const owed = owing.tzs;
+  const bills = owing.customers.flatMap((c) => c.bills);
+  const storingIds = new Set(storing.map((i) => i.id));
+  const storageRunning = bills.filter((b) => storingIds.has(b.invoiceId));
+  return {
+    pipeline,
+    containers: containers.map((c) => ({
+      reference: c.reference,
+      number: c.containerNumber,
+      status: c.status,
+      cargo: c._count.cargoLines,
+      vessel: c.shipment?.vessel ?? null,
+      date: c.shipment?.actualArrival ?? c.shipment?.eta ?? null,
+    })),
+    cargoPerDay,
+    invoicesPerDay,
+    receivedPerDay,
+    owed,
+    owingCount: bills.length,
+    storageRunning: storageRunning.length,
+    storageOwed: storageRunning.reduce((s, b) => s + b.tzs, 0),
+    pendingPayments: pendingPay.length,
+    oldestPending: pendingPay.length ? Math.floor((now - Math.min(...pendingPay.map((p) => p.createdAt.getTime()))) / DAY) : 0,
+    received14: income.filter((r) => r.counted).reduce((s, r) => s + r.tzs, 0),
+  };
+}
+
+/** Things in the business that have waited too long — added to "Needs your attention". */
+export async function businessFindings(): Promise<{ key: string; tone: "look" | "info"; title: string; detail: string; href?: string; fix?: string }[]> {
+  const now = Date.now();
+  const [pay, uncheckedCleared, noBill, overdue] = await Promise.all([
+    prisma.payment.count({ where: { status: "PENDING", createdAt: { lt: new Date(now - DAY) } } }),
+    prisma.cargo.count({
+      where: { deletedAt: null, darArrivedAt: { lt: new Date(now - 2 * DAY) }, darReceiving: null, status: { notIn: ["COLLECTED", "DELIVERED", "CANCELLED", "MISSING_AT_DAR"] } },
+    }),
+    prisma.cargo.count({
+      where: {
+        deletedAt: null,
+        status: { in: ["RECEIVED_DAR", "ARRIVED_TANZANIA"] },
+        createdAt: { lt: new Date(now - 3 * DAY) },
+        invoices: { none: {} },
+      },
+    }),
+    prisma.invoice.count({ where: { status: "OVERDUE" } }),
+  ]);
+  const out: { key: string; tone: "look" | "info"; title: string; detail: string; href?: string; fix?: string }[] = [];
+  if (pay) out.push({ key: "pay", tone: "look", title: `${pay} payment${pay === 1 ? "" : "s"} waiting to be verified for over a day`, detail: "Money has been reported and nobody in Finance has checked it. The customer's bill still shows it as owing.", href: "/app/finance/verify", fix: "Ask Finance to open the list and verify or reject each one — or work as Finance and do it." });
+  if (uncheckedCleared) out.push({ key: "unchecked", tone: "look", title: `${uncheckedCleared} arrived consignment${uncheckedCleared === 1 ? "" : "s"} not checked in for 2+ days`, detail: "Storage is already running on them, but the Dar warehouse has not verified the goods.", href: "/app/receive/dar", fix: "Ask the Dar warehouse to check the goods in on the Receiving dock." });
+  if (noBill) out.push({ key: "nobill", tone: "look", title: `${noBill} consignment${noBill === 1 ? "" : "s"} in Dar with no bill`, detail: "Landed for three days or more and nobody has priced them. The customer cannot be asked to pay.", href: "/app/finance/prices", fix: "Ask Finance to confirm the prices on the Confirm prices page." });
+  if (overdue) out.push({ key: "overdue", tone: "info", title: `${overdue} overdue bill${overdue === 1 ? "" : "s"}`, detail: "Past their due date and still owing.", href: "/app/finance/collections", fix: "Finance should follow these customers up; Support can call them." });
+  return out;
+}
 
 export async function securityPulse() {
   const now = Date.now();
@@ -113,7 +218,7 @@ export async function messagesPulse() {
   const rows = await prisma.notification.findMany({
     where: { createdAt: { gte: since14 }, user: { role: "CUSTOMER" } },
     orderBy: { createdAt: "desc" },
-    select: { kind: true, createdAt: true, readAt: true },
+    select: { kind: true, title: true, createdAt: true, readAt: true },
   });
   const days = days14();
   const perDay = days.map((d) => ({ label: label(d), value: rows.filter((r) => darDay(r.createdAt) === d).length }));
@@ -125,6 +230,7 @@ export async function messagesPulse() {
     read: rows.filter((r) => r.readAt).length,
     perDay,
     kinds: [...kinds].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 8),
+    recent: rows.slice(0, 8),
     unreadStaff,
   };
 }

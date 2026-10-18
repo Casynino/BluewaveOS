@@ -547,16 +547,46 @@ const MANAGER: Permission[] = ALL.filter(
 const CUSTOMER: Permission[] = [];
 
 /**
- * THE DEVELOPER'S SIDE IS THE SYSTEM, AND ONLY THE SYSTEM.
+ * THE DEVELOPER LOOKS; THE DEVELOPER DOES NOT OPERATE.
  *
- * By the owner's decision the developer takes no part in operations and holds
- * no view of the money or the cargo: its own permissions are opening accounts
- * (user.manage) and its own pages (developer.activity) — health, problems,
- * sign-ins, the activity log, accounts. Seeing or doing anything in the
- * business is done by working as the person who does it; then it is that
- * person's permissions that apply, recorded under the developer.
+ * The developer's own work is the system: seeing what is wrong, opening
+ * accounts, and working as somebody to test or to help. It is not the
+ * business's work. So the developer's own permissions are every way of LOOKING
+ * at the business and none of the ways of changing it — no verifying a
+ * payment, pricing, clearing, releasing, editing cargo. To do any of that the
+ * developer works as the person who does, and then it is that person's
+ * permissions that apply, recorded under the developer.
+ *
+ * Opening accounts (user.manage) and the developer's own pages are the two
+ * things that are the developer's alone to do.
  */
-const DEVELOPER: Permission[] = ["user.manage", "developer.activity"];
+const DEVELOPER: Permission[] = [
+  "cargo.view",
+  "cargo.viewAll",
+  "cargo.viewInternal",
+  "deliveryNote.view",
+  "inventory.view",
+  "warehouse.reports",
+  "container.view",
+  "packingList.view",
+  "shipment.view",
+  "finance.view",
+  "accounting.view",
+  "rate.view",
+  "expense.view",
+  "profit.view",
+  "release.view",
+  "exception.view",
+  "customer.view",
+  "conversation.view",
+  "request.view",
+  "search.global",
+  "report.view",
+  "audit.view",
+  "records.viewDeleted",
+  "user.manage",
+  "developer.activity",
+];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: ALL,
