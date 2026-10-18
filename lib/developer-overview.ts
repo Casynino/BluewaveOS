@@ -18,6 +18,16 @@ export type Finding = {
   tone: "fix" | "look" | "info";
   title: string;
   detail: string;
+  /** Where to go and deal with it — the developer's permissions open any screen. */
+  href?: string;
+  /** What to do about it, in plain words. */
+  fix?: string;
+  /** Who to work as to make the change — the developer looks, they operate. */
+  workAs?: string;
+  /** Plain examples behind a count — the first few of what is wrong. */
+  lines?: string[];
+  /** The individual things behind a count, so the card says what they are. */
+  items?: { title: string; body: string | null; who: string; whoId: string; role: string; age: string; href: string | null }[];
 };
 
 /** Which group a role belongs to on the sign-in chart. */
@@ -25,13 +35,13 @@ export const ROLE_GROUP = {
   ADMIN: "Owner",
   MANAGER: "Manager",
   FINANCE: "Finance",
-  CHINA_WAREHOUSE: "Guangzhou",
+  CHINA_WAREHOUSE: "Foshan",
   DAR_WAREHOUSE: "Dar",
   CUSTOMER_SUPPORT: "Support",
   DEVELOPER: "Developer",
   CUSTOMER: "Customers",
 } as const;
-export const GROUPS = ["Owner", "Manager", "Finance", "Guangzhou", "Dar", "Support", "Customers", "Developer"] as const;
+export const GROUPS = ["Owner", "Manager", "Finance", "Foshan", "Dar", "Support", "Customers", "Developer"] as const;
 export type Group = (typeof GROUPS)[number];
 
 export async function developerOverview(): Promise<{
@@ -41,8 +51,7 @@ export async function developerOverview(): Promise<{
   db: { ok: boolean; ms: number };
   signedInToday: number;
   actionsToday: number;
-  alertsWaiting: number;
-  alertsOverDay: number;
+  errors24: number;
   signinsPerDay: { day: string; label: string; by: Partial<Record<Group, number>>; total: number }[];
   actionsPerDay: { day: string; label: string; team: number; developer: number }[];
   hours: number[];
@@ -65,7 +74,7 @@ export async function developerOverview(): Promise<{
   }
   const ms = Date.now() - t0;
 
-  const [logins, actions, recent, unread, failedDev, pending, idleUsers, statusSplit] = await Promise.all([
+  const [logins, actions, recent, unread, failedDev, pending, idleUsers, statusSplit, errors24] = await Promise.all([
     prisma.loginEvent.findMany({
       where: { ok: true, createdAt: { gte: since14 } },
       select: { createdAt: true, userId: true, user: { select: { role: true } } },
@@ -82,7 +91,8 @@ export async function developerOverview(): Promise<{
     }),
     prisma.notification.findMany({
       where: { readAt: null, user: { role: { notIn: ["CUSTOMER", "DEVELOPER"] } } },
-      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true, title: true, body: true, href: true, user: { select: { id: true, name: true, role: true } } },
     }),
     prisma.loginEvent.count({
       where: { ok: false, createdAt: { gte: since24 }, user: { role: "DEVELOPER" } },
@@ -93,8 +103,11 @@ export async function developerOverview(): Promise<{
       select: { name: true, role: true, lastLoginAt: true },
     }),
     prisma.user.count({ where: { role: { notIn: ["CUSTOMER", "DEVELOPER"] }, active: true, status: "ACTIVE" } }),
+    prisma.systemEvent.count({ where: { kind: "ERROR", createdAt: { gte: since24 } } }),
   ]);
   void statusSplit;
+  void pending;
+  void unread;
 
   /* The last fourteen Dar days, oldest first, so a chart reads left to right. */
   const days = Array.from({ length: 14 }, (_, i) => darDay(new Date(now - (13 - i) * DAY)));
@@ -151,13 +164,6 @@ export async function developerOverview(): Promise<{
   const findings: Finding[] = [];
   if (!dbOk) findings.push({ key: "db", tone: "fix", title: "The database is not answering", detail: "Nothing can be saved until it is back. Check the database provider." });
   else if (ms > 800) findings.push({ key: "slow", tone: "look", title: `The database is slow (${ms} ms)`, detail: "Pages may feel sluggish. If it stays this way, check the provider's status." });
-  if (alertsOverDay > 0)
-    findings.push({
-      key: "alerts",
-      tone: "look",
-      title: `${alertsOverDay} alert${alertsOverDay === 1 ? "" : "s"} waiting for more than a day`,
-      detail: "These ask someone to approve or receive something, and nobody has.",
-    });
   if (failedDev > 0)
     findings.push({
       key: "devfail",
@@ -165,11 +171,6 @@ export async function developerOverview(): Promise<{
       title: `${failedDev} failed developer sign-in${failedDev === 1 ? "" : "s"} in 24 hours`,
       detail: "Wrong-password tries on your own account. After 10 wrong tries for one address it locks for 15 minutes.",
     });
-  if (pending > 0)
-    findings.push({ key: "susp", tone: "info", title: `${pending} suspended account${pending === 1 ? "" : "s"}`, detail: "They cannot sign in until re-activated." });
-  if (idle.length > 0)
-    findings.push({ key: "idle", tone: "info", title: `${idle.length} account${idle.length === 1 ? "" : "s"} not used in 30 days`, detail: "Active, but never signed in or silent for a month." });
-
   const counts = {
     fix: findings.filter((f) => f.tone === "fix").length,
     look: findings.filter((f) => f.tone === "look").length,
@@ -188,8 +189,7 @@ export async function developerOverview(): Promise<{
     db: { ok: dbOk, ms },
     signedInToday,
     actionsToday,
-    alertsWaiting: unread.length,
-    alertsOverDay,
+    errors24,
     signinsPerDay,
     actionsPerDay,
     hours,
