@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import { AlertTriangle, BarChart3, ChevronUp, CircleCheck, Info, ScrollText, TriangleAlert } from "lucide-react";
 
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
-import { Legend, RankedBars, ScoreRing, StackedBars } from "@/components/app/dev-charts";
+import { Legend, MiniBars, RankedBars, Sparkline, StackedBars } from "@/components/app/dev-charts";
 import { WorkAsDialog } from "@/components/app/work-as-dialog";
 import { startWorkAs } from "@/lib/actions/developer";
 import { ROLE_LABELS } from "@/lib/constants";
 import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overview";
 import { runChecks, type CheckResult } from "@/lib/developer-checks";
-import { activityKpis, businessPulse, dataPulse, dbSize, deployment, errorList, jobsTable, messagesPulse, peoplePulse, securityExtras, securityPulse, settingsPulse, timings } from "@/lib/developer-system";
+import { activityKpis, businessPulse, dataPulse, dbSize, deployment, errorList, jobsTable, messagesPulse, peoplePulse, securityExtras, securityPulse, settingsPulse, speedPulse, timings } from "@/lib/developer-system";
 import { WhoCanDo } from "@/components/app/who-can-do";
 import { ROLE_PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -89,6 +89,8 @@ export default async function DeveloperHome() {
     score: Math.max(0, Math.min(100, 100 - counts.fix * 35 - counts.look * 15 - Math.min(counts.info, 3) * 2)),
   };
 
+  /* Five quick pings for the health card's database bars, before the heavier reads. */
+  const speed = await speedPulse();
   const envMissing = ["AUTH_SECRET", "DATABASE_URL", "DIRECT_URL", "BLOB_READ_WRITE_TOKEN", "CRON_SECRET", "NEXT_PUBLIC_SITE_URL"].filter((n) => !process.env[n]?.trim()).length;
   /* One page: everything is read, and each part has its own section. */
   const [biz, kpis, msgs, sec, set, ppl, data, errs, jobs, times, size, secX] = await Promise.all([
@@ -117,7 +119,6 @@ export default async function DeveloperHome() {
   const hello = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" });
   const need = o.findings.filter((f) => f.tone !== "info");
   const good = o.findings.filter((f) => f.tone === "info");
-  const verdict = o.counts.fix > 0 ? "Something is broken" : o.counts.look > 0 ? "Working, with a few things to look at" : "Everything is working";
 
   return (
     <div className="space-y-6">
@@ -165,32 +166,7 @@ export default async function DeveloperHome() {
 
 
 
-      <section className="grid gap-6 rounded-2xl border bg-card p-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="flex items-center gap-6">
-          <ScoreRing score={o.score} />
-          <div>
-            <h2 className="text-xl font-semibold">{T(verdict)}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {o.counts.fix === 0 && o.counts.look === 0
-                ? T("Nothing needs you.")
-                : o.counts.fix > 0
-                  ? T("Fix the red items first.")
-                  : `${o.counts.look} ${T("thing(s) worth a look. Nothing is broken.")}`}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-secondary px-3 py-1">{o.counts.fix} {T("to fix now")}</span>
-              <span className="rounded-full bg-warning/15 px-3 py-1 text-warning">{o.counts.look} {T("to look at")}</span>
-              <span className="rounded-full bg-secondary px-3 py-1">{o.counts.info} {T("for information")}</span>
-            </div>
-          </div>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-          <Stat label="Database" value={o.db.ok ? "Online" : "Down"} tone={o.db.ok ? "text-success" : "text-destructive"} sub={`${o.db.ms} ms`} />
-          <Stat label="Signed in today" value={String(o.signedInToday)} sub={T("different people")} />
-          <Stat label="Actions today" value={String(o.actionsToday)} sub={T("saved in 24 hours")} />
-          <Stat label="Server errors" value={String(o.errors24)} tone={o.errors24 ? "text-warning" : undefined} sub={T("in 24 hours")} />
-        </dl>
-      </section>
+      <StatusCard o={o} speed={speed} />
 
       <AttentionPanel need={need} good={good} checks={checks} dbMs={o.db.ms} people={people} />
 
@@ -334,16 +310,6 @@ function Section({ id, title, hint, children }: { id: string; title: string; hin
       </div>
       {children}
     </section>
-  );
-}
-
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
-  return (
-    <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</dt>
-      <dd className={cn("mt-1 text-3xl font-bold tnum", tone)}>{value}</dd>
-      {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
-    </div>
   );
 }
 
@@ -847,3 +813,139 @@ function DeploymentCard({ d }: { d: ReturnType<typeof deployment> }) {
     </Card>
   );
 }
+
+/* ───────────────────────── the health card ───────────────────────── */
+
+/*
+  The verdict and the numbers that matter, in one calm card under the banner:
+  the health dial, a plain sentence, and four live numbers, each with its
+  recent trend. The Target Express control room's card, on BlueWave's figures.
+*/
+
+type Level = "good" | "warn" | "bad";
+const LEVEL_COLOR: Record<Level, string> = { good: "hsl(var(--success))", warn: "hsl(var(--warning))", bad: "hsl(var(--destructive))" };
+const LEVEL_TEXT: Record<Level, string> = { good: "text-success", warn: "text-warning", bad: "text-destructive" };
+
+function Dial({ score, level }: { score: number; level: Level }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-2">
+      <div className="relative size-28 sm:size-32" role="img" aria-label={`Health score ${score} out of 100`}>
+        <svg viewBox="0 0 120 120" className="size-full -rotate-90">
+          <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={9} />
+          <circle cx="60" cy="60" r={r} fill="none" stroke={LEVEL_COLOR[level]} strokeWidth={9} strokeLinecap="round" strokeDasharray={`${(Math.max(0, Math.min(100, score)) / 100) * c} ${c}`} />
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="font-display text-4xl font-bold leading-none tabular-nums">{score}</p>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{T("out of 100")}</p>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{T("Health score")}</p>
+    </div>
+  );
+}
+
+function Chip({ n, label, dot }: { n: number; label: string; dot: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground/80">
+      <span className={cn("size-1.5 rounded-full", n > 0 ? dot : "bg-muted-foreground/40")} />
+      <span className="tabular-nums">{n}</span> {T(label)}
+    </span>
+  );
+}
+
+function Metric({ label, value, hint, valueClass, visual }: { label: string; value: string; hint: string; valueClass?: string; visual: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col rounded-xl border border-border bg-muted/30 p-4">
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{T(label)}</p>
+      <p className={cn("mt-2 whitespace-nowrap font-display text-3xl font-bold leading-none tabular-nums", valueClass)}>{value}</p>
+      <p className="mt-1.5 truncate text-xs text-muted-foreground">{hint}</p>
+      <div className="mt-auto pt-3">{visual}</div>
+    </div>
+  );
+}
+
+function StatusCard({
+  o,
+  speed,
+}: {
+  o: Awaited<ReturnType<typeof developerOverview>> & { score: number; counts: { fix: number; look: number; info: number } };
+  speed: Awaited<ReturnType<typeof speedPulse>>;
+}) {
+  const crit = o.counts.fix;
+  const warn = o.counts.look;
+  const info = o.counts.info;
+  const level: Level = crit ? "bad" : warn ? "warn" : "good";
+  const headline = crit ? "Needs attention now" : warn ? "Working, with a few things to look at" : "Everything is healthy";
+  const summary = crit
+    ? `${crit} ${crit > 1 ? T("things are broken and should be fixed now.") : T("thing is broken and should be fixed now.")}`
+    : warn
+      ? `${warn} ${warn > 1 ? T("things worth a look. Nothing is broken.") : T("thing worth a look. Nothing is broken.")}`
+      : T("The database is fast, every required setting is in place and nothing has crashed.");
+  const dbLevel: Level = !o.db.ok || speed.avg >= 400 ? "bad" : speed.avg >= 150 ? "warn" : "good";
+  const pooled = (() => {
+    try {
+      const u = new URL(process.env.DATABASE_URL ?? "");
+      return u.hostname.includes("-pooler") || u.searchParams.get("pgbouncer") === "true";
+    } catch {
+      return false;
+    }
+  })();
+  const crashes = o.errors24;
+  return (
+    <section className="rounded-2xl border bg-card p-5 shadow-soft sm:p-6">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+        <Dial score={o.score} level={level} />
+        <div className="min-w-0">
+          <p className={cn("font-display text-xl font-semibold leading-tight", LEVEL_TEXT[level])}>{T(headline)}</p>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">{summary}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Chip n={crit} label="to fix now" dot="bg-destructive" />
+            <Chip n={warn} label="to look at" dot="bg-warning" />
+            <Chip n={info} label="for information" dot="bg-info" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          label="Database"
+          value={o.db.ok ? T("Online") : T("Down")}
+          valueClass={LEVEL_TEXT[dbLevel]}
+          hint={o.db.ok ? `${o.db.ms} ms · ${pooled ? T("pooled") : T("not pooled")}` : T("cannot connect")}
+          visual={
+            <MiniBars
+              className="h-8 w-full"
+              floor={60}
+              values={speed.times}
+              colors={speed.times.map((ms: number) => LEVEL_COLOR[ms >= 400 ? "bad" : ms >= 150 ? "warn" : "good"])}
+            />
+          }
+        />
+        <Metric
+          label="Signed in today"
+          value={String(o.signedInToday)}
+          hint={T("different people")}
+          visual={<Sparkline className="h-8 w-full" id="status-signins" color="hsl(var(--brand))" values={o.signinsPerDay.map((d) => d.total)} />}
+        />
+        <Metric
+          label="Actions today"
+          value={String(o.actionsToday)}
+          hint={T("saved in 24 hours")}
+          visual={<Sparkline className="h-8 w-full" id="status-actions" color="hsl(var(--brand))" values={o.actionsPerDay.map((d) => d.team + d.developer)} />}
+        />
+        <Metric
+          label="Crashes today"
+          value={String(crashes)}
+          valueClass={crashes ? "text-destructive" : undefined}
+          hint={crashes > 0 ? T("pages that broke") : T("nothing broke")}
+          visual={<Sparkline className="h-8 w-full" id="status-crashes" color={crashes ? LEVEL_COLOR.bad : "hsl(var(--muted-foreground))"} values={o.errorsPerDay} />}
+        />
+      </div>
+    </section>
+  );
+}
+

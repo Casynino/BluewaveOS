@@ -52,6 +52,8 @@ export async function developerOverview(): Promise<{
   signedInToday: number;
   actionsToday: number;
   errors24: number;
+  /** Server errors on each of the last fourteen Dar days, oldest first. */
+  errorsPerDay: number[];
   signinsPerDay: { day: string; label: string; by: Partial<Record<Group, number>>; total: number }[];
   actionsPerDay: { day: string; label: string; team: number; developer: number }[];
   hours: number[];
@@ -74,7 +76,7 @@ export async function developerOverview(): Promise<{
   }
   const ms = Date.now() - t0;
 
-  const [logins, actions, recent, unread, failedDev, pending, idleUsers, statusSplit, errors24] = await Promise.all([
+  const [logins, actions, recent, unread, failedDev, pending, idleUsers, statusSplit, errors24, errorRows] = await Promise.all([
     prisma.loginEvent.findMany({
       where: { ok: true, createdAt: { gte: since14 } },
       select: { createdAt: true, userId: true, user: { select: { role: true } } },
@@ -104,6 +106,11 @@ export async function developerOverview(): Promise<{
     }),
     prisma.user.count({ where: { role: { notIn: ["CUSTOMER", "DEVELOPER"] }, active: true, status: "ACTIVE" } }),
     prisma.systemEvent.count({ where: { kind: "ERROR", createdAt: { gte: since24 } } }),
+    prisma.systemEvent.findMany({
+      where: { kind: "ERROR", createdAt: { gte: new Date(now - 14 * DAY) } },
+      select: { createdAt: true },
+      take: 5000,
+    }),
   ]);
   void statusSplit;
   void pending;
@@ -184,6 +191,7 @@ export async function developerOverview(): Promise<{
     errors24,
     signinsPerDay,
     actionsPerDay,
+    errorsPerDay: days.map((day) => errorRows.filter((e) => darDay(e.createdAt) === day).length),
     hours,
     areas,
     recent: recent.map((r) => ({
