@@ -52,9 +52,9 @@ export function AttentionList({ rows, labels }: { rows: AttentionRow[]; labels: 
   const more = Math.max(0, shown.length - VISIBLE_ROWS);
 
   return (
-    <div className="border-t border-border/60">
+    <div>
       {showChips ? (
-        <div className="flex flex-wrap gap-2 px-5 py-3 sm:px-6" role="group" aria-label={labels.all}>
+        <div className="flex flex-wrap gap-2 px-5 py-3" role="group" aria-label={labels.all}>
           {[["", labels.all, rows.length] as const, ...groups.map((g) => [g, g, rows.filter((r) => r.group === g).length] as const)].map(([key, text, n]) => (
             <button
               key={key || "all"}
@@ -92,7 +92,7 @@ export function AttentionList({ rows, labels }: { rows: AttentionRow[]; labels: 
           return (
             <li key={r.id}>
               <details className="group">
-                <summary className="focus-ring relative flex cursor-pointer list-none items-center gap-3 px-5 py-3 marker:content-none hover:bg-muted/30 sm:px-6 [&::-webkit-details-marker]:hidden">
+                <summary className="focus-ring relative flex cursor-pointer list-none items-center gap-3 px-5 py-3 marker:content-none hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
                   <span aria-hidden className={cn("absolute inset-y-2 left-0 w-0.5 rounded-full", r.severity === "fix" ? "bg-destructive" : "bg-warning")} />
                   <Icon className={cn("size-5 shrink-0", r.severity === "fix" ? "text-destructive" : "text-warning")} aria-hidden />
                   <span className="min-w-0 flex-1 leading-snug">
@@ -101,7 +101,7 @@ export function AttentionList({ rows, labels }: { rows: AttentionRow[]; labels: 
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
                 </summary>
-                <div className="space-y-3 px-5 pb-4 pt-1 text-sm sm:pl-14 sm:pr-6">
+                <div className="space-y-3 px-5 pb-4 pt-1 text-sm sm:pl-14">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{labels.whatItMeans}</p>
                     <p className="mt-1 leading-relaxed text-foreground/90">{r.summary}</p>

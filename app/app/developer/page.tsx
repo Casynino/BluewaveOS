@@ -627,21 +627,19 @@ function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good:
   const summary = [`${fine.length} ${T("of")} ${checks.length} ${T("fine")}`, ...(notChecked.length > 0 ? [`${notChecked.length} ${T("not checked yet")}`] : [])].join(", ");
 
   return (
-    <section aria-labelledby="attention-title" className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-soft">
-      <header className="flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
-        <div className="min-w-0">
-          <h2 id="attention-title" className="text-base font-semibold">{T("Needs your attention")}</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">{T("Checked just now. Tap a card to see what it means and what to do.")}</p>
-        </div>
-        <span className={cn("shrink-0 pt-0.5 text-sm font-medium", verdict.c)}>{verdict.t}</span>
-      </header>
-
+    <section aria-labelledby="attention-title">
+      {/* The name once, as a small label over the card — the card does not repeat it. */}
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 id="attention-title" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{T("Needs your attention")}</h2>
+        <span className={cn("shrink-0 text-sm font-medium", verdict.c)}>{verdict.t}</span>
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
       {need.length === 0 ? (
-        <div className="flex items-center gap-4 border-t border-border/60 px-5 py-4 sm:px-6">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success/15 text-success"><CircleCheck className="size-5" aria-hidden /></span>
-          <p className="leading-snug">
-            <span className="block text-sm font-semibold">{T("Nothing needs your attention")}</span>
-            <span className="block text-sm text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</span>
+        <div className="flex items-center gap-3 px-5 py-3.5">
+          <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />
+          <p className="text-sm">
+            <span className="font-semibold">{T("Nothing needs your attention.")}</span>{" "}
+            <span className="text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</span>
           </p>
         </div>
       ) : (
@@ -660,10 +658,10 @@ function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good:
       )}
 
       {checks.length === 0 ? (
-        <p className="border-t border-border/60 px-5 py-3 text-sm text-muted-foreground sm:px-6">{T("The checks could not be run just now.")}</p>
+        <p className="border-t border-border/60 px-5 py-3 text-[13px] text-muted-foreground">{T("The checks could not be run just now.")}</p>
       ) : (
         <details className="group border-t border-border/60">
-          <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 px-5 py-3 text-sm marker:content-none sm:px-6 [&::-webkit-details-marker]:hidden">
+          <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 px-5 py-3 text-[13px] text-muted-foreground marker:content-none hover:text-foreground [&::-webkit-details-marker]:hidden">
             <span className="min-w-0 flex-1">{T("What was checked")} · {summary}</span>
             <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
           </summary>
@@ -680,13 +678,14 @@ function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good:
           </ul>
         </details>
       )}
+      </div>
     </section>
   );
 }
 
 function CheckLine({ icon: Icon, iconTone, title, summary, status }: { icon: typeof Info; iconTone: string; title: string; summary: string; status: { text: string; pill: boolean; tone?: string } }) {
   return (
-    <li className="flex items-center gap-3 px-5 py-3 sm:px-6">
+    <li className="flex items-center gap-3 px-5 py-2.5">
       <Icon className={cn("size-[18px] shrink-0", iconTone)} aria-hidden />
       <span className="min-w-0 flex-1 leading-snug">
         <span className="block text-sm text-foreground">{title}</span>
