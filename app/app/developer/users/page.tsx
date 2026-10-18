@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AlertTriangle, BadgeDollarSign, Headset, Lock, LogIn, Package, ShieldCheck, Warehouse } from "lucide-react";
+import { AlertTriangle, BadgeDollarSign, Headset, LogIn, Package, ShieldCheck, Warehouse } from "lucide-react";
 
 import { DeleteForm, ReactivateForm, SuspendForm } from "@/components/app/access-actions";
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
@@ -58,8 +58,8 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
         <h1 className="text-2xl font-bold">{T("Access")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          {people.length} {T("accounts. Pick a person and press “Work as” to open their screens exactly as they see them — without their password. Everything you do is recorded under your name.")}
+        <p className="mt-1 text-sm text-muted-foreground">
+          {people.length} {T("accounts")} · {T("Work as, suspend or delete. Everything you do is recorded under your name.")}
         </p>
         </div>
         <AddAccountDialog warehouses={warehouses} />
@@ -71,20 +71,6 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
           {T("That account cannot be worked as — it is suspended, or not a staff account.")}
         </p>
       ) : null}
-
-      <section className="grid gap-3 md:grid-cols-3">
-        {[
-          { icon: LogIn, title: "Work as", body: "Opens that person's screens with their real permissions. A bar at the top shows who you are working as; press Stop to come back here. It ends by itself after 4 hours." },
-          { icon: AlertTriangle, title: "Suspend or delete", body: "Suspend blocks the account at once. Delete removes the account and its access for good; everything the person recorded stays, with their name on it. Never your own account, and never the last owner who can sign in." },
-          { icon: Lock, title: "Safety while working as someone", body: "You cannot change passwords or roles, or create accounts, while working as someone — so it can never be used to take over an account." },
-        ].map((c) => (
-          <div key={c.title} className="rounded-2xl border bg-card p-4">
-            <c.icon className="size-5 text-brand" />
-            <p className="mt-2 text-sm font-semibold">{T(c.title)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{T(c.body)}</p>
-          </div>
-        ))}
-      </section>
 
       {GROUPS.map((g) => {
         const list = people.filter((p) => (g.roles as readonly string[]).includes(p.role));
@@ -114,7 +100,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                         {p.role === "ADMIN" ? <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{T("Owner")}</span> : null}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">{p.email}</p>
-                      <p className="text-xs text-muted-foreground">{T("Last signed in")} {ago(p.lastLoginAt)}</p>
+                      <p className="text-xs text-muted-foreground">{p.lastLoginAt ? `${T("Last signed in")} ${ago(p.lastLoginAt)}` : T("Never signed in")}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <form action={startWorkAs}>
