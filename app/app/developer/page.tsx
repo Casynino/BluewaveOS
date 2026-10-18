@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle, BarChart3, Info, ScrollText, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Info, ScrollText, ShieldCheck, TriangleAlert } from "lucide-react";
 
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { Legend, RankedBars, ScoreRing, StackedBars } from "@/components/app/dev-charts";
@@ -9,7 +9,7 @@ import { startWorkAs } from "@/lib/actions/developer";
 import { ROLE_LABELS } from "@/lib/constants";
 import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overview";
 import { systemChecks } from "@/lib/developer-checks";
-import { activityKpis, businessPulse, dataPulse, messagesPulse, peoplePulse, securityPulse, settingsPulse, speedPulse } from "@/lib/developer-system";
+import { activityKpis, dataPulse, messagesPulse, peoplePulse, securityPulse, settingsPulse, speedPulse } from "@/lib/developer-system";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { primeLocale, T } from "@/lib/server-t";
@@ -91,8 +91,7 @@ export default async function DeveloperHome() {
   const speed = await speedPulse();
   const envMissing = ["AUTH_SECRET", "DATABASE_URL", "DIRECT_URL", "BLOB_READ_WRITE_TOKEN", "CRON_SECRET", "NEXT_PUBLIC_SITE_URL"].filter((n) => !process.env[n]?.trim()).length;
   /* One page: everything is read, and each part has its own section. */
-  const [biz, kpis, msgs, sec, set, ppl, data] = await Promise.all([
-    businessPulse(),
+  const [kpis, msgs, sec, set, ppl, data] = await Promise.all([
     activityKpis(),
     messagesPulse(),
     securityPulse(),
@@ -140,7 +139,7 @@ export default async function DeveloperHome() {
         <AddAccountDialog warehouses={warehouses} variant="card" />
         {[
           { href: "/app/developer/activity", icon: ScrollText, title: "Audit", body: "Everything done in the system, by staff and by you." },
-          { href: "/app/developer/business", icon: BarChart3, title: "Business", body: "Cargo, bills, payments and customers. Read only." },
+          { href: "/app/developer/users", icon: ShieldCheck, title: "Access", body: "Every account by role: work as, suspend or reactivate." },
         ].map((c) => (
           <Link key={c.href} href={c.href} className="group flex items-start gap-3.5 rounded-xl border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand"><c.icon className="size-5" /></span>
@@ -210,7 +209,9 @@ export default async function DeveloperHome() {
                   ) : null}
                   {f.href || f.workAs ? (
                     <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
-                      {f.href ? (
+                      {/* The developer's own pages open directly; a business page
+                          opens only by working as the person whose page it is. */}
+                      {f.href?.startsWith("/app/developer") ? (
                         <Link href={f.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Look at it")}</Link>
                       ) : null}
                       {(() => {
@@ -237,7 +238,7 @@ export default async function DeveloperHome() {
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            {it.href ? (
+                            {it.href?.startsWith("/app/developer") ? (
                               <Link href={it.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Open")}</Link>
                             ) : null}
                             <form action={startWorkAs}>
@@ -372,9 +373,6 @@ export default async function DeveloperHome() {
         <PeopleTab p={ppl} />
       </Section>
 
-      <Section id="business" title="Business, read only" hint="Cargo, money and containers, for looking at. Nothing here is yours to chase.">
-        <BusinessTab b={biz} />
-      </Section>
     </div>
   );
 }
@@ -430,62 +428,6 @@ function Kpi({ label, value, caption, tag, tone = "info", explain }: { label: st
 }
 
 const one = (name: string, tone: string) => ({ data: (rows: { label: string; value: number }[]) => rows.map((r) => ({ label: r.label, parts: [{ key: name, value: r.value }] })), colors: { [name]: tone } });
-
-function BusinessTab({ b }: { b: Awaited<ReturnType<typeof businessPulse>> }) {
-  const cargo = one("Cargo", "bg-brand");
-  const bills = one("Bills", "bg-violet-500");
-  const money = one("Received", "bg-emerald-500");
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Still to collect" value={tsh(b.owed)} caption={`${b.owingCount} bills owing`} tag="Money" tone="info"
-          explain="Everything customers owe on bills already sent. It becomes income only when the payment is verified." />
-        <Kpi label="Received, 14 days" value={tsh(b.received14)} caption="verified payments" tag="Income" tone="good"
-          explain="Payments Finance has verified, after reversals and without the transport fare passed on to drivers." />
-        <Kpi label="Storage running" value={String(b.storageRunning)} caption={`${tsh(b.storageOwed)} owed on them`} tag="Info" tone="info"
-          explain="Consignments in Dar past their free days, still uncollected. Storage is added to their bill each night until pickup." />
-        <Kpi label="Payments to verify" value={String(b.pendingPayments)} caption={b.pendingPayments ? `oldest ${b.oldestPending} day(s)` : "none waiting"} tag="Info" tone="info"
-          explain="Money reported by a customer or a desk that Finance has not yet checked. This is Finance's to deal with — it is shown here so you can see the system is moving." />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <Card title="Where the cargo is" hint="Every consignment, by where it stands now.">
-          <RankedBars rows={b.pipeline} />
-        </Card>
-        <Card title="Containers" hint="The latest ten, with what is on them.">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <tr><th className="pb-2 font-medium">Reference</th><th className="pb-2 font-medium">Status</th><th className="pb-2 text-right font-medium">Cargo</th><th className="pb-2 font-medium">Vessel</th><th className="pb-2 text-right font-medium">Date</th></tr>
-              </thead>
-              <tbody className="divide-y">
-                {b.containers.map((c) => (
-                  <tr key={c.reference}>
-                    <td className="py-2 font-medium">{c.reference}</td>
-                    <td className="py-2 text-muted-foreground">{c.status.replaceAll("_", " ").toLowerCase()}</td>
-                    <td className="tnum py-2 text-right">{c.cargo}</td>
-                    <td className="py-2 text-muted-foreground">{c.vessel ?? "—"}</td>
-                    <td className="py-2 text-right text-muted-foreground">{c.date ? when(c.date).slice(0, 6) : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Cargo registered per day" hint="New consignments, last 14 days.">
-          <StackedBars data={cargo.data(b.cargoPerDay)} colors={cargo.colors} height={140} />
-        </Card>
-        <Card title="Bills issued per day" hint="Invoices sent to customers.">
-          <StackedBars data={bills.data(b.invoicesPerDay)} colors={bills.colors} height={140} />
-        </Card>
-        <Card title="Money received per day" hint="In thousands of shillings, after reversals.">
-          <StackedBars data={money.data(b.receivedPerDay)} colors={money.colors} height={140} />
-        </Card>
-      </div>
-    </div>
-  );
-}
 
 function SecurityTab({ s }: { s: Awaited<ReturnType<typeof securityPulse>> }) {
   const failed = one("Failed", "bg-destructive");
@@ -551,14 +493,6 @@ function MessagesTab({ m }: { m: Awaited<ReturnType<typeof messagesPulse>> }) {
           <RankedBars rows={m.kinds} />
         </Card>
       </div>
-      <Card title="Latest messages" hint="The newest eight sent to customers.">
-        <ul className="divide-y text-sm">
-          {m.recent.map((r, i) => (
-            <li key={i} className="flex flex-wrap items-baseline justify-between gap-3 py-2"><span className="min-w-0 truncate">{r.title}</span><span className="shrink-0 text-xs text-muted-foreground">{r.readAt ? "read" : "unread"} · {when(r.createdAt)}</span></li>
-          ))}
-          {m.recent.length === 0 ? <li className="py-4 text-center text-muted-foreground">No messages in 14 days.</li> : null}
-        </ul>
-      </Card>
     </div>
   );
 }
@@ -573,15 +507,16 @@ function SettingsTab({ s }: { s: Awaited<ReturnType<typeof settingsPulse>> }) {
   const c = s.company;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card title="How the business is set up" hint="The numbers prices and bills are worked out from.">
+      {/* Whether the settings the system depends on are in place — never the
+          business's own figures. Rates, prices and money are not the
+          developer's to read; working as Finance shows them. */}
+      <Card title="What the business side needs" hint="Whether each setting the system depends on is in place. Figures are never shown.">
         <ul className="divide-y">
-          {row("Exchange rate (USD → TZS)", s.rate ? s.rate.toLocaleString("en-US") : "not set", s.rate ? (s.rateAge! <= 7 ? true : false) : false, s.rate ? `Set ${s.rateAge} day(s) ago. A rate older than a week is worth refreshing.` : "Bills cannot be issued without one.")}
-          {row("Free storage days", String(c?.freeStorageDays ?? "—"), true, "Days after the container arrives in Dar before storage is charged.")}
-          {row("Storage per day", c && Number(c.storagePerDay) > 0 ? `${c.storageCurrency} ${Number(c.storagePerDay)}` : "not charged", c ? Number(c.storagePerDay) > 0 : false, "At 0 nothing is ever charged for storage.")}
-          {row("VAT", `${Number(c?.vatPercent ?? 0)}%${c?.pricesIncludeVat ? " · inside prices" : " · on top"}`, null, "Applied to new invoices.")}
-          {row("Payment accounts open", String(s.accounts), s.accounts > 0, "Banks, mobile money and cash tins customers can pay into.")}
+          {row("Exchange rate", s.rate ? (s.rateAge! <= 7 ? "set" : "old") : "missing", s.rate ? s.rateAge! <= 7 : false, s.rate ? `Set ${s.rateAge} day(s) ago. Older than a week, Finance should refresh it.` : "Bills cannot be issued without one.")}
+          {row("Company settings", c ? "set" : "missing", Boolean(c), "Free storage days, storage rate and VAT the bills are worked out from.")}
+          {row("Payment accounts open", String(s.accounts), s.accounts > 0, "Accounts customers can pay into.")}
           {row("Warehouses open", String(s.warehouses), s.warehouses > 0, "Foshan and Dar floors.")}
-          {row("Last automatic storage charge", s.lastCharge ? when(s.lastCharge) : "never", null, "The nightly job adds storage to bills past their free days. Nothing here yet is normal if no goods have run past them.")}
+          {row("Nightly storage job", s.lastCharge ? `ran ${when(s.lastCharge)}` : "not yet", null, "Adds storage to bills past their free days. Not yet is normal if no goods have run past them.")}
         </ul>
       </Card>
       <div className="space-y-4">

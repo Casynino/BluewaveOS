@@ -211,7 +211,7 @@ export type OwingCustomer = {
   name: string;
   phone: string | null;
   /** The bills still open, most urgent first. */
-  bills: { invoiceId: string; number: string; cargoReference: string; state: OwingState; tzs: number }[];
+  bills: { invoiceId: string; number: string; cargoReference: string; state: OwingState }[];
   /** The most urgent state among them — what the row is sorted and tagged by. */
   state: OwingState;
   /** Everything owed across them, in whole shillings. */
@@ -297,13 +297,11 @@ export async function owingCustomers(now = new Date()): Promise<{
         tzs: 0,
         unconverted: [],
       } satisfies OwingCustomer);
-    const open = { invoiceId: bill.id, number: bill.number, cargoReference: bill.cargo.reference, state, tzs: 0 };
-    row.bills.push(open);
+    row.bills.push({ invoiceId: bill.id, number: bill.number, cargoReference: bill.cargo.reference, state });
     if (URGENCY.indexOf(state) < URGENCY.indexOf(row.state)) row.state = state;
     if (balance.outstandingTzs) {
       const owed = Number(balance.outstandingTzs.toDecimalPlaces(0));
       row.tzs += owed;
-      open.tzs = owed;
       tzs += owed;
       if (state === "CREDIT") creditTzs += owed;
     } else {

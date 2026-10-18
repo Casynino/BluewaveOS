@@ -17,9 +17,12 @@ import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 */
 
 describe("the developer's permissions", () => {
-  test("look at everything the business holds", () => {
-    for (const p of ["cargo.view", "finance.view", "accounting.view", "audit.view", "customer.view", "release.view", "expense.view"] as const) {
-      assert.ok(can("DEVELOPER", p), p);
+  test("see none of the business — money, cargo and customers are seen by working as somebody", () => {
+    for (const p of [
+      "cargo.view", "cargo.viewAll", "finance.view", "accounting.view", "rate.view", "expense.view", "profit.view",
+      "customer.view", "release.view", "container.view", "report.view", "audit.view", "search.global",
+    ] as const) {
+      assert.equal(can("DEVELOPER", p), false, p);
     }
   });
 
