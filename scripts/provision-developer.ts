@@ -16,21 +16,32 @@
  * --yes, naming the host it is about to change.
  */
 import { createInterface } from "node:readline";
+import { Writable } from "node:stream";
 
-/** Ask one question. `secret` hides what is typed, so it never sits on screen. */
+/**
+ * Ask one question. `secret` hides what is typed, so it never sits on screen.
+ *
+ * Readline echoes through the output stream it is given, so a secret is asked
+ * over a stream that goes quiet once the question is printed. Overriding
+ * readline's private echo method instead stopped working in newer Node, and a
+ * database password was printed in full.
+ */
 function ask(question: string, secret = false): Promise<string> {
   return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    if (secret) {
-      (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (text) => {
-        if (text.includes(question)) process.stdout.write(text);
-      };
-    }
+    let muted = false;
+    const output = new Writable({
+      write(chunk, encoding, done) {
+        if (!muted) process.stdout.write(chunk, encoding);
+        done();
+      },
+    });
+    const rl = createInterface({ input: process.stdin, output, terminal: true });
     rl.question(question, (answer) => {
       rl.close();
       if (secret) process.stdout.write("\n");
       resolve(answer.trim());
     });
+    muted = secret;
   });
 }
 
