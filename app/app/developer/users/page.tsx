@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AlertTriangle, BadgeDollarSign, Headset, Lock, LogIn, Package, ShieldCheck, Warehouse } from "lucide-react";
 
-import { ReactivateForm, SuspendForm } from "@/components/app/access-actions";
+import { DeleteForm, ReactivateForm, SuspendForm } from "@/components/app/access-actions";
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { startWorkAs } from "@/lib/actions/developer";
 import { canWorkAs } from "@/lib/developer-mode";
@@ -18,6 +18,7 @@ const GROUPS = [
   { title: "Finance", body: "Confirms prices, takes and checks payments and follows up debts.", icon: BadgeDollarSign, roles: ["FINANCE"] },
   { title: "Warehouse", body: "Receives, loads, checks in and hands out cargo — Foshan and Dar. No money powers.", icon: Warehouse, roles: ["CHINA_WAREHOUSE", "DAR_WAREHOUSE"] },
   { title: "Customer Support", body: "Talks to customers and chases answers. Never verifies a payment or releases cargo.", icon: Headset, roles: ["CUSTOMER_SUPPORT"] },
+  { title: "Other developer accounts", body: "Technical accounts besides yours. They look and work as others; they do not operate.", icon: ShieldCheck, roles: ["DEVELOPER"] },
 ] as const;
 
 const ago = (d: Date | null) => {
@@ -42,7 +43,8 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const [people, suspendedByMe, warehouses] = await Promise.all([
     prisma.user.findMany({
-      where: { role: { notIn: ["CUSTOMER", "DEVELOPER"] } },
+      /* Every account but customers' and your own; a closed account has left the list for good. */
+      where: { role: { not: "CUSTOMER" }, id: { not: dev.id }, status: { not: "INACTIVE" } },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, role: true, active: true, status: true, lastLoginAt: true },
     }),
@@ -73,7 +75,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
       <section className="grid gap-3 md:grid-cols-3">
         {[
           { icon: LogIn, title: "Work as", body: "Opens that person's screens with their real permissions. A bar at the top shows who you are working as; press Stop to come back here. It ends by itself after 4 hours." },
-          { icon: AlertTriangle, title: "Suspend", body: "Blocks the account at once. You must say why and type CONFIRM. You can only re-activate accounts you suspended yourself." },
+          { icon: AlertTriangle, title: "Suspend or delete", body: "Suspend blocks the account at once; type CONFIRM. Delete ends it for good; type DELETE — an account with no history is removed completely, one with history is closed and keeps its name on what it did. Always with a reason. Never your own account, and never the last owner who can sign in." },
           { icon: Lock, title: "Safety while working as someone", body: "You cannot change passwords or roles, or create accounts, while working as someone — so it can never be used to take over an account." },
         ].map((c) => (
           <div key={c.title} className="rounded-2xl border bg-card p-4">
@@ -126,13 +128,12 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                           {T("Work as")}
                         </button>
                       </form>
-                      {p.role === "ADMIN" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs text-muted-foreground"><Lock className="size-3.5" />{T("Can't be suspended here")}</span>
-                      ) : suspended ? (
+                      {suspended ? (
                         mine.has(p.id) ? <ReactivateForm userId={p.id} /> : <span className="text-xs text-muted-foreground">{T("Suspended by someone else")}</span>
                       ) : (
                         <SuspendForm userId={p.id} name={p.name} />
                       )}
+                      <DeleteForm userId={p.id} name={p.name} />
                     </div>
                   </div>
                 );
