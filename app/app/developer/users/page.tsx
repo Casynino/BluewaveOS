@@ -1,25 +1,15 @@
 import type { Metadata } from "next";
-import { AlertTriangle, BadgeDollarSign, Headset, LogIn, Package, ShieldCheck, Warehouse } from "lucide-react";
+import { AlertTriangle, Package } from "lucide-react";
 
-import { DeleteForm, ReactivateForm, SuspendForm } from "@/components/app/access-actions";
+import { AccessPeople, type AccessPerson } from "@/components/app/access-people";
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
-import { startWorkAs } from "@/lib/actions/developer";
 import { canWorkAs } from "@/lib/developer-mode";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { primeLocale, T } from "@/lib/server-t";
-import { cn } from "@/lib/utils";
+import { ROLE_LABELS } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Access" };
-
-const GROUPS = [
-  { title: "Owner", body: "The business owner's account. Full control of money, staff and reports.", icon: ShieldCheck, roles: ["ADMIN"] },
-  { title: "Manager", body: "Runs the operation day to day and approves what needs a second signature.", icon: ShieldCheck, roles: ["MANAGER"] },
-  { title: "Finance", body: "Confirms prices, takes and checks payments and follows up debts.", icon: BadgeDollarSign, roles: ["FINANCE"] },
-  { title: "Warehouse", body: "Receives, loads, checks in and hands out cargo — Foshan and Dar. No money powers.", icon: Warehouse, roles: ["CHINA_WAREHOUSE", "DAR_WAREHOUSE"] },
-  { title: "Customer Support", body: "Talks to customers and chases answers. Never verifies a payment or releases cargo.", icon: Headset, roles: ["CUSTOMER_SUPPORT"] },
-  { title: "Other developer accounts", body: "Technical accounts besides yours. They look and work as others; they do not operate.", icon: ShieldCheck, roles: ["DEVELOPER"] },
-] as const;
 
 const ago = (d: Date | null) => {
   if (!d) return "never signed in";
@@ -52,15 +42,30 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
     prisma.warehouse.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
   ]);
   const mine = new Set(suspendedByMe.map((r) => r.entityId));
+  /* The one owner left who can sign in is never removable — nobody would be left to run the business. */
+  const owners = people.filter((p) => p.role === "ADMIN" && p.active && p.status === "ACTIVE");
+  const rows: AccessPerson[] = people.map((p) => ({
+    id: p.id,
+    name: p.name,
+    email: p.email,
+    role: p.role,
+    roleLabel: p.role === "ADMIN" ? "Owner" : (ROLE_LABELS[p.role as keyof typeof ROLE_LABELS] ?? p.role),
+    suspended: p.status === "SUSPENDED",
+    lastSeen: p.lastLoginAt ? `${T("Last signed in")} ${ago(p.lastLoginAt)}` : T("Never signed in"),
+    canWork: canWorkAs(p, dev.id),
+    reactivatable: mine.has(p.id),
+    lastOwner: owners.length === 1 && owners[0].id === p.id,
+  }));
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-        <h1 className="text-2xl font-bold">{T("Access")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {people.length} {T("accounts")} · {T("Work as, suspend or delete. Everything you do is recorded under your name.")}
-        </p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">{T("Developer console")}</p>
+          <h1 className="mt-1 text-2xl font-bold">{T("Access")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {people.length} {T("accounts")} · {T("Work as, suspend or delete. Everything you do is recorded under your name.")}
+          </p>
         </div>
         <AddAccountDialog warehouses={warehouses} />
       </header>
@@ -72,62 +77,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
         </p>
       ) : null}
 
-      {GROUPS.map((g) => {
-        const list = people.filter((p) => (g.roles as readonly string[]).includes(p.role));
-        if (list.length === 0) return null;
-        return (
-          <section key={g.title} className="space-y-2">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand"><g.icon className="size-5" /></span>
-              <div>
-                <h2 className="font-semibold">{T(g.title)} · {list.length}</h2>
-                <p className="text-sm text-muted-foreground">{T(g.body)}</p>
-              </div>
-            </div>
-            <div className="divide-y rounded-2xl border bg-card">
-              {list.map((p) => {
-                const ok = canWorkAs(p, dev.id);
-                const suspended = p.status === "SUSPENDED";
-                return (
-                  <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
-                      {p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                        {p.name}
-                        <span className={cn("text-xs font-medium", suspended ? "text-destructive" : "text-success")}>{suspended ? T("Suspended") : T("Active")}</span>
-                        {p.role === "ADMIN" ? <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{T("Owner")}</span> : null}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">{p.email}</p>
-                      <p className="text-xs text-muted-foreground">{p.lastLoginAt ? `${T("Last signed in")} ${ago(p.lastLoginAt)}` : T("Never signed in")}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <form action={startWorkAs}>
-                        <input type="hidden" name="userId" value={p.id} />
-                        <button
-                          type="submit"
-                          disabled={!ok}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-brand-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          <LogIn className="size-4" />
-                          {T("Work as")}
-                        </button>
-                      </form>
-                      {suspended ? (
-                        mine.has(p.id) ? <ReactivateForm userId={p.id} /> : <span className="text-xs text-muted-foreground">{T("Suspended by someone else")}</span>
-                      ) : (
-                        <SuspendForm userId={p.id} name={p.name} />
-                      )}
-                      <DeleteForm userId={p.id} name={p.name} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+      <AccessPeople people={rows} />
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><Package className="size-3.5" />{T("Customer accounts are not listed — they are managed from Customers.")}</p>
     </div>
   );
