@@ -647,7 +647,6 @@ function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good:
           rows={rows}
           labels={{
             all: T("All"),
-            whatItMeans: T("What it means"),
             whatToDo: T("What to do"),
             whereToLook: T("Where to look"),
             scrollMore: T("scroll for {n} more"),

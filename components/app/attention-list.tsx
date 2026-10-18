@@ -33,7 +33,6 @@ export interface AttentionRow {
 }
 export interface AttentionLabels {
   all: string;
-  whatItMeans: string;
   whatToDo: string;
   whereToLook: string;
   scrollMore: string;
@@ -84,7 +83,7 @@ export function AttentionList({ rows, labels }: { rows: AttentionRow[]; labels: 
         className={cn(
           "divide-y divide-border/60 border-border/60",
           showChips && "border-t",
-          more > 0 && "focus-ring max-h-[13.5rem] overflow-y-auto overscroll-contain"
+          more > 0 && "focus-ring max-h-[11rem] overflow-y-auto overscroll-contain"
         )}
       >
         {shown.map((r) => {
@@ -92,25 +91,22 @@ export function AttentionList({ rows, labels }: { rows: AttentionRow[]; labels: 
           return (
             <li key={r.id}>
               <details className="group">
-                <summary className="focus-ring relative flex cursor-pointer list-none items-center gap-3 px-5 py-3 marker:content-none hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+                <summary className="focus-ring relative flex cursor-pointer list-none items-center gap-3 px-5 py-2.5 marker:content-none hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
                   <span aria-hidden className={cn("absolute inset-y-2 left-0 w-0.5 rounded-full", r.severity === "fix" ? "bg-destructive" : "bg-warning")} />
-                  <Icon className={cn("size-5 shrink-0", r.severity === "fix" ? "text-destructive" : "text-warning")} aria-hidden />
+                  <Icon className={cn("size-[18px] shrink-0", r.severity === "fix" ? "text-destructive" : "text-warning")} aria-hidden />
                   <span className="min-w-0 flex-1 leading-snug">
-                    <span className="block text-[15px] font-semibold text-foreground">{r.title}</span>
-                    <span className="block truncate text-sm text-muted-foreground">{r.summary}</span>
+                    <span className="block truncate text-sm font-semibold text-foreground">{r.title}</span>
+                    <span className="block truncate text-[13px] text-muted-foreground">{r.summary}</span>
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
                 </summary>
-                <div className="space-y-3 px-5 pb-4 pt-1 text-sm sm:pl-14">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{labels.whatItMeans}</p>
-                    <p className="mt-1 leading-relaxed text-foreground/90">{r.summary}</p>
-                  </div>
+                <div className="space-y-2 bg-muted/20 px-5 pb-3 pt-2 text-[13px] leading-relaxed sm:pl-[3.25rem]">
+                  <p className="text-muted-foreground">{r.summary}</p>
                   {r.todo ? (
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{labels.whatToDo}</p>
-                      <p className="mt-1 leading-relaxed text-foreground/90">{r.todo}</p>
-                    </div>
+                    <p>
+                      <span className="font-semibold">{labels.whatToDo}: </span>
+                      {r.todo}
+                    </p>
                   ) : null}
                   {r.examples.length > 0 ? (
                     <p className="text-xs text-muted-foreground">
