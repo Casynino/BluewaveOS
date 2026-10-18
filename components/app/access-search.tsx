@@ -8,6 +8,11 @@ import { useT } from "@/components/app/locale-provider";
 /**
  * Narrows the people already on the page as you type — name, email or role.
  * It only hides rows; nothing is fetched and nothing changes.
+ *
+ * Customers are found only by pressing Enter, and are shown only while the
+ * box still holds the search that found them: change or clear it and they go,
+ * and clearing it takes the search out of the address so a reload does not
+ * bring them back.
  */
 export function AccessSearch({ initial = "" }: { initial?: string }) {
   const tx = useT();
@@ -20,6 +25,11 @@ export function AccessSearch({ initial = "" }: { initial?: string }) {
       const any = Array.from(group.querySelectorAll<HTMLElement>("[data-access-row]")).some((r) => r.style.display !== "none");
       group.style.display = any ? "" : "none";
     });
+    const searched = initial.trim().toLowerCase();
+    document.querySelectorAll<HTMLElement>("[data-access-customers]").forEach((section) => {
+      section.style.display = q !== "" && q === searched ? "" : "none";
+    });
+    if (q === "" && searched !== "") window.history.replaceState(null, "", window.location.pathname);
   }
   useEffect(() => {
     if (initial) filter(initial);

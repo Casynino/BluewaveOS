@@ -95,7 +95,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
       <AccessSearch initial={q} />
 
       {q ? (
-        <section className="space-y-2">
+        <section data-access-customers className="space-y-2">
           <h2 className="font-semibold">{T("Customers")} · {customers.length}</h2>
           {customers.length === 0 ? (
             <p className="text-sm text-muted-foreground">{T("No customer matches that name or number.")}</p>
