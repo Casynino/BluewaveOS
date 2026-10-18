@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { cronPermitted } from "@/lib/cron-door";
+import { runJob } from "@/lib/jobs";
 import { sendStorageNotices } from "@/lib/storage-notices";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const result = await sendStorageNotices();
+    const result = await runJob("storage-notices", () => sendStorageNotices());
     return NextResponse.json(
       { ok: true, ...result, ranAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }

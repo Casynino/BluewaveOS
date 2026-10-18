@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { cronPermitted } from "@/lib/cron-door";
+import { runJob } from "@/lib/jobs";
 import { accrueStorage } from "@/lib/storage-charge";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +20,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    const result = await accrueStorage();
+    const result = await runJob("storage-charge", async () => {
+      const r = await accrueStorage();
+      return { checked: r.checked, charged: r.charged.length };
+    });
     return NextResponse.json(
-      { ok: true, checked: result.checked, charged: result.charged.length, ranAt: new Date().toISOString() },
+      { ok: true, ...result, ranAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
