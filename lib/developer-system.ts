@@ -285,7 +285,7 @@ export async function speedPulse() {
   const t = Date.now();
   await prisma.cargo.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 50, select: { id: true, reference: true } });
   const list = Date.now() - t;
-  return { avg: Math.round(times.reduce((a, b) => a + b, 0) / times.length), max: Math.max(...times), list, times };
+  return { avg: Math.round(times.reduce((a, b) => a + b, 0) / times.length), max: Math.max(...times), list };
 }
 
 /* ------------------------------------------------------------------ */

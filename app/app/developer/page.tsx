@@ -1,15 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { BarChart3, ChevronDown, CircleCheck, Info, ScrollText } from "lucide-react";
+import { AlertTriangle, BarChart3, ChevronUp, CircleCheck, Info, ScrollText, TriangleAlert } from "lucide-react";
 
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
-import { Legend, MiniBars, RankedBars, Sparkline, StackedBars } from "@/components/app/dev-charts";
+import { Legend, RankedBars, ScoreRing, StackedBars } from "@/components/app/dev-charts";
 import { WorkAsDialog } from "@/components/app/work-as-dialog";
-import { AttentionList, type AttentionRow } from "@/components/app/attention-list";
+import { startWorkAs } from "@/lib/actions/developer";
 import { ROLE_LABELS } from "@/lib/constants";
 import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overview";
 import { runChecks, type CheckResult } from "@/lib/developer-checks";
-import { activityKpis, businessPulse, dataPulse, dbSize, deployment, errorList, jobsTable, messagesPulse, peoplePulse, securityExtras, securityPulse, settingsPulse, speedPulse, timings } from "@/lib/developer-system";
+import { activityKpis, businessPulse, dataPulse, dbSize, deployment, errorList, jobsTable, messagesPulse, peoplePulse, securityExtras, securityPulse, settingsPulse, timings } from "@/lib/developer-system";
 import { WhoCanDo } from "@/components/app/who-can-do";
 import { ROLE_PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +28,12 @@ const GROUP_COLOR: Record<string, string> = {
   Support: "bg-amber-500",
   Customers: "bg-rose-400",
   Developer: "bg-slate-400",
+};
+
+const TONE: Record<Finding["tone"], { icon: typeof Info; ring: string; badge: string; label: string }> = {
+  fix: { icon: TriangleAlert, ring: "border-destructive/40 bg-destructive/5", badge: "bg-destructive/15 text-destructive", label: "Fix now" },
+  look: { icon: AlertTriangle, ring: "border-warning/40 bg-warning/5", badge: "bg-warning/15 text-warning", label: "Look at it" },
+  info: { icon: Info, ring: "border-border bg-card", badge: "bg-secondary text-muted-foreground", label: "Good to know" },
 };
 
 const ago = (d: Date | null) => {
@@ -83,8 +89,6 @@ export default async function DeveloperHome() {
     score: Math.max(0, Math.min(100, 100 - counts.fix * 35 - counts.look * 15 - Math.min(counts.info, 3) * 2)),
   };
 
-  /* Five quick pings for the health card's database bars, before the heavier reads. */
-  const speed = await speedPulse();
   const envMissing = ["AUTH_SECRET", "DATABASE_URL", "DIRECT_URL", "BLOB_READ_WRITE_TOKEN", "CRON_SECRET", "NEXT_PUBLIC_SITE_URL"].filter((n) => !process.env[n]?.trim()).length;
   /* One page: everything is read, and each part has its own section. */
   const [biz, kpis, msgs, sec, set, ppl, data, errs, jobs, times, size, secX] = await Promise.all([
@@ -113,6 +117,7 @@ export default async function DeveloperHome() {
   const hello = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" });
   const need = o.findings.filter((f) => f.tone !== "info");
   const good = o.findings.filter((f) => f.tone === "info");
+  const verdict = o.counts.fix > 0 ? "Something is broken" : o.counts.look > 0 ? "Working, with a few things to look at" : "Everything is working";
 
   return (
     <div className="space-y-6">
@@ -160,9 +165,34 @@ export default async function DeveloperHome() {
 
 
 
-      <StatusCard o={o} speed={speed} />
+      <section className="grid gap-6 rounded-2xl border bg-card p-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="flex items-center gap-6">
+          <ScoreRing score={o.score} />
+          <div>
+            <h2 className="text-xl font-semibold">{T(verdict)}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {o.counts.fix === 0 && o.counts.look === 0
+                ? T("Nothing needs you.")
+                : o.counts.fix > 0
+                  ? T("Fix the red items first.")
+                  : `${o.counts.look} ${T("thing(s) worth a look. Nothing is broken.")}`}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-secondary px-3 py-1">{o.counts.fix} {T("to fix now")}</span>
+              <span className="rounded-full bg-warning/15 px-3 py-1 text-warning">{o.counts.look} {T("to look at")}</span>
+              <span className="rounded-full bg-secondary px-3 py-1">{o.counts.info} {T("for information")}</span>
+            </div>
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <Stat label="Database" value={o.db.ok ? "Online" : "Down"} tone={o.db.ok ? "text-success" : "text-destructive"} sub={`${o.db.ms} ms`} />
+          <Stat label="Signed in today" value={String(o.signedInToday)} sub={T("different people")} />
+          <Stat label="Actions today" value={String(o.actionsToday)} sub={T("saved in 24 hours")} />
+          <Stat label="Server errors" value={String(o.errors24)} tone={o.errors24 ? "text-warning" : undefined} sub={T("in 24 hours")} />
+        </dl>
+      </section>
 
-      <AttentionPanel need={need} good={good} checks={checks} people={people} />
+      <AttentionPanel need={need} good={good} checks={checks} dbMs={o.db.ms} people={people} />
 
 
 
@@ -304,6 +334,16 @@ function Section({ id, title, hint, children }: { id: string; title: string; hin
       </div>
       {children}
     </section>
+  );
+}
+
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
+  return (
+    <div>
+      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className={cn("mt-1 text-3xl font-bold tnum", tone)}>{value}</dd>
+      {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
+    </div>
   );
 }
 
@@ -587,111 +627,136 @@ function SpeedTab({ d, times, size }: { d: Awaited<ReturnType<typeof dataPulse>>
   );
 }
 
-/**
- * NEEDS YOUR ATTENTION — one panel, as the Vegas console has it: the title with
- * "Checked just now…" under it and the verdict at the right; inside, either one
- * quiet line or the problems as a compact list (components/app/attention-list);
- * and under it a closed row, "What was checked · 12 of 13 fine, 1 not checked
- * yet", that opens to every check — what could not be checked first, then the
- * fine ones, then what is good to know. A problem is written once, in the list,
- * never again among the checks.
- */
-function AttentionPanel({ need, good, checks, people }: { need: Finding[]; good: Finding[]; checks: CheckResult[]; people: { id: string; name: string; role: string }[] }) {
-  const fixN = need.filter((f) => f.tone === "fix").length;
-  const lookN = need.length - fixN;
-  const verdict = fixN > 0 ? { t: `${fixN} ${T("to fix now")}`, c: "text-destructive" } : lookN > 0 ? { t: `${lookN} ${T("to look at")}`, c: "text-warning" } : { t: T("All clear"), c: "text-success" };
-  const rows: AttentionRow[] = need.map((f) => {
-    const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
-    const desk = f.workAs ? (ROLE_LABELS[f.workAs as keyof typeof ROLE_LABELS] ?? f.workAs) : T("System");
-    return {
-      id: f.key,
-      severity: f.tone === "fix" ? "fix" : "look",
-      title: f.title,
-      summary: f.detail,
-      todo: f.fix ?? null,
-      examples: f.lines ?? [],
-      link: f.href ? { href: f.href, label: T("Look at it") } : null,
-      group: desk,
-      workAs: who ? { id: who.id, label: `${who.name.split(" ")[0]} · ${desk}` } : null,
-      items: (f.items ?? []).map((it) => ({
-        title: it.title,
-        detail: `${T("For")} ${it.who} · ${ROLE_LABELS[it.role as keyof typeof ROLE_LABELS] ?? it.role} · ${it.age}${it.body ? ` — ${it.body}` : ""}`,
-        whoId: it.whoId,
-        who: it.who.split(" ")[0],
-        href: it.href,
-      })),
-    };
-  });
-  const fine = checks.filter((c) => c.status === "ok");
-  const notChecked = checks.filter((c) => c.status === "unknown");
-  const summary = [`${fine.length} ${T("of")} ${checks.length} ${T("fine")}`, ...(notChecked.length > 0 ? [`${notChecked.length} ${T("not checked yet")}`] : [])].join(", ");
+const ROW_ICON: Record<CheckResult["status"], { icon: typeof Info; cls: string; label: string; pill: string }> = {
+  ok: { icon: CircleCheck, cls: "text-success", label: "Fine", pill: "text-success" },
+  fix: { icon: TriangleAlert, cls: "text-destructive", label: "Fix now", pill: "bg-destructive/15 text-destructive" },
+  look: { icon: AlertTriangle, cls: "text-warning", label: "Look at it", pill: "bg-warning/15 text-warning" },
+  unknown: { icon: Info, cls: "text-muted-foreground", label: "Not checked yet", pill: "bg-secondary text-muted-foreground" },
+};
+const ORDER: Record<CheckResult["status"], number> = { fix: 0, look: 1, unknown: 2, ok: 3 };
 
+/**
+ * NEEDS YOUR ATTENTION — one panel: what is wrong (each with what to do), then
+ * every check that ran, so "nothing wrong" can be told from "nothing looked".
+ */
+function AttentionPanel({ need, good, checks, dbMs, people }: { need: Finding[]; good: Finding[]; checks: CheckResult[]; dbMs: number; people: { id: string; name: string; role: string }[] }) {
+  const fine = checks.filter((c) => c.status === "ok").length;
+  const unknown = checks.filter((c) => c.status === "unknown").length;
+  const fix = need.filter((f) => f.tone === "fix").length;
+  const sorted = [...checks].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+  const all = [...need, ...good];
+  const badge = fix > 0 ? { t: `${fix} ${T("to fix now")}`, c: "text-destructive" } : need.length > 0 ? { t: `${need.length} ${T("to look at")}`, c: "text-warning" } : { t: T("All clear"), c: "text-success" };
   return (
-    <section aria-labelledby="attention-title">
-      {/* The name once, as a small label over the card — the card does not repeat it. */}
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="attention-title" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{T("Needs your attention")}</h2>
-        <span className={cn("shrink-0 text-sm font-medium", verdict.c)}>{verdict.t}</span>
+    <section className="overflow-hidden rounded-2xl border bg-card">
+      <div className="flex items-start justify-between gap-4 px-5 py-4">
+        <div>
+          <h2 className="font-semibold">{T("Needs your attention")}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{T("Checked just now. Tap a card to see what it means and what to do.")}</p>
+        </div>
+        <span className={cn("shrink-0 text-sm font-medium", badge.c)}>{badge.t}</span>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
-      {need.length === 0 ? (
-        <div className="flex items-center gap-3 px-5 py-3.5">
-          <CircleCheck className="size-5 shrink-0 text-success" aria-hidden />
-          <p className="text-sm">
-            <span className="font-semibold">{T("Nothing needs your attention.")}</span>{" "}
-            <span className="text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</span>
-          </p>
+
+      {all.length === 0 ? (
+        <div className="flex items-center gap-4 border-t px-5 py-4">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success/15 text-success"><CircleCheck className="size-5" /></span>
+          <span>
+            <span className="block font-semibold">{T("Nothing needs your attention")}</span>
+            <span className="block text-sm text-muted-foreground">{T("Nothing is broken, and every required setting is in place.")}</span>
+          </span>
         </div>
       ) : (
-        <AttentionList
-          rows={rows}
-          labels={{
-            all: T("All"),
-            whatToDo: T("What to do"),
-            whereToLook: T("Where to look"),
-            scrollMore: T("scroll for {n} more"),
-            workAs: T("Work as"),
-            open: T("Open"),
-          }}
-        />
+        <div className="divide-y border-t">
+          {all.map((f) => {
+              const t = TONE[f.tone];
+              return (
+                <details key={f.key} open={f.tone !== "info"} className={cn("group px-5 py-4", f.tone === "fix" ? "bg-destructive/5" : f.tone === "look" ? "bg-warning/5" : "")}>
+                  <summary className="flex cursor-pointer list-none items-center gap-3">
+                    <t.icon className="size-5 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">{f.title}</span>
+                    </span>
+                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", t.badge)}>{T(t.label)}</span>
+                  </summary>
+                  <p className="mt-2 pl-8 text-sm text-muted-foreground">{f.detail}</p>
+                  {f.lines?.length ? (
+                    <ul className="mt-2 space-y-0.5 pl-8 text-xs text-muted-foreground">
+                      {f.lines.map((l, i) => <li key={i} className="truncate font-mono">• {l}</li>)}
+                    </ul>
+                  ) : null}
+                  {f.fix ? (
+                    <p className="mt-3 pl-8 text-sm"><span className="font-semibold">{T("What to do:")}</span> {f.fix}</p>
+                  ) : null}
+                  {f.href || f.workAs ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
+                      {f.href ? (
+                        <Link href={f.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Look at it")}</Link>
+                      ) : null}
+                      {(() => {
+                        const who = f.workAs ? people.find((p) => p.role === f.workAs) : null;
+                        return who ? (
+                          <form action={startWorkAs}>
+                            <input type="hidden" name="userId" value={who.id} />
+                            {f.href ? <input type="hidden" name="next" value={f.href} /> : null}
+                            <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {who.name.split(" ")[0]} · {ROLE_LABELS[who.role as keyof typeof ROLE_LABELS]}</button>
+                          </form>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : null}
+                  {f.items?.length ? (
+                    <ul className="mt-3 space-y-2 pl-8">
+                      {f.items.map((it, i) => (
+                        <li key={i} className="flex flex-wrap items-center gap-3 rounded-lg border bg-card/60 px-3 py-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{it.title}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {T("For")} {it.who} · {ROLE_LABELS[it.role as keyof typeof ROLE_LABELS]} · {it.age}
+                              {it.body ? ` — ${it.body}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {it.href ? (
+                              <Link href={it.href} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-secondary">{T("Open")}</Link>
+                            ) : null}
+                            <form action={startWorkAs}>
+                              <input type="hidden" name="userId" value={it.whoId} />
+                              {it.href ? <input type="hidden" name="next" value={it.href} /> : null}
+                              <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground hover:opacity-90">{T("Work as")} {it.who.split(" ")[0]}</button>
+                            </form>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </details>
+              );
+            })}
+        </div>
       )}
 
-      {checks.length === 0 ? (
-        <p className="border-t border-border/60 px-5 py-3 text-[13px] text-muted-foreground">{T("The checks could not be run just now.")}</p>
-      ) : (
-        <details className="group border-t border-border/60">
-          <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 px-5 py-3 text-[13px] text-muted-foreground marker:content-none hover:text-foreground [&::-webkit-details-marker]:hidden">
-            <span className="min-w-0 flex-1">{T("What was checked")} · {summary}</span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
-          </summary>
-          <ul className="divide-y divide-border/60 border-t border-border/60">
-            {notChecked.map((c) => (
-              <CheckLine key={c.id} icon={Info} iconTone="text-muted-foreground" title={c.name} summary={c.note ?? ""} status={{ text: T("Not checked yet"), pill: true }} />
-            ))}
-            {fine.map((c) => (
-              <CheckLine key={c.id} icon={CircleCheck} iconTone="text-success" title={c.name} summary={c.fine ?? ""} status={{ text: T("Fine"), pill: false, tone: "text-success" }} />
-            ))}
-            {good.map((f) => (
-              <CheckLine key={f.key} icon={Info} iconTone="text-info" title={f.title} summary={f.detail} status={{ text: T("Good to know"), pill: true }} />
-            ))}
-          </ul>
-        </details>
-      )}
-      </div>
+      <details open className="group border-t">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-sm font-medium">
+          <span>{T("What was checked")} · {fine} {T("of")} {checks.length} {T("fine")}{unknown ? `, ${unknown} ${T("not checked yet")}` : ""}</span>
+          <ChevronUp className="size-4 text-muted-foreground transition-transform group-[&:not([open])]:rotate-180" />
+        </summary>
+        <ul className="divide-y border-t">
+          {sorted.map((c) => {
+            const t = ROW_ICON[c.status];
+            const note = c.status === "ok" ? (c.id === "database" ? `${T("Answers in")} ${dbMs} ms.` : c.fine) : (c.note ?? c.finding?.title);
+            return (
+              <li key={c.id} className="flex items-center gap-3.5 px-5 py-3">
+                <t.icon className={cn("size-[18px] shrink-0", t.cls)} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm">{T(c.name)}</span>
+                  {note ? <span className="block text-xs text-muted-foreground">{note}</span> : null}
+                </span>
+                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs font-medium", t.pill)}>{T(t.label)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </details>
     </section>
-  );
-}
-
-function CheckLine({ icon: Icon, iconTone, title, summary, status }: { icon: typeof Info; iconTone: string; title: string; summary: string; status: { text: string; pill: boolean; tone?: string } }) {
-  return (
-    <li className="flex items-center gap-3 px-5 py-2.5">
-      <Icon className={cn("size-[18px] shrink-0", iconTone)} aria-hidden />
-      <span className="min-w-0 flex-1 leading-snug">
-        <span className="block text-sm text-foreground">{title}</span>
-        <span className="block text-xs text-muted-foreground">{summary}</span>
-      </span>
-      <span className={cn("shrink-0 text-xs font-medium", status.pill ? "rounded-full bg-muted px-3 py-1 text-foreground/80" : status.tone)}>{status.text}</span>
-    </li>
   );
 }
 
@@ -782,139 +847,3 @@ function DeploymentCard({ d }: { d: ReturnType<typeof deployment> }) {
     </Card>
   );
 }
-
-/* ───────────────────────── the health card ───────────────────────── */
-
-/*
-  The verdict and the numbers that matter, in one calm card under the banner:
-  the health dial, a plain sentence, and four live numbers, each with its
-  recent trend. The Target Express control room's card, on BlueWave's figures.
-*/
-
-type Level = "good" | "warn" | "bad";
-const LEVEL_COLOR: Record<Level, string> = { good: "hsl(var(--success))", warn: "hsl(var(--warning))", bad: "hsl(var(--destructive))" };
-const LEVEL_TEXT: Record<Level, string> = { good: "text-success", warn: "text-warning", bad: "text-destructive" };
-
-function Dial({ score, level }: { score: number; level: Level }) {
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="flex shrink-0 flex-col items-center gap-2">
-      <div className="relative size-28 sm:size-32" role="img" aria-label={`Health score ${score} out of 100`}>
-        <svg viewBox="0 0 120 120" className="size-full -rotate-90">
-          <circle cx="60" cy="60" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={9} />
-          <circle cx="60" cy="60" r={r} fill="none" stroke={LEVEL_COLOR[level]} strokeWidth={9} strokeLinecap="round" strokeDasharray={`${(Math.max(0, Math.min(100, score)) / 100) * c} ${c}`} />
-        </svg>
-        <div className="absolute inset-0 grid place-items-center text-center">
-          <div>
-            <p className="font-display text-4xl font-bold leading-none tabular-nums">{score}</p>
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{T("out of 100")}</p>
-          </div>
-        </div>
-      </div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{T("Health score")}</p>
-    </div>
-  );
-}
-
-function Chip({ n, label, dot }: { n: number; label: string; dot: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground/80">
-      <span className={cn("size-1.5 rounded-full", n > 0 ? dot : "bg-muted-foreground/40")} />
-      <span className="tabular-nums">{n}</span> {T(label)}
-    </span>
-  );
-}
-
-function Metric({ label, value, hint, valueClass, visual }: { label: string; value: string; hint: string; valueClass?: string; visual: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-border bg-muted/30 p-4">
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{T(label)}</p>
-      <p className={cn("mt-2 whitespace-nowrap font-display text-3xl font-bold leading-none tabular-nums", valueClass)}>{value}</p>
-      <p className="mt-1.5 truncate text-xs text-muted-foreground">{hint}</p>
-      <div className="mt-auto pt-3">{visual}</div>
-    </div>
-  );
-}
-
-function StatusCard({
-  o,
-  speed,
-}: {
-  o: Awaited<ReturnType<typeof developerOverview>> & { score: number; counts: { fix: number; look: number; info: number } };
-  speed: Awaited<ReturnType<typeof speedPulse>>;
-}) {
-  const crit = o.counts.fix;
-  const warn = o.counts.look;
-  const info = o.counts.info;
-  const level: Level = crit ? "bad" : warn ? "warn" : "good";
-  const headline = crit ? "Needs attention now" : warn ? "Working, with a few things to look at" : "Everything is healthy";
-  const summary = crit
-    ? `${crit} ${crit > 1 ? T("things are broken and should be fixed now.") : T("thing is broken and should be fixed now.")}`
-    : warn
-      ? `${warn} ${warn > 1 ? T("things worth a look. Nothing is broken.") : T("thing worth a look. Nothing is broken.")}`
-      : T("The database is fast, every required setting is in place and nothing has crashed.");
-  const dbLevel: Level = !o.db.ok || speed.avg >= 400 ? "bad" : speed.avg >= 150 ? "warn" : "good";
-  const pooled = (() => {
-    try {
-      const u = new URL(process.env.DATABASE_URL ?? "");
-      return u.hostname.includes("-pooler") || u.searchParams.get("pgbouncer") === "true";
-    } catch {
-      return false;
-    }
-  })();
-  const crashes = o.errors24;
-  return (
-    <section className="rounded-2xl border bg-card p-5 shadow-soft sm:p-6">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
-        <Dial score={o.score} level={level} />
-        <div className="min-w-0">
-          <p className={cn("font-display text-xl font-semibold leading-tight", LEVEL_TEXT[level])}>{T(headline)}</p>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">{summary}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Chip n={crit} label="to fix now" dot="bg-destructive" />
-            <Chip n={warn} label="to look at" dot="bg-warning" />
-            <Chip n={info} label="for information" dot="bg-info" />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric
-          label="Database"
-          value={o.db.ok ? T("Online") : T("Down")}
-          valueClass={LEVEL_TEXT[dbLevel]}
-          hint={o.db.ok ? `${o.db.ms} ms · ${pooled ? T("pooled") : T("not pooled")}` : T("cannot connect")}
-          visual={
-            <MiniBars
-              className="h-8 w-full"
-              floor={60}
-              values={speed.times}
-              colors={speed.times.map((ms: number) => LEVEL_COLOR[ms >= 400 ? "bad" : ms >= 150 ? "warn" : "good"])}
-            />
-          }
-        />
-        <Metric
-          label="Signed in today"
-          value={String(o.signedInToday)}
-          hint={T("different people")}
-          visual={<Sparkline className="h-8 w-full" id="status-signins" color="hsl(var(--brand))" values={o.signinsPerDay.map((d) => d.total)} />}
-        />
-        <Metric
-          label="Actions today"
-          value={String(o.actionsToday)}
-          hint={T("saved in 24 hours")}
-          visual={<Sparkline className="h-8 w-full" id="status-actions" color="hsl(var(--brand))" values={o.actionsPerDay.map((d) => d.team + d.developer)} />}
-        />
-        <Metric
-          label="Crashes today"
-          value={String(crashes)}
-          valueClass={crashes ? "text-destructive" : undefined}
-          hint={crashes > 0 ? T("pages that broke") : T("nothing broke")}
-          visual={<Sparkline className="h-8 w-full" id="status-crashes" color={crashes ? LEVEL_COLOR.bad : "hsl(var(--muted-foreground))"} values={o.errorsPerDay} />}
-        />
-      </div>
-    </section>
-  );
-}
-

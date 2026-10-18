@@ -1,87 +1,31 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useState } from "react";
-import { Trash2, UserRoundX, UserRoundCheck } from "lucide-react";
+import { useActionState } from "react";
+import { UserRoundX, UserRoundCheck } from "lucide-react";
 
-import { deleteAccount, reactivateAccount, suspendAccount, type AccessState } from "@/lib/actions/developer";
-import { FormMessage } from "@/components/app/form-message";
-import { Modal } from "@/components/app/modal";
-import { SubmitButton } from "@/components/app/submit-button";
-import { Button } from "@/components/ui/button";
+import { reactivateAccount, suspendAccount, type AccessState } from "@/lib/actions/developer";
 
-/**
- * SUSPEND AND DELETE: ONE PRESS, ONE PLAIN QUESTION, CONFIRM OR CANCEL.
- *
- * By the owner's decision nothing is typed — the pop-up says what will happen
- * and the confirm button does it. The rules that matter (never yourself, never
- * the last owner) are the server's, and its answer shows here.
- */
-function ConfirmAccount({
-  trigger,
-  title,
-  body,
-  confirmLabel,
-  pendingLabel,
-  userId,
-  run,
-}: {
-  trigger: React.ReactNode;
-  title: string;
-  body: string;
-  confirmLabel: string;
-  pendingLabel: string;
-  userId: string;
-  run: (prev: AccessState, data: FormData) => Promise<AccessState>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [state, action] = useActionState<AccessState, FormData>(run, {});
-  const close = useCallback(() => setOpen(false), []);
-  useEffect(() => {
-    if (state.ok) setOpen(false);
-  }, [state]);
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className="contents">
-        {trigger}
-      </button>
-      {state.ok ? <span className="text-xs text-success">{state.ok}</span> : null}
-      {open ? (
-        <Modal title={title} onClose={close} className="max-w-md">
-          <p className="text-sm text-muted-foreground">{body}</p>
-          <form action={action} className="space-y-3">
-            <input type="hidden" name="userId" value={userId} />
-            <FormMessage error={state.error} />
-            <div className="flex justify-end gap-2">
-              <Button type="button" size="sm" variant="ghost" onClick={close}>
-                Cancel
-              </Button>
-              <SubmitButton size="sm" variant="destructive" pendingLabel={pendingLabel}>
-                {confirmLabel}
-              </SubmitButton>
-            </div>
-          </form>
-        </Modal>
-      ) : null}
-    </>
-  );
-}
-
+/** Suspend: a reason and the word CONFIRM, so it cannot be an accident. */
 export function SuspendForm({ userId, name }: { userId: string; name: string }) {
+  const [state, action, pending] = useActionState<AccessState, FormData>(suspendAccount, {});
   return (
-    <ConfirmAccount
-      userId={userId}
-      run={suspendAccount}
-      title={`Suspend ${name}?`}
-      body="They are signed out and cannot sign in until the account is re-activated."
-      confirmLabel="Confirm"
-      pendingLabel="Suspending…"
-      trigger={
-        <span className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
-          <UserRoundX className="size-4" />
-          Suspend
-        </span>
-      }
-    />
+    <details className="relative">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
+        <UserRoundX className="size-4" />
+        Suspend
+      </summary>
+      <form action={action} className="absolute right-0 z-20 mt-2 w-72 space-y-2 rounded-xl border bg-card p-3 shadow-lg">
+        <input type="hidden" name="userId" value={userId} />
+        <p className="text-sm font-medium">Suspend {name}?</p>
+        <input name="reason" required placeholder="Why" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
+        <input name="confirm" required placeholder="Type CONFIRM" className="h-9 w-full rounded-lg border bg-background px-2 text-sm" />
+        {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
+        {state.ok ? <p className="text-xs text-success">{state.ok}</p> : null}
+        <button disabled={pending} className="h-9 w-full rounded-lg bg-destructive text-sm font-medium text-destructive-foreground disabled:opacity-50">
+          {pending ? "Suspending…" : "Suspend"}
+        </button>
+      </form>
+    </details>
   );
 }
 
@@ -96,24 +40,5 @@ export function ReactivateForm({ userId }: { userId: string }) {
         Re-activate
       </button>
     </form>
-  );
-}
-
-export function DeleteForm({ userId, name }: { userId: string; name: string }) {
-  return (
-    <ConfirmAccount
-      userId={userId}
-      run={deleteAccount}
-      title={`Delete ${name}'s account?`}
-      body="They can no longer sign in, and the account is removed. Everything they recorded stays, with their name on it."
-      confirmLabel="Confirm"
-      pendingLabel="Deleting…"
-      trigger={
-        <span className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10">
-          <Trash2 className="size-4" />
-          Delete
-        </span>
-      }
-    />
   );
 }
