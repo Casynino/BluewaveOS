@@ -79,14 +79,10 @@ type Guarded = { error: string | null; ok?: string };
 
 async function gate(): Promise<SessionUser | { error: string }> {
   try {
-    const actor = await authorize("user.manage");
-    /* A developer working as somebody cannot hand out accounts, passwords or
-       roles under that person's screens: it would be a way to take over, or
-       plant a way into, somebody else's account. */
-    if (actor.impersonatedBy) {
-      return { error: "Accounts, passwords and roles cannot be changed while working as someone else. Stop first." };
-    }
-    return actor;
+    /* By the owner's decision a developer working as somebody has that
+       person's full powers here too — accounts, passwords and roles — and
+       every change is recorded under the developer (lib/audit-identity.ts). */
+    return await authorize("user.manage");
   } catch (error) {
     return {
       error:

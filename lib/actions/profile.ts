@@ -90,10 +90,10 @@ export async function changeMyPassword(
   _prev: ProfileState | undefined,
   formData: FormData
 ): Promise<ProfileState> {
+  /* Working as somebody is that person in full, by the owner's decision; the
+     change is recorded under the developer, and the current password is
+     still asked for. */
   const user = await requireUser();
-  if (user.impersonatedBy) {
-    return { error: "A password cannot be changed while working as someone else." };
-  }
 
   const parsed = passwordSchema.safeParse({
     current: formData.get("current")?.toString() ?? "",
