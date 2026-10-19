@@ -20,6 +20,7 @@ import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { DEVELOPER_CHANGES_ONLY } from "@/lib/audit-quiet";
 import { localeOf } from "@/lib/viewer-locale";
 
 import { primeLocale } from "@/lib/server-t";
@@ -96,6 +97,8 @@ export default async function AuditPage({
   const to = darDay(params.to, true);
 
   const where: Prisma.AuditLogWhereInput = {
+    /* The developer's sign-ins, page views and Work as are not the owner's to read. */
+    ...(user.role === "DEVELOPER" ? {} : { AND: [DEVELOPER_CHANGES_ONLY] }),
     ...(params.who ? { actorId: params.who } : {}),
     ...(params.entity ? { entity: params.entity } : {}),
     ...(from || to

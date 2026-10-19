@@ -213,6 +213,8 @@ describe("the manager runs the business; the owner owns it", () => {
     "fx.manage",
     "warehouse.manage",
     "container.delete",
+    /* The audit log is the owner's and the developer's, by the owner's decision. */
+    "audit.view",
   ];
 
   for (const p of OWNER_ONLY) {
@@ -235,7 +237,6 @@ describe("the manager runs the business; the owner owns it", () => {
     for (const p of [
       "record.review",
       "report.view",
-      "audit.view",
       "records.viewDeleted",
       "expense.approve",
       "payroll.approve",
@@ -287,3 +288,11 @@ describe("custody follows the cargo", () => {
     assert.equal(canAmendCargo("CUSTOMER_SUPPORT", "RECEIVED_DAR"), false);
   });
 });
+
+describe("the audit log", () => {
+  test("is the owner's and the developer's, and nobody else's", () => {
+    const holders = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) => can(r, "audit.view"));
+    assert.deepEqual(holders.sort(), ["ADMIN", "DEVELOPER"]);
+  });
+});
+

@@ -469,7 +469,6 @@ const FINANCE: Permission[] = [
   "customer.create",
   "customer.manage",
   "report.view",
-  "audit.view",
   "search.global",
 ];
 
@@ -533,7 +532,10 @@ const MANAGER: Permission[] = ALL.filter(
     /* `cargo.delete` is the manager's: a mistyped consignment is the floor's
        mistake to undo, and the deletion is soft, reasoned and restorable.
        `container.delete` is not — a sailing carries other people's goods. */
-    p !== "container.delete"
+    p !== "container.delete" &&
+    /* The audit log is the owner's and the developer's, by the owner's
+       decision; Finance keeps its own money audit (accounting.view). */
+    p !== "audit.view"
 );
 
 /**
