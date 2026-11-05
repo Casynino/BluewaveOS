@@ -144,7 +144,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
         return (
           <section key={g.title} data-access-group className="space-y-2">
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand"><g.icon className="size-5" /></span>
+              <span className="grid grid-cols-1 size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand"><g.icon className="size-5" /></span>
               <div>
                 <h2 className="font-semibold">{T(g.title)} · {list.length}</h2>
                 <p className="text-sm text-muted-foreground">{T(g.body)}</p>
@@ -156,7 +156,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                 const suspended = p.status === "SUSPENDED";
                 return (
                   <div key={p.id} data-access-row={`${p.name} ${p.email} ${ROLE_LABELS[p.role as keyof typeof ROLE_LABELS]} ${p.role}`.toLowerCase()} className="flex flex-wrap items-center gap-4 px-5 py-4">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
+                    <span className="grid grid-cols-1 size-10 shrink-0 place-items-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
                       {p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                     </span>
                     <div className="min-w-0 flex-1">
