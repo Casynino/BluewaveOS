@@ -85,6 +85,36 @@ export function AppShell({
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === current;
 
+  /* FOLDED SECTIONS. A desk with five departments was one long column; now
+     each department folds under its name, and only the one holding the
+     current page starts open. What the reader opens or closes is remembered
+     on this device; moving to a page always opens the section it lives in. */
+  const FOLD_KEY = "bw.nav.open";
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(FOLD_KEY) ?? "{}") as Record<string, boolean>;
+      setOpened((now) => ({ ...saved, ...now }));
+    } catch {
+      /* no storage — every section simply follows the page */
+    }
+  }, []);
+  const hereSection = sections.find((s) => s.items.some((i) => i.href === current))?.label;
+  useEffect(() => {
+    if (hereSection) setOpened((now) => (now[hereSection] ? now : { ...now, [hereSection]: true }));
+  }, [hereSection]);
+  const isOpen = (label: string) => opened[label] ?? label === hereSection;
+  const toggle = (label: string) =>
+    setOpened((now) => {
+      const next = { ...now, [label]: !isOpen(label) };
+      try {
+        window.localStorage.setItem(FOLD_KEY, JSON.stringify(next));
+      } catch {
+        /* remembered for this visit only */
+      }
+      return next;
+    });
+
   const row = (item: { href: string; icon: string; label: string }) => (
     <Link
       href={item.href}
@@ -102,30 +132,52 @@ export function AppShell({
   );
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
       {/* Home stands on its own above everything, because every desk starts and
           returns here and it belongs to no department. */}
-      <div>{row(home)}</div>
+      <div className="mb-2">{row(home)}</div>
 
-      {sections.map((section) => (
-        <div key={section.label || "top"}>
-          {/* A section with no heading is the desk's own top rows, standing
-              with Home rather than grouped under a name. */}
-          {section.label ? (
-            <p className="flex items-center gap-2 px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              <Glyph name={section.icon} className="size-3.5 shrink-0" />
-              {tr(section.label)}
-            </p>
-          ) : null}
-          {/* The rule down the left is what makes a section read as a group
-              rather than a heading followed by unrelated rows. */}
-          <ul className={section.label ? "ml-[1.1rem] space-y-0.5 border-l pl-2" : "space-y-0.5"}>
-            {section.items.map((item) => (
-              <li key={item.href}>{row(item)}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {sections.map((section) => {
+        /* A section with no heading is the desk's own top rows, standing with
+           Home rather than grouped under a name — never folded. */
+        if (!section.label) {
+          return (
+            <ul key="top" className="mb-2 space-y-0.5">
+              {section.items.map((item) => (
+                <li key={item.href}>{row(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+        const shown = isOpen(section.label);
+        const holdsCurrent = section.label === hereSection;
+        return (
+          <div key={section.label}>
+            <button
+              type="button"
+              onClick={() => toggle(section.label)}
+              aria-expanded={shown}
+              className={cn(
+                "focus-ring flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors hover:bg-secondary/60",
+                holdsCurrent ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Glyph name={section.icon} className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-left">{tr(section.label)}</span>
+              <ChevronRight className={cn("size-4 shrink-0 opacity-70 transition-transform duration-200", shown && "rotate-90")} />
+            </button>
+            {/* The rule down the left is what makes a section read as a group
+                rather than a heading followed by unrelated rows. */}
+            {shown ? (
+              <ul className="mb-2 ml-[1.15rem] mt-0.5 space-y-0.5 border-l pl-2">
+                {section.items.map((item) => (
+                  <li key={item.href}>{row(item)}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
     </nav>
   );
 
