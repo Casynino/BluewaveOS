@@ -6,6 +6,7 @@ import { Copy, Package, Plus } from "lucide-react";
 
 import { CargoStatusBadge } from "@/components/app/status-badge";
 import { CopyField } from "@/components/app/copy-field";
+import { CustomerCodeButton } from "@/components/app/customer-code-button";
 import { SupplierAddressCard } from "@/components/app/supplier-address-card";
 import { supplierAddress } from "@/lib/supplier-address";
 import { EmptyState } from "@/components/app/empty-state";
@@ -197,11 +198,27 @@ export default async function CustomerPage({
               <Field
                 label={T("Portal account")}
                 value={
-                  customer.login ? (
-                    <Badge tone="good">{T("Registered")}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">{T("Not signed up")}</span>
-                  )
+                  <>
+                    {customer.login ? (
+                      <Badge tone={customer.login.status === "ACTIVE" ? "good" : "bad"}>
+                        {customer.login.status === "ACTIVE" ? T("Registered") : T("Suspended")}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">{T("Waiting to be opened")}</span>
+                    )}
+                    {customer.login?.email ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{customer.login.email}</p>
+                    ) : null}
+                    {can(user.role, "customer.activate") && customer.login?.status === "ACTIVE" ? (
+                      <div>
+                        <CustomerCodeButton
+                          customerId={customer.id}
+                          name={customer.businessName || customer.fullName}
+                          hasLogin
+                        />
+                      </div>
+                    ) : null}
+                  </>
                 }
               />
             </dl>

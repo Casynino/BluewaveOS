@@ -63,8 +63,14 @@ export default async function LoginPage({
 
       <LoginForm callbackUrl={params.callbackUrl ?? ""} />
 
-      <p className="mt-7 border-t border-white/10 pt-5 text-sm text-white/70">
-        New customer?{" "}
+      <p className="mt-5 text-sm text-white/70">
+        <Link href="/register?mode=reset" className="font-semibold text-bw-coral-bright underline-offset-4 hover:underline">
+          Forgot your password?
+        </Link>
+      </p>
+
+      <p className="mt-5 border-t border-white/10 pt-5 text-sm text-white/70">
+        New customer, or shipped with us before?{" "}
         <Link href="/register" className="font-semibold text-bw-coral-bright underline-offset-4 hover:underline">
           Open an account
         </Link>

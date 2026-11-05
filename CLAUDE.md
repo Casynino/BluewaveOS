@@ -132,6 +132,17 @@ and never again per day.
 **VAT is on `CompanySetting`, not in code.** A tax rate changes by law, not by
 deploy.
 
+**A customer on the books opens their own portal login by phone number.**
+Register asks for the phone first (`lib/actions/customer-access.ts`). A number
+on the books with no login takes only an email and a password, and the login is
+attached to THAT customer — one live customer per phone, one login per
+customer, so nobody is registered twice; Support is told and it is audited, by
+the owner's decision in place of a code. The plain register form only ever
+creates a new customer. Forgot password is never phone-only: it needs a 6-digit
+code from the office (`customer.activate` — Support, the manager, the owner),
+stored as a hash, good once for 15 minutes and dead after five guesses
+(`lib/customer-activation.ts`).
+
 **The customer gate is `customerId` from the session.** Never an id from a URL,
 a form field or a request body. Changing a number in an address bar is the whole
 attack, and the only defence that works is never reading the number.

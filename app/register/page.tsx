@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AuthPanel } from "@/components/bw/auth-panel";
-import { RegisterForm } from "@/components/site/register-form";
+import { PortalAccess } from "@/components/site/portal-access";
 
 export const metadata: Metadata = {
   title: "Open an account",
@@ -17,7 +17,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
+  const reset = (await searchParams).mode === "reset";
   return (
     <AuthPanel
       photo="portYard"
@@ -34,13 +35,15 @@ export default function RegisterPage() {
         "Updates as your goods move",
       ]}
     >
-      <h1 className="bw-display text-4xl uppercase text-white">Open an account</h1>
+      <h1 className="bw-display text-4xl uppercase text-white">{reset ? "Forgot your password?" : "Open an account"}</h1>
       <p className="mt-2 text-sm leading-relaxed text-white/70">
-        You get a shipping mark and our Foshan warehouse address as soon as you register.
+        {reset
+          ? "Enter your phone number, then the 6-digit code our office gives you, and choose a new password."
+          : "Shipped with us before? We will find your profile. New? You get your shipping mark and our Foshan address straight away."}
       </p>
 
       <div className="mt-7">
-        <RegisterForm />
+        <PortalAccess mode={reset ? "reset" : "register"} />
       </div>
 
       <p className="mt-7 border-t border-white/10 pt-5 text-sm text-white/70">
