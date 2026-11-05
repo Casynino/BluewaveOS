@@ -44,37 +44,22 @@ export default async function AppLayout({
           : null,
       }}
     >
-      {/* Working as somebody. On a computer, a small pill in the corner with
-          the one thing needed — Stop. On a phone the corner is where each
-          page keeps its own buttons and save bars, so a pinned pill sat on top
-          of them; there it is a slim strip at the top of the page instead,
-          which pushes the page down rather than covering it. Hover for who is
-          really behind it. */}
+      {/* Working as somebody: a small pill at the bottom, with the one thing
+          needed — Stop. On a phone it stands just above the bottom bar (and
+          the home bar under it), never on top of the bar itself. Hover for who
+          is really behind it. */}
       {user.impersonatedBy ? (
-        <>
-          <div
-            title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
-            className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-warning px-3 py-2 text-xs font-medium text-white lg:hidden print:hidden"
-          >
-            <span className="min-w-0 truncate">Working as {user.name}</span>
-            <form action={stopWorkAs} className="shrink-0">
-              <button type="submit" className="rounded-full bg-white/25 px-3 py-1 font-semibold hover:bg-white/35">
-                Stop
-              </button>
-            </form>
-          </div>
-          <div
-            title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
-            className="fixed bottom-4 right-4 z-40 hidden items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg lg:flex print:hidden"
-          >
-            <span>Working as {user.name}</span>
-            <form action={stopWorkAs}>
-              <button type="submit" className="rounded-full bg-white/25 px-2.5 py-1 font-semibold hover:bg-white/35">
-                Stop
-              </button>
-            </form>
-          </div>
-        </>
+        <div
+          title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
+          className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg ring-1 ring-black/10 lg:bottom-4 lg:right-4 print:hidden"
+        >
+          <span className="min-w-0 truncate">Working as {user.name}</span>
+          <form action={stopWorkAs} className="shrink-0">
+            <button type="submit" className="rounded-full bg-white/25 px-3 py-1 font-semibold hover:bg-white/35">
+              Stop
+            </button>
+          </form>
+        </div>
       ) : null}
       {children}
     </AppShell>
