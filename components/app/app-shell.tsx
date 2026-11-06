@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as Icons from "lucide-react";
-import { Bell, ChevronRight, Globe, LogOut, Menu, X } from "lucide-react";
+import { Bell, ChevronDown, Globe, LogOut, Menu, X } from "lucide-react";
 import type { Role } from "@prisma/client";
 
 import { MobileTabbar } from "@/components/app/mobile-tabbar";
@@ -16,6 +16,7 @@ import { NavProvider } from "@/components/app/section-tabs";
 import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { logout } from "@/lib/actions/auth";
 import { BUILD_ID } from "@/lib/build-id";
 import { type NavItem, type NavSection } from "@/lib/nav";
@@ -115,34 +116,41 @@ export function AppShell({
       return next;
     });
 
-  const row = (item: { href: string; icon: string; label: string }) => (
-    <Link
-      href={item.href}
-      onClick={() => setOpen(false)}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-        isActive(item.href)
-          ? "bg-secondary font-medium text-foreground"
-          : "text-foreground/70 hover:bg-secondary/60 hover:text-foreground"
-      )}
-    >
-      <Glyph name={item.icon} className="size-4 shrink-0" />
-      <span className="truncate">{tr(item.label)}</span>
-    </Link>
-  );
+  /* As on Target Express: the page you are on in the brand colour, the rest
+     quiet. min-h-11 on a phone — 36px rows are a miss-tap apart one-handed;
+     the computer keeps the tighter rhythm. */
+  const row = (item: { href: string; icon: string; label: string }, inGroup = false) => {
+    const active = isActive(item.href);
+    return (
+      <Link
+        href={item.href}
+        onClick={() => setOpen(false)}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "relative flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
+          active ? "bg-brand/10 font-medium text-brand" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+      >
+        {/* The page you are on, marked on the hairline too. */}
+        {active && inGroup ? <span aria-hidden className="absolute inset-y-1.5 -left-[9px] w-[3px] rounded-r bg-brand" /> : null}
+        <Glyph name={item.icon} className="size-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
+      </Link>
+    );
+  };
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
       {/* Home stands on its own above everything, because every desk starts and
           returns here and it belongs to no department. */}
-      <div className="mb-2">{row(home)}</div>
+      <div className="mb-4">{row(home)}</div>
 
       {sections.map((section) => {
         /* A section with no heading is the desk's own top rows, standing with
            Home rather than grouped under a name — never folded. */
         if (!section.label) {
           return (
-            <ul key="top" className="mb-2 space-y-0.5">
+            <ul key="top" className="mb-4 space-y-0.5">
               {section.items.map((item) => (
                 <li key={item.href}>{row(item)}</li>
               ))}
@@ -152,26 +160,26 @@ export function AppShell({
         const shown = isOpen(section.label);
         const holdsCurrent = section.label === hereSection;
         return (
-          <div key={section.label}>
+          <div key={section.label} className="mb-1.5 last:mb-0">
             <button
               type="button"
               onClick={() => toggle(section.label)}
               aria-expanded={shown}
               className={cn(
-                "focus-ring flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors hover:bg-secondary/60",
-                holdsCurrent ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "focus-ring flex min-h-11 w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors hover:bg-muted/60 hover:text-foreground lg:min-h-0",
+                holdsCurrent ? "text-foreground" : "text-muted-foreground"
               )}
             >
-              <Glyph name={section.icon} className="size-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate text-left">{tr(section.label)}</span>
-              <ChevronRight className={cn("size-4 shrink-0 opacity-70 transition-transform duration-200", shown && "rotate-90")} />
+              <Glyph name={section.icon} className={cn("size-4 shrink-0", holdsCurrent ? "text-brand" : "text-muted-foreground/80")} />
+              <span className="min-w-0 flex-1 truncate">{tr(section.label)}</span>
+              <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200", !shown && "-rotate-90")} />
             </button>
-            {/* The rule down the left is what makes a section read as a group
-                rather than a heading followed by unrelated rows. */}
+            {/* Indented against a hairline: the pages read as belonging to the
+                heading rather than as more top-level rows under it. */}
             {shown ? (
-              <ul className="mb-2 ml-[1.15rem] mt-0.5 space-y-0.5 border-l pl-2">
+              <ul className="mb-2 ml-[1.35rem] mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
                 {section.items.map((item) => (
-                  <li key={item.href}>{row(item)}</li>
+                  <li key={item.href}>{row(item, true)}</li>
                 ))}
               </ul>
             ) : null}
@@ -192,7 +200,7 @@ export function AppShell({
           </Link>
         </div>
         {nav}
-        <UserFooter user={user} locale={locale} />
+        <UserFooter user={user} locale={locale} unread={unread} />
       </aside>
 
       {/* Mobile drawer */}
@@ -211,7 +219,7 @@ export function AppShell({
               </Button>
             </div>
             {nav}
-            <UserFooter user={user} locale={locale} />
+            <UserFooter user={user} locale={locale} unread={unread} />
           </aside>
         </div>
       ) : null}
@@ -308,46 +316,49 @@ export function AppShell({
 function UserFooter({
   user,
   locale,
+  unread = 0,
 }: {
   user: { name: string; email: string; role: Role; roleLabel: string };
   locale: Locale;
+  unread?: number;
 }) {
   return (
-    <div className="border-t p-3">
+    /* Never scrolls away, and never sits under a phone's home bar: shrink-0
+       keeps Sign out on screen under a long menu, and the safe-area padding
+       keeps it pressable above the gesture bar. */
+    <div className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {/* Your own name is where everybody looks for their own settings, so it
           is the way in rather than a menu item somebody has to find. */}
-      <Link
-        href="/app/profile"
-        className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary"
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-foreground">
-          {initials(user.name)}
+      <Link href="/app/profile" className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent">
+        <span className="relative shrink-0">
+          <span className="grid size-9 place-items-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
+            {initials(user.name)}
+          </span>
+          {unread > 0 ? (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{user.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {t(locale, user.roleLabel)}
-          </span>
+          <span className="block truncate text-xs text-muted-foreground">{t(locale, user.roleLabel)}</span>
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
       </Link>
-      <div className="mt-1 flex items-center gap-1">
-        <form action={logout} className="flex-1">
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground"
-          >
-            <LogOut />
-            {t(locale, "Sign out")}
-          </Button>
-        </form>
+      {/* How this person reads the screen: English or 中文, and light or dark. */}
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <LanguageSwitch current={locale} />
         <ThemeToggle />
       </div>
-      {/* English or 中文, one press away on every screen — labelled each in its
-          own language, so it is legible to whoever needs it. */}
-      <LanguageSwitch current={locale} className="mt-2 w-full [&>button]:flex-1 [&>button]:justify-center" />
+      <Separator className="my-2" />
+      {/* Outlined, full width: the one control people go looking for should not
+          be the hardest to find. */}
+      <form action={logout}>
+        <Button type="submit" variant="outline" className="h-11 w-full justify-start gap-2">
+          <LogOut />
+          {t(locale, "Sign out")}
+        </Button>
+      </form>
     </div>
   );
 }
