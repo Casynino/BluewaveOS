@@ -203,7 +203,7 @@ export function KpiCard({
 
         {/* A long figure on a phone gets the whole width: beside the icon it ran
             under the tile and lost its last digits. */}
-        <div className={cn("flex shrink-0 flex-col items-end gap-3", (value ?? "").length > 10 && "max-sm:hidden")}>
+        <div className={cn("flex shrink-0 flex-col items-end gap-3", (value ?? "").length > 6 && "max-sm:hidden")}>
           {/* No ring beside the figure on a phone: at half a phone's width it
               covered the number. The icon stands in for it there. */}
           {ring && Icon ? (

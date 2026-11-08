@@ -559,7 +559,10 @@ export default async function FinanceHubPage() {
                       row.urgent ? "bg-warning" : "bg-muted-foreground/40"
                     )}
                   />
-                  <span className="min-w-0 flex-1">
+                  {/* A floor on the words' width: squeezed by the figure beside it the
+                      title shrank to a word a line and spilled; now the figure
+                      and the link wrap under it instead. */}
+                  <span className="min-w-0 flex-1 basis-56">
                     <span className="block text-sm font-medium"><Tx>{row.title}</Tx></span>
                     <span className="block text-xs text-muted-foreground"><Tx>{row.detail}</Tx></span>
                   </span>

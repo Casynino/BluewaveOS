@@ -548,7 +548,10 @@ export default async function ArrivedContainersPage({
               <dd
                 className={cn(
                   "tnum mt-1 whitespace-nowrap font-semibold",
-                  tile.main.length > 15 ? "text-base" : "text-lg",
+                  /* A long figure steps down with the tile: six across on a
+                     laptop and two on a phone leave little room, and a figure
+                     must fit its tile rather than run under the next one. */
+                  tile.main.length > 11 ? "text-[15px] lg:text-sm xl:text-base" : "text-lg",
                   tile.tone
                 )}
               >
