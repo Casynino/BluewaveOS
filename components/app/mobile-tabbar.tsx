@@ -40,42 +40,42 @@ type Tab = { href: string; icon: LucideIcon; exact?: boolean; label?: string };
 const TABS: Partial<Record<Role, Tab[]>> = {
   ADMIN: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
-    { href: "/app/containers/loading", icon: Ship },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/containers/loading", icon: Ship, label: "Loading" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   MANAGER: [
     { href: "/app/manager", icon: LayoutDashboard, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
+    { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/manager/control", icon: ShieldCheck, label: "Control" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   /* Foshan receives and loads; it never checks cargo in or releases it. */
   CHINA_WAREHOUSE: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
-    { href: "/app/receive/new", icon: PackagePlus },
-    { href: "/app/containers/loading", icon: Boxes },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/receive/new", icon: PackagePlus, label: "Receive" },
+    { href: "/app/containers/loading", icon: Boxes, label: "Loading" },
   ],
   /* The Dar floor works a line: a box lands and is checked in, a customer
      arrives and it goes out. Those two screens are the shift. */
   DAR_WAREHOUSE: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
-    { href: "/app/receive/dar", icon: PackageCheck },
-    { href: "/app/release", icon: Truck },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/receive/dar", icon: PackageCheck, label: "Check-in" },
+    { href: "/app/release", icon: Truck, label: "Pickup" },
   ],
   FINANCE: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
-    { href: "/app/finance/collections", icon: Banknote },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/finance/collections", icon: Banknote, label: "Collect" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   CUSTOMER_SUPPORT: [
     { href: "/app/support", icon: Headset, exact: true, label: "Home" },
-    { href: "/app/search", icon: Search },
-    { href: "/app/support/tickets", icon: MessageSquare },
-    { href: "/app/finance/collections", icon: Banknote },
+    { href: "/app/search", icon: Search, label: "Search" },
+    { href: "/app/support/tickets", icon: MessageSquare, label: "Tickets" },
+    { href: "/app/finance/collections", icon: Banknote, label: "Collect" },
   ],
 };
 
@@ -95,9 +95,9 @@ export function MobileTabbar({
   const pathname = usePathname() ?? "";
   const t = useT();
 
-  /* Names and permissions both come from the role's menu: a tab whose row is
-     not in it is a door this desk cannot open, and a second name for a page
-     staff already call something is a misunderstanding a day. */
+  /* Permissions come from the role's menu: a tab whose row is not in it is a
+     door this desk cannot open. Each tab carries one word of its own, so the
+     bar reads at a glance on a phone. */
   const labels = new Map<string, string>([[home.href, "Home"]]);
   for (const section of sections) {
     for (const item of section.items) {
@@ -145,7 +145,7 @@ export function MobileTabbar({
                 <span aria-hidden className="absolute inset-x-2.5 top-0 h-0.5 rounded-full bg-brand" />
               ) : null}
               <Icon className="size-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
-              <span className="line-clamp-2 px-0.5 text-center text-[10px] font-medium leading-[1.15]">
+              <span className="w-full truncate px-0.5 text-center text-[10.5px] font-medium leading-tight">
                 {t(tab.label ?? labels.get(tab.href) ?? "")}
               </span>
             </Link>
@@ -158,8 +158,8 @@ export function MobileTabbar({
           className="flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-muted-foreground transition-colors active:bg-secondary"
         >
           <Menu className="size-5 shrink-0" />
-          <span className="line-clamp-2 px-0.5 text-center text-[10px] font-medium leading-[1.15]">
-            {t("Navigation")}
+          <span className="w-full truncate px-0.5 text-center text-[10.5px] font-medium leading-tight">
+            {t("Menu")}
           </span>
         </button>
       </div>

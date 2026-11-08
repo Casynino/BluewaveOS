@@ -29,7 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { PREMIUM_CHIP, PREMIUM_CHIP_BASE, PREMIUM_TILE } from "@/components/app/action-pills";
+import { PHONE_CHIP, PHONE_CHIP_BASE, PHONE_TILE, PHONE_WORD } from "@/components/app/action-pills";
 import { AttentionCenter, type AttentionItem } from "@/components/app/attention-center";
 import { CargoMix } from "@/components/app/cargo-mix";
 import { ContainerProfitTable } from "@/components/app/container-profit-table";
@@ -214,12 +214,21 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
   ];
   const shown = pills.filter((p) => p.show);
   const CHIP: Record<string, string> = {
-    "The ledger": PREMIUM_CHIP.signal,
-    Accounts: PREMIUM_CHIP.brand,
-    "Profit & loss": PREMIUM_CHIP.success,
-    Approvals: PREMIUM_CHIP.marine,
-    "Issues & claims": PREMIUM_CHIP.warning,
-    "Deleted records": PREMIUM_CHIP.violet,
+    "The ledger": PHONE_CHIP.signal,
+    Accounts: PHONE_CHIP.brand,
+    "Profit & loss": PHONE_CHIP.success,
+    Approvals: PHONE_CHIP.marine,
+    "Issues & claims": PHONE_CHIP.warning,
+    "Deleted records": PHONE_CHIP.violet,
+  };
+  /* One word under each icon on a phone. */
+  const WORD: Record<string, string> = {
+    "The ledger": "Ledger",
+    Accounts: "Accounts",
+    "Profit & loss": "Profit",
+    Approvals: "Approvals",
+    "Issues & claims": "Issues",
+    "Deleted records": "Deleted",
   };
 
   return (
@@ -240,12 +249,12 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
           <span key={pill.href} className="contents">
             <Link
               href={pill.href}
-              className={cn(PREMIUM_TILE, "sm:hidden")}
+              className={cn(PHONE_TILE, "sm:hidden")}
             >
-              <span className={cn(PREMIUM_CHIP_BASE, CHIP[pill.label])}>
-                <pill.icon className="relative size-[19px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
+              <span className={cn(PHONE_CHIP_BASE, CHIP[pill.label])}>
+                <pill.icon className="size-[22px]" />
               </span>
-              <span className="line-clamp-2 w-full px-0.5 text-[11px] font-medium leading-tight text-foreground/85">{tr(pill.label)}</span>
+              <span className={PHONE_WORD}>{tr(WORD[pill.label] ?? pill.label)}</span>
             </Link>
             <Link
               href={pill.href}

@@ -32,22 +32,23 @@ const TONES: Record<NonNullable<ActionPill["tone"]>, string> = {
   plain: "border bg-card text-foreground hover:bg-secondary",
 };
 
-/* The same kinds of work, as the jewel on a phone's tile: a gradient square
-   with a soft light on its top edge and a glow of its own colour under it. */
-export const PREMIUM_CHIP: Record<string, string> = {
-  brand: "bg-gradient-to-br from-[#60a5fa] to-[#1d4ed8] shadow-[0_8px_18px_-8px_rgba(37,99,235,0.85)]",
-  marine: "bg-gradient-to-br from-[#22d3ee] to-[#0e7490] shadow-[0_8px_18px_-8px_rgba(8,145,178,0.85)]",
-  signal: "bg-gradient-to-br from-[#fb7185] to-[#e11d48] shadow-[0_8px_18px_-8px_rgba(225,29,72,0.85)]",
-  success: "bg-gradient-to-br from-[#34d399] to-[#059669] shadow-[0_8px_18px_-8px_rgba(5,150,105,0.85)]",
-  warning: "bg-gradient-to-br from-[#fcd34d] to-[#d97706] shadow-[0_8px_18px_-8px_rgba(217,119,6,0.85)]",
-  danger: "bg-gradient-to-br from-[#f87171] to-[#dc2626] shadow-[0_8px_18px_-8px_rgba(220,38,38,0.85)]",
-  violet: "bg-gradient-to-br from-[#c4b5fd] to-[#7c3aed] shadow-[0_8px_18px_-8px_rgba(124,58,237,0.85)]",
-  plain: "bg-gradient-to-br from-[#94a3b8] to-[#475569] shadow-[0_8px_18px_-8px_rgba(71,85,105,0.85)]",
+/* A phone's shortcut, clean: a soft tinted square with the icon in its own
+   colour, one word under it, and nothing drawn around either — no box, no
+   glow, no shine. */
+export const PHONE_CHIP: Record<string, string> = {
+  brand: "bg-blue-500/10 text-blue-600 dark:bg-blue-400/15 dark:text-blue-300",
+  marine: "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300",
+  signal: "bg-rose-500/10 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300",
+  success: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300",
+  warning: "bg-amber-500/10 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300",
+  danger: "bg-red-500/10 text-red-600 dark:bg-red-400/15 dark:text-red-300",
+  violet: "bg-violet-500/10 text-violet-600 dark:bg-violet-400/15 dark:text-violet-300",
+  plain: "bg-slate-500/10 text-slate-600 dark:bg-slate-400/15 dark:text-slate-300",
 };
-export const PREMIUM_CHIP_BASE =
-  "relative grid size-10 place-items-center rounded-[14px] text-white ring-1 ring-inset ring-white/25 before:pointer-events-none before:absolute before:inset-x-1 before:top-0.5 before:h-1/2 before:rounded-t-[12px] before:bg-gradient-to-b before:from-white/35 before:to-transparent";
-export const PREMIUM_TILE =
-  "focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card/80 px-1 pb-2.5 pt-3 text-center shadow-soft backdrop-blur transition-transform active:scale-95";
+export const PHONE_CHIP_BASE = "grid size-12 place-items-center rounded-2xl";
+export const PHONE_TILE =
+  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-2xl py-1 text-center transition-transform active:scale-95";
+export const PHONE_WORD = "w-full truncate px-0.5 text-[11px] font-medium text-foreground/80";
 
 /* The same kinds of work, as the small coloured square on a phone's tile. */
 const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
@@ -70,8 +71,8 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
 
   return (
     <>
-      {/* PHONE: up to five tiles fill the row edge to edge, each a jewel icon
-          over a short name; a sixth or seventh is a swipe away — thumbs hit
+      {/* PHONE: up to five tiles fill the row edge to edge, each a clean icon
+          over one word; a sixth or seventh is a swipe away — thumbs hit
           tiles, not pills. */}
       <div
         className={cn(
@@ -87,12 +88,12 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
             <Link
               key={`m-${pill.href}${pill.label}`}
               href={pill.href}
-              className={cn(PREMIUM_TILE, "snap-start")}
+              className={cn(PHONE_TILE, "snap-start")}
             >
-              <span className={cn(PREMIUM_CHIP_BASE, PREMIUM_CHIP[pill.tone ?? "plain"])}>
-                {Icon ? <Icon className="relative size-[19px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" /> : null}
+              <span className={cn(PHONE_CHIP_BASE, PHONE_CHIP[pill.tone ?? "plain"])}>
+                {Icon ? <Icon className="size-[22px]" /> : null}
               </span>
-              <span className="line-clamp-2 min-h-[2.1em] [overflow-wrap:anywhere] text-[11px] font-medium leading-tight text-foreground/85">{t(pill.short ?? pill.label)}</span>
+              <span className={PHONE_WORD}>{t(pill.short ?? pill.label)}</span>
             </Link>
           );
         })}
