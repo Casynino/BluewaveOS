@@ -323,8 +323,8 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
       <DeskHero
         greeting="Habari"
         name={user.name.split(" ")[0]}
-        department={tr("Managing Director")}
-        kicker="Managing Director"
+        department={tr("Director (MD)")}
+        kicker="Director (MD)"
         subtitle=""
         search={false}
       />
