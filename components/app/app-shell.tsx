@@ -554,7 +554,7 @@ function UserFooter({
               public site and the way out. Navy like the menu it opens from. */}
           <div
             className={cn(
-              "absolute z-50 w-52 rounded-2xl border border-border/70 bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)] dark:border-white/10 dark:bg-[linear-gradient(180deg,#13234b,#0c1838)] dark:text-white",
+              "absolute z-50 w-44 rounded-2xl border border-border/70 bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)] dark:border-white/10 dark:bg-[linear-gradient(180deg,#13234b,#0c1838)] dark:text-white",
               compact ? "bottom-2 left-full ml-3" : "bottom-full left-3 mb-2"
             )}
           >
@@ -564,7 +564,7 @@ function UserFooter({
             </p>
             <Link href="/app/profile" onClick={() => setMenu(false)} className={item}>
               <UserRound className="size-3.5 opacity-70" />
-              {tr("My profile")}
+              {tr("Profile")}
             </Link>
             <Link href="/app/notifications" onClick={() => setMenu(false)} className={item}>
               <Bell className="size-3.5 opacity-70" />
@@ -573,11 +573,11 @@ function UserFooter({
                 <span className="rounded-full bg-signal px-1.5 text-[10px] font-bold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
               ) : null}
             </Link>
-            {/* One row each, as an icon and a few words: night or day, and the
-                other language. */}
+            {/* One row each, an icon and one word: the look to switch to, and
+                the other language. */}
             <button type="button" onClick={() => setTheme(dark ? "light" : "dark")} className={cn(item, "w-full text-left")}>
               {dark ? <Sun className="size-3.5 opacity-70" /> : <Moon className="size-3.5 opacity-70" />}
-              {dark ? tr("Switch to light mode") : tr("Switch to dark mode")}
+              {dark ? tr("Light") : tr("Dark")}
             </button>
             <button
               type="button"
@@ -596,13 +596,13 @@ function UserFooter({
             </button>
             <Link href="/" onClick={() => setMenu(false)} className={item}>
               <Globe className="size-3.5 opacity-70" />
-              {tr("Main site")}
+              {tr("Website")}
             </Link>
             <div className="mx-1 my-1 h-px bg-border dark:bg-white/10" />
             <form action={logout}>
               <button type="submit" className={cn(item, "w-full text-rose-600 hover:bg-rose-500/10 dark:text-rose-400")}>
                 <LogOut className="size-3.5" />
-                {tr("Sign out")}
+                {tr("Logout")}
               </button>
             </form>
           </div>
