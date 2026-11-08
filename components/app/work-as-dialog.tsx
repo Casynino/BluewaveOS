@@ -37,25 +37,25 @@ export function WorkAsDialog({ people }: { people: Person[] }) {
       {open ? (
         <Modal title="Work as…" onClose={() => { setOpen(false); setQ(""); }} className="max-w-sm">
           {people.length > 6 ? (
-            <label className="flex h-10 items-center gap-2 rounded-xl border bg-background px-3 focus-within:border-brand">
+            <label className="flex h-9 items-center gap-2 rounded-full border bg-background px-3 focus-within:border-brand">
               <Search className="size-4 text-muted-foreground" />
-              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a name" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none" />
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a name" className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
             </label>
           ) : null}
-          <ul className="-mx-1 max-h-[22rem] space-y-1 overflow-y-auto">
+          <ul className="-mx-1 max-h-[55vh] space-y-0.5 overflow-y-auto sm:max-h-[22rem]">
             {shown.map((p) => (
               <li key={p.id}>
                 <form action={startWorkAs}>
                   <input type="hidden" name="userId" value={p.id} />
-                  <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-secondary">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-semibold text-brand">
+                  <button type="submit" className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-secondary active:bg-secondary">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand/10 text-[11px] font-semibold text-brand">
                       {p.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{p.name}</span>
-                      <span className="block text-xs text-muted-foreground">{ROLE_LABELS[p.role]}</span>
+                      <span className="block truncate text-[13px] font-medium leading-tight">{p.name}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{ROLE_LABELS[p.role]}</span>
                     </span>
-                    <LogIn className="size-4 text-muted-foreground" />
+                    <LogIn className="size-3.5 shrink-0 text-muted-foreground" />
                   </button>
                 </form>
               </li>

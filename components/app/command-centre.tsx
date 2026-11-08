@@ -176,7 +176,7 @@ export async function CommandCentre({ user }: { user: SessionUser }) {
         greeting="Habari"
         name={user.name.split(" ")[0]}
         department={ROLE_LABELS[user.role]}
-        kicker={user.role === "ADMIN" ? "CEO" : "Director"}
+        kicker={user.role === "ADMIN" ? "Managing Director" : "Director"}
         subtitle={t(
           locale,
           user.role === "ADMIN"

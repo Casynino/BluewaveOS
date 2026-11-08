@@ -54,12 +54,15 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "max-h-[88vh] w-full max-w-md space-y-4 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-lg",
+          /* On a phone a sheet from the bottom: tighter padding, a grab bar; on
+             a computer the card it always was. */
+          "max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-2xl border bg-card p-4 text-left shadow-lg sm:space-y-4 sm:rounded-xl sm:p-5",
           className
         )}
       >
+        <span aria-hidden className="mx-auto -mt-1 block h-1 w-10 rounded-full bg-border sm:hidden" />
         <div className="flex items-start justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold">{title}</h2>
+          <h2 className="font-display text-base font-semibold sm:text-lg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
