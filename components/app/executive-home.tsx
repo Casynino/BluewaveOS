@@ -244,14 +244,14 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
       />
 
       {/* 2. The owner's own pages. On a phone, tiles three across. */}
-      <nav aria-label={tr("Quick actions")} className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+      <nav aria-label={tr("Quick actions")} className="grid grid-cols-6 gap-0 sm:flex sm:flex-wrap sm:gap-2">
         {shown.map((pill) => (
           <span key={pill.href} className="contents">
             <Link
               href={pill.href}
               className={cn(PHONE_TILE, "sm:hidden")}
             >
-              <pill.icon className={cn("size-7", CHIP[pill.label])} strokeWidth={1.6} />
+              <pill.icon className={cn("size-6", CHIP[pill.label])} strokeWidth={1.7} />
               <span className={PHONE_WORD}>{tr(WORD[pill.label] ?? pill.label)}</span>
             </Link>
             <Link

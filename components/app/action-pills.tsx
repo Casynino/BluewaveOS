@@ -46,8 +46,8 @@ export const PHONE_ICON: Record<string, string> = {
   plain: "text-slate-500 dark:text-slate-300",
 };
 export const PHONE_TILE =
-  "focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center transition-transform active:scale-95 active:bg-foreground/5";
-export const PHONE_WORD = "w-full truncate px-0.5 text-[11px] font-medium text-foreground/80";
+  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-xl py-2 text-center transition-transform active:scale-95 active:bg-foreground/5";
+export const PHONE_WORD = "w-full truncate text-[10.5px] font-medium tracking-tight text-foreground/80";
 
 /* The same kinds of work, as the small coloured square on a phone's tile. */
 const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
@@ -70,15 +70,15 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
 
   return (
     <>
-      {/* PHONE: up to five tiles fill the row edge to edge, each a clean icon
-          over one word; a sixth or seventh is a swipe away — thumbs hit
+      {/* PHONE: up to six tiles in one row, edge to edge, each a small clean
+          icon over one word; a seventh is a swipe away — thumbs hit
           tiles, not pills. */}
       <div
         className={cn(
           "lg:hidden",
-          pills.length <= 5
-            ? cn("grid gap-2", ["", "grid-cols-1", "grid-cols-2", "grid-cols-3", "grid-cols-4", "grid-cols-5"][pills.length])
-            : "-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[calc((100%-2rem)/5)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          pills.length <= 6
+            ? cn("grid gap-0", ["", "grid-cols-1", "grid-cols-2", "grid-cols-3", "grid-cols-4", "grid-cols-5", "grid-cols-6"][pills.length])
+            : "-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[calc((100%-1.25rem)/6)] grid-flow-col gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         )}
       >
         {pills.map((pill) => {
@@ -89,7 +89,7 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
               href={pill.href}
               className={cn(PHONE_TILE, "snap-start")}
             >
-              {Icon ? <Icon className={cn("size-7", PHONE_ICON[pill.tone ?? "plain"])} strokeWidth={1.6} /> : null}
+              {Icon ? <Icon className={cn("size-6", PHONE_ICON[pill.tone ?? "plain"])} strokeWidth={1.7} /> : null}
               <span className={PHONE_WORD}>{t(pill.short ?? pill.label)}</span>
             </Link>
           );
