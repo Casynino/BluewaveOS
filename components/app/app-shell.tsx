@@ -124,14 +124,17 @@ export function AppShell({
     if (here) setPressed((p) => (p[here] === true ? p : { ...p, [here]: true }));
   }, [here]);
 
-  /* THE RAIL CAN SHRINK TO ICONS. What was chosen is kept in this browser, and
-     the page always starts wide so the first paint matches the server's. */
-  const [collapsed, setCollapsed] = useState(false);
+  /* THE RAIL CAN SHRINK TO ICONS. What was chosen is kept in this browser; the
+     first paint is the rail on server and browser alike, so they agree. */
+  /* The menu starts as the slim icon rail on a computer, on every desk, and
+     stays wide only once somebody has opened it — the choice is kept in this
+     browser. */
+  const [collapsed, setCollapsed] = useState(true);
   useEffect(() => {
     try {
-      if (localStorage.getItem("bw.sidebar") === "collapsed") setCollapsed(true);
+      if (localStorage.getItem("bw.sidebar") === "wide") setCollapsed(false);
     } catch {
-      /* private window or blocked storage: it simply starts wide */
+      /* private window or blocked storage: it simply starts slim */
     }
   }, []);
   const setRail = (next: boolean) => {
@@ -510,6 +513,8 @@ export function AppShell({
           <Suspense fallback={null}>
             <NavTrail />
           </Suspense>
+          {/* A way back on a computer too, for a page whose header has none. */}
+          <MobileBack desktop />
           {/* Offered, never forced: a clerk half-way through a consignment must
               not have the form pulled out from under them. */}
           <NewVersionNotice build={BUILD_ID} />
