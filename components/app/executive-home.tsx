@@ -29,7 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { PHONE_ICON, PHONE_TILE, PHONE_WORD } from "@/components/app/action-pills";
+import { PHONE_ICON, PHONE_TILE, PHONE_WORD, PILL } from "@/components/app/action-pills";
 import { AttentionCenter, type AttentionItem } from "@/components/app/attention-center";
 import { CargoMix } from "@/components/app/cargo-mix";
 import { ContainerProfitTable } from "@/components/app/container-profit-table";
@@ -52,9 +52,9 @@ import { viewerLocale } from "@/lib/viewer-locale";
 
 const DAY = 86_400_000;
 
-/* The owner's own pages, straight under the banner: the first two solid, the
-   rest tinted. */
-type Pill = { href: string; label: string; icon: LucideIcon; solid?: string; tint: string; show: boolean };
+/* The owner's own pages, straight under the banner: one calm pill each, the
+   colour on the icon only. */
+type Pill = { href: string; label: string; icon: LucideIcon; show: boolean };
 
 export async function ExecutiveHome({ user }: { user: SessionUser }) {
   const locale = await viewerLocale();
@@ -205,12 +205,12 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
   const netThisMonth = flowNow ? flowNow.in - flowNow.out : 0;
 
   const pills: Pill[] = [
-    { href: "/app/finance/ledger", label: "The ledger", icon: Landmark, solid: "bg-signal text-signal-foreground hover:bg-signal/90", tint: "", show: can(role, "accounting.view") },
-    { href: "/app/finance/accounts", label: "Accounts", icon: Wallet, solid: "bg-brand text-brand-foreground hover:bg-brand/90", tint: "", show: can(role, "accounting.view") },
-    { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingUp, tint: "border-success/30 bg-success/10 text-success hover:bg-success/15", show: can(role, "profit.view") },
-    { href: "/app/manager/approvals", label: "Approvals", icon: ShieldCheck, tint: "border-brand/30 bg-brand/10 text-brand hover:bg-brand/15", show: can(role, "record.review") },
-    { href: "/app/exceptions", label: "Issues & claims", icon: AlertTriangle, tint: "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15", show: can(role, "exception.view") },
-    { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, tint: "border-chart-6/30 bg-chart-6/10 text-chart-6 hover:bg-chart-6/15", show: can(role, "records.viewDeleted") },
+    { href: "/app/finance/ledger", label: "The ledger", icon: Landmark, show: can(role, "accounting.view") },
+    { href: "/app/finance/accounts", label: "Accounts", icon: Wallet, show: can(role, "accounting.view") },
+    { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingUp, show: can(role, "profit.view") },
+    { href: "/app/manager/approvals", label: "Approvals", icon: ShieldCheck, show: can(role, "record.review") },
+    { href: "/app/exceptions", label: "Issues & claims", icon: AlertTriangle, show: can(role, "exception.view") },
+    { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, show: can(role, "records.viewDeleted") },
   ];
   const shown = pills.filter((p) => p.show);
   const CHIP: Record<string, string> = {
@@ -254,14 +254,8 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
               <pill.icon className={cn("size-6", CHIP[pill.label])} strokeWidth={1.7} />
               <span className={PHONE_WORD}>{tr(WORD[pill.label] ?? pill.label)}</span>
             </Link>
-            <Link
-              href={pill.href}
-              className={cn(
-                "focus-ring hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:inline-flex sm:text-sm",
-                pill.solid ? `border-transparent ${pill.solid}` : pill.tint
-              )}
-            >
-              <pill.icon className="size-3.5" />
+            <Link href={pill.href} className={cn(PILL, "hidden sm:inline-flex")}>
+              <pill.icon className={cn("size-4", CHIP[pill.label])} strokeWidth={1.75} />
               {tr(pill.label)}
             </Link>
           </span>

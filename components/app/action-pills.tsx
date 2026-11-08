@@ -22,16 +22,6 @@ export type ActionPill = {
  * who does the same job forty times a day finds the button by its colour long
  * before they read it.
  */
-const TONES: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "bg-brand text-brand-foreground hover:bg-brand/90",
-  marine: "bg-marine text-marine-foreground hover:bg-marine/90",
-  signal: "bg-signal text-signal-foreground hover:bg-signal/90",
-  success: "bg-success text-success-foreground hover:bg-success/90",
-  warning: "bg-warning text-warning-foreground hover:bg-warning/90",
-  danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  plain: "border bg-card text-foreground hover:bg-secondary",
-};
-
 /* A phone's shortcut, as the cleanest shopping apps draw them: the icon alone
    in its own colour, thin-lined, one word under it — no square, no box, no
    glow. */
@@ -49,16 +39,12 @@ export const PHONE_TILE =
   "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-xl py-2 text-center transition-transform active:scale-95 active:bg-foreground/5";
 export const PHONE_WORD = "w-full truncate text-[10.5px] font-medium tracking-tight text-foreground/80";
 
-/* The same kinds of work, as the small coloured square on a phone's tile. */
-const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
-  brand: "bg-brand/15 text-brand",
-  marine: "bg-marine/15 text-marine",
-  signal: "bg-signal/15 text-signal",
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/15 text-warning",
-  danger: "bg-destructive/15 text-destructive",
-  plain: "bg-secondary text-foreground/70",
-};
+/* The pill on a computer: one calm style for every shortcut — a light
+   surface, a fine neutral edge, plain text and the icon in its own colour. Solid
+   red and blue blocks looked forced; colour lives in the icon only, so it still
+   marks the place without shouting. */
+export const PILL =
+  "focus-ring inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3.5 py-1.5 text-sm font-medium text-foreground/85 shadow-sm transition-colors hover:border-border hover:bg-accent hover:text-foreground";
 
 export async function ActionPills({ pills }: { pills: ActionPill[] }) {
   const locale = await viewerLocale();
@@ -100,19 +86,12 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
         const Icon = (
           Icons as unknown as Record<
             string,
-            React.ComponentType<{ className?: string }>
+            React.ComponentType<{ className?: string; strokeWidth?: number }>
           >
         )[pill.icon];
         return (
-          <Link
-            key={pill.href + pill.label}
-            href={pill.href}
-            className={cn(
-              "focus-ring inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-soft transition-all hover:-translate-y-0.5 sm:text-sm",
-              TONES[pill.tone ?? "plain"]
-            )}
-          >
-            {Icon ? <Icon className="size-3.5" /> : null}
+          <Link key={pill.href + pill.label} href={pill.href} className={PILL}>
+            {Icon ? <Icon className={cn("size-4", PHONE_ICON[pill.tone ?? "plain"])} strokeWidth={1.75} /> : null}
             {t(pill.label)}
           </Link>
         );
