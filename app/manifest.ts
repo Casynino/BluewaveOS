@@ -18,6 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/login",
     scope: "/",
     display: "standalone",
+    display_override: ["standalone"],
     orientation: "portrait",
     background_color: "#0a3350",
     theme_color: "#0a3350",

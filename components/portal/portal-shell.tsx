@@ -26,6 +26,7 @@ import {
 import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { logout } from "@/lib/actions/auth";
+import { InstallPrompt } from "@/components/install-app";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -281,6 +282,8 @@ export function PortalShell({
           </button>
         </div>
       </nav>
+      {/* On a phone still using the browser, once: how to put it on the home screen and open it full screen. */}
+      <InstallPrompt />
     </div>
   );
 }

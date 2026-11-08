@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
-import { Bell, ChevronDown, ChevronLeft, ChevronRight, Globe, Languages, LogOut, Menu, Moon, Search, Sun, UserRound, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronLeft, ChevronRight, Globe, Languages, LogOut, Menu, Moon, Search, Smartphone, Sun, UserRound, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import type { Role } from "@prisma/client";
 
@@ -15,6 +15,7 @@ import { RecordPaymentDialog } from "@/components/app/record-payment-dialog";
 import { MobileBack } from "@/components/app/smart-back";
 import { NavProvider } from "@/components/app/section-tabs";
 import { Button } from "@/components/ui/button";
+import { InstallPrompt, InstallSheet, useInstall } from "@/components/install-app";
 import { logout } from "@/lib/actions/auth";
 import { BUILD_ID } from "@/lib/build-id";
 import { type NavItem, type NavSection } from "@/lib/nav";
@@ -545,6 +546,8 @@ export function AppShell({
         {/* One dialog for the whole app, opened from any button or any link
             to #record-payment, over whatever screen the desk is on. */}
         {canRecordPayment ? <RecordPaymentDialog canClear={canClearShortfall} /> : null}
+        {/* On a phone still using the browser, once: how to put it on the home screen and open it full screen. */}
+        <InstallPrompt />
       </div>
     </div>
     </LocaleProvider>
@@ -563,6 +566,10 @@ function UserFooter({
   compact?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  /* "App" shows only on a phone that has not put BlueWave on its home screen.
+     The sheet lives out here, not in the menu, so closing the menu leaves it open. */
+  const install = useInstall();
+  const [installOpen, setInstallOpen] = useState(false);
   /* The glass panel is a containing block for anything fixed inside it, so a
      full-screen catcher in here would only cover the panel. Listen on the
      document instead: a press outside the menu, or Escape, closes it. */
@@ -643,6 +650,19 @@ function UserFooter({
               <Languages className="size-3.5 opacity-70" />
               {LOCALE_LABELS[other]}
             </button>
+            {install.ready && install.phone && !install.installed ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenu(false);
+                  setInstallOpen(true);
+                }}
+                className={cn(item, "w-full text-left")}
+              >
+                <Smartphone className="size-3.5 opacity-70" />
+                {tr("App")}
+              </button>
+            ) : null}
             <Link href="/" onClick={() => setMenu(false)} className={item}>
               <Globe className="size-3.5 opacity-70" />
               {tr("Website")}
@@ -673,6 +693,7 @@ function UserFooter({
         </span>
         {compact ? <span className="sr-only">{user.name}</span> : <span className="g-strong min-w-0 flex-1 truncate text-sm font-semibold">{firstName}</span>}
       </button>
+      <InstallSheet open={installOpen} onClose={() => setInstallOpen(false)} />
     </div>
   );
 }
