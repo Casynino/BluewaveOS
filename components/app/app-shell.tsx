@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useRef, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
-import { Bell, ChevronDown, ChevronLeft, ChevronRight, Globe, LogOut, Menu, Search, UserRound, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronLeft, ChevronRight, Globe, Languages, LogOut, Menu, Moon, Search, Sun, UserRound, X } from "lucide-react";
+import { useTheme } from "next-themes";
 import type { Role } from "@prisma/client";
 
 import { MobileTabbar } from "@/components/app/mobile-tabbar";
@@ -13,15 +14,14 @@ import { NewVersionNotice } from "@/components/app/new-version-notice";
 import { RecordPaymentDialog } from "@/components/app/record-payment-dialog";
 import { MobileBack } from "@/components/app/smart-back";
 import { NavProvider } from "@/components/app/section-tabs";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/actions/auth";
 import { BUILD_ID } from "@/lib/build-id";
 import { type NavItem, type NavSection } from "@/lib/nav";
-import { LanguageSwitch } from "@/components/app/language-switch";
+import { setLanguage } from "@/lib/actions/profile";
 import { LocaleProvider } from "@/components/app/locale-provider";
 import { t } from "@/lib/i18n";
-import type { Locale } from "@/lib/locale";
+import { LOCALE_LABELS, type Locale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 import { initials } from "@/lib/format";
 
@@ -533,6 +533,14 @@ function UserFooter({
 }) {
   const [menu, setMenu] = useState(false);
   const tr = (text: string) => t(locale, text);
+  const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const dark = mounted && resolvedTheme === "dark";
+  /* One row switches to the other language, named in its own script. */
+  const other: Locale = locale === "zh" ? "en" : "zh";
+  const [switching, startSwitch] = useTransition();
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
   const item = "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-foreground/5 dark:hover:bg-white/[0.06]";
   return (
@@ -550,14 +558,13 @@ function UserFooter({
               compact ? "bottom-2 left-full ml-3" : "bottom-full left-3 mb-2"
             )}
           >
-            <p className="px-2.5 pb-2 pt-1.5">
+            <p className="px-2.5 pb-1.5 pt-1.5">
               <span className="block break-words text-[13px] font-semibold leading-snug">{user.name}</span>
               <span className="block truncate text-[11px] text-muted-foreground dark:text-white/55">{tr(user.roleLabel)}</span>
             </p>
-            <div className="mx-1 mb-1 h-px bg-border dark:bg-white/10" />
             <Link href="/app/profile" onClick={() => setMenu(false)} className={item}>
               <UserRound className="size-3.5 opacity-70" />
-              {tr("Profile")}
+              {tr("My profile")}
             </Link>
             <Link href="/app/notifications" onClick={() => setMenu(false)} className={item}>
               <Bell className="size-3.5 opacity-70" />
@@ -566,14 +573,27 @@ function UserFooter({
                 <span className="rounded-full bg-signal px-1.5 text-[10px] font-bold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
               ) : null}
             </Link>
-            <div className="flex items-center justify-between rounded-lg px-2.5 py-1 text-[13px]">
-              {tr("Theme")}
-              <ThemeToggle className="size-7 rounded-full" />
-            </div>
-            <div className="flex items-center justify-between rounded-lg px-2.5 py-1 text-[13px]">
-              {tr("Language")}
-              <LanguageSwitch current={locale} compact />
-            </div>
+            {/* One row each, as an icon and a few words: night or day, and the
+                other language. */}
+            <button type="button" onClick={() => setTheme(dark ? "light" : "dark")} className={cn(item, "w-full text-left")}>
+              {dark ? <Sun className="size-3.5 opacity-70" /> : <Moon className="size-3.5 opacity-70" />}
+              {dark ? tr("Switch to light mode") : tr("Switch to dark mode")}
+            </button>
+            <button
+              type="button"
+              disabled={switching}
+              onClick={() =>
+                startSwitch(async () => {
+                  await setLanguage(other);
+                  setMenu(false);
+                  router.refresh();
+                })
+              }
+              className={cn(item, "w-full text-left disabled:opacity-60")}
+            >
+              <Languages className="size-3.5 opacity-70" />
+              {LOCALE_LABELS[other]}
+            </button>
             <Link href="/" onClick={() => setMenu(false)} className={item}>
               <Globe className="size-3.5 opacity-70" />
               {tr("Main site")}
