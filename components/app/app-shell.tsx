@@ -369,7 +369,7 @@ export function AppShell({
     <LocaleProvider locale={locale}>
     <div
       className="flex min-h-dvh max-w-full touch-pan-x touch-pan-y overflow-x-clip bg-surface-2 print:max-w-none print:overflow-visible"
-      style={{ backgroundImage: "radial-gradient(46rem 34rem at 0% 0%, hsl(var(--brand) / 0.10), transparent 70%), radial-gradient(40rem 30rem at 100% 100%, hsl(var(--brand) / 0.06), transparent 70%)" }}
+      style={{ backgroundImage: "radial-gradient(48rem 36rem at 0% 0%, rgba(54, 96, 200, 0.14), transparent 70%), radial-gradient(40rem 30rem at 100% 100%, rgba(54, 96, 200, 0.08), transparent 70%)" }}
     >
       {/* Desktop menu: a floating glass panel that can fold to a rail of icons. */}
       <aside

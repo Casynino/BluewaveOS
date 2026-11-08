@@ -32,22 +32,21 @@ const TONES: Record<NonNullable<ActionPill["tone"]>, string> = {
   plain: "border bg-card text-foreground hover:bg-secondary",
 };
 
-/* A phone's shortcut, clean: a soft tinted square with the icon in its own
-   colour, one word under it, and nothing drawn around either — no box, no
-   glow, no shine. */
-export const PHONE_CHIP: Record<string, string> = {
-  brand: "bg-blue-500/10 text-blue-600 dark:bg-blue-400/15 dark:text-blue-300",
-  marine: "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300",
-  signal: "bg-rose-500/10 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300",
-  success: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300",
-  warning: "bg-amber-500/10 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300",
-  danger: "bg-red-500/10 text-red-600 dark:bg-red-400/15 dark:text-red-300",
-  violet: "bg-violet-500/10 text-violet-600 dark:bg-violet-400/15 dark:text-violet-300",
-  plain: "bg-slate-500/10 text-slate-600 dark:bg-slate-400/15 dark:text-slate-300",
+/* A phone's shortcut, as the cleanest shopping apps draw them: the icon alone
+   in its own colour, thin-lined, one word under it — no square, no box, no
+   glow. */
+export const PHONE_ICON: Record<string, string> = {
+  brand: "text-blue-600 dark:text-blue-400",
+  marine: "text-cyan-600 dark:text-cyan-400",
+  signal: "text-rose-600 dark:text-rose-400",
+  success: "text-emerald-600 dark:text-emerald-400",
+  warning: "text-amber-600 dark:text-amber-400",
+  danger: "text-red-600 dark:text-red-400",
+  violet: "text-violet-600 dark:text-violet-400",
+  plain: "text-slate-500 dark:text-slate-300",
 };
-export const PHONE_CHIP_BASE = "grid size-12 place-items-center rounded-2xl";
 export const PHONE_TILE =
-  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-2xl py-1 text-center transition-transform active:scale-95";
+  "focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-3 text-center transition-transform active:scale-95 active:bg-foreground/5";
 export const PHONE_WORD = "w-full truncate px-0.5 text-[11px] font-medium text-foreground/80";
 
 /* The same kinds of work, as the small coloured square on a phone's tile. */
@@ -67,7 +66,7 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
   if (pills.length === 0) return null;
 
   const iconFor = (name: string) =>
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name];
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>>)[name];
 
   return (
     <>
@@ -90,9 +89,7 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
               href={pill.href}
               className={cn(PHONE_TILE, "snap-start")}
             >
-              <span className={cn(PHONE_CHIP_BASE, PHONE_CHIP[pill.tone ?? "plain"])}>
-                {Icon ? <Icon className="size-[22px]" /> : null}
-              </span>
+              {Icon ? <Icon className={cn("size-7", PHONE_ICON[pill.tone ?? "plain"])} strokeWidth={1.6} /> : null}
               <span className={PHONE_WORD}>{t(pill.short ?? pill.label)}</span>
             </Link>
           );

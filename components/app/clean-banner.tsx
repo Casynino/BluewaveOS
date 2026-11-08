@@ -38,9 +38,10 @@ export function CleanBanner({
   return (
     <section
       className={cn(
-        /* On a phone, a smaller banner in a navy-to-sea gradient; on a computer
-           the flat navy with its glow and photograph. */
-        "relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#0a1b38_0%,#0f3364_55%,#1a5aa0_100%)] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 lg:bg-[#0a1a33] lg:bg-none print:hidden",
+        /* On a phone, a smaller banner: deep navy into sea blue, the port
+           behind a navy veil. On a computer the flat navy with its glow and
+           the photograph fading in from the right. */
+        "relative overflow-hidden rounded-2xl bg-[linear-gradient(125deg,#07112a_0%,#0b1d47_48%,#17387a_100%)] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 lg:bg-[#0a1a33] lg:bg-none print:hidden",
         className
       )}
     >
@@ -52,12 +53,19 @@ export function CleanBanner({
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_170px_at_50%_0%,rgba(253,196,0,0.10),transparent_72%)]"
       />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_90%_140%,rgba(88,140,235,0.42),transparent_55%),radial-gradient(ellipse_at_0%_-30%,rgba(227,179,65,0.22),transparent_50%)] lg:hidden"
+      />
       {image ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-25 [mask-image:linear-gradient(to_left,#000_15%,transparent)] lg:hidden"
-          style={{ backgroundImage: `url(${image})` }}
-        />
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-45 [mask-image:linear-gradient(to_right,transparent,black_70%)] lg:hidden"
+            style={{ backgroundImage: `url(${image})` }}
+          />
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(7,17,42,0.78),rgba(7,17,42,0.15)_80%)] lg:hidden" />
+        </>
       ) : null}
       {image ? (
         <div

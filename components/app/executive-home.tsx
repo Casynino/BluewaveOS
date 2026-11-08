@@ -29,7 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { PHONE_CHIP, PHONE_CHIP_BASE, PHONE_TILE, PHONE_WORD } from "@/components/app/action-pills";
+import { PHONE_ICON, PHONE_TILE, PHONE_WORD } from "@/components/app/action-pills";
 import { AttentionCenter, type AttentionItem } from "@/components/app/attention-center";
 import { CargoMix } from "@/components/app/cargo-mix";
 import { ContainerProfitTable } from "@/components/app/container-profit-table";
@@ -214,12 +214,12 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
   ];
   const shown = pills.filter((p) => p.show);
   const CHIP: Record<string, string> = {
-    "The ledger": PHONE_CHIP.signal,
-    Accounts: PHONE_CHIP.brand,
-    "Profit & loss": PHONE_CHIP.success,
-    Approvals: PHONE_CHIP.marine,
-    "Issues & claims": PHONE_CHIP.warning,
-    "Deleted records": PHONE_CHIP.violet,
+    "The ledger": PHONE_ICON.signal,
+    Accounts: PHONE_ICON.brand,
+    "Profit & loss": PHONE_ICON.success,
+    Approvals: PHONE_ICON.marine,
+    "Issues & claims": PHONE_ICON.warning,
+    "Deleted records": PHONE_ICON.violet,
   };
   /* One word under each icon on a phone. */
   const WORD: Record<string, string> = {
@@ -251,9 +251,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
               href={pill.href}
               className={cn(PHONE_TILE, "sm:hidden")}
             >
-              <span className={cn(PHONE_CHIP_BASE, CHIP[pill.label])}>
-                <pill.icon className="size-[22px]" />
-              </span>
+              <pill.icon className={cn("size-7", CHIP[pill.label])} strokeWidth={1.6} />
               <span className={PHONE_WORD}>{tr(WORD[pill.label] ?? pill.label)}</span>
             </Link>
             <Link
