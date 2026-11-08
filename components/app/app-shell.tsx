@@ -105,8 +105,20 @@ export function AppShell({
   const labelled = sections.filter((s) => s.label);
   const shortMenu = sections.reduce((n, s) => n + s.items.length, 0) <= 14;
   const here = sections.find((s) => s.label && s.items.some((i) => i.href === current))?.label;
+  /* On a phone or tablet the menu is opened because somebody wants to GO
+     somewhere, so every group starts open and the list fills the drawer and
+     scrolls; folded, the headings left most of a full-height panel empty.
+     Folding one by hand still sticks. A computer keeps the one group open. */
+  const [handheld, setHandheld] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1023.98px)");
+    const update = () => setHandheld(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const isOpen = (s: NavSection) =>
-    s.label in pressed ? pressed[s.label] : shortMenu || s.label === (here ?? labelled[0]?.label);
+    s.label in pressed ? pressed[s.label] : handheld || shortMenu || s.label === (here ?? labelled[0]?.label);
   const toggle = (s: NavSection) => setPressed((p) => ({ ...p, [s.label]: !isOpen(s) }));
   useEffect(() => {
     if (here) setPressed((p) => (p[here] === true ? p : { ...p, [here]: true }));
@@ -176,12 +188,12 @@ export function AppShell({
         onClick={() => setOpen(false)}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "relative flex items-center gap-3 rounded-lg px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60",
-          child ? "py-1.5 max-lg:min-h-9" : "py-2 max-lg:min-h-10",
+          "relative flex items-center gap-3 rounded-lg px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:gap-2.5 max-lg:px-2.5 max-lg:text-[12.5px]",
+          child ? "py-1.5 max-lg:min-h-7 max-lg:py-1" : "py-2 max-lg:min-h-8 max-lg:py-1.5",
           active ? "glass-active g-strong font-medium" : "glass-row g-text g-hover"
         )}
       >
-        <Glyph name={item.icon} className={cn("shrink-0", child ? "size-4" : "size-[18px]", active && "g-gold")} />
+        <Glyph name={item.icon} className={cn("shrink-0", child ? "size-4 max-lg:size-[15px]" : "size-[18px] max-lg:size-4", active && "g-gold")} />
         <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
       </Link>
     );
@@ -190,7 +202,7 @@ export function AppShell({
   /* The box at the top of the menu. */
   const searchBox = (ref?: React.Ref<HTMLInputElement>, hint = false) => (
     <div className="px-3 pb-1.5">
-      <label className="glass-field flex items-center gap-2.5 px-3.5 py-2 text-sm g-soft">
+      <label className="glass-field flex items-center gap-2.5 px-3.5 py-2 text-sm g-soft max-lg:px-2.5 max-lg:py-1.5 max-lg:text-[13px]">
         <Search className="size-4 shrink-0" />
         <input
           ref={ref}
@@ -220,7 +232,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => go(item.href)}
-              className="glass-row g-text g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] max-lg:min-h-10"
+              className="glass-row g-text g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] max-lg:min-h-8 max-lg:gap-2.5 max-lg:px-2.5 max-lg:py-1.5 max-lg:text-[12.5px]"
             >
               <Glyph name={item.icon} className="size-[18px] shrink-0" />
               <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
@@ -264,11 +276,11 @@ export function AppShell({
                   onClick={() => toggle(section)}
                   aria-expanded={shown}
                   className={cn(
-                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:min-h-10",
+                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:min-h-8 max-lg:gap-2.5 max-lg:px-2.5 max-lg:py-1.5 max-lg:text-[12.5px]",
                     lit ? "g-strong" : "g-text"
                   )}
                 >
-                  <Glyph name={section.icon} className={cn("size-[18px] shrink-0", lit ? "g-gold" : "g-icon")} />
+                  <Glyph name={section.icon} className={cn("size-[18px] shrink-0 max-lg:size-4", lit ? "g-gold" : "g-icon")} />
                   <span className="min-w-0 flex-1 truncate">{tr(section.label)}</span>
                   <ChevronDown className={cn("g-icon size-[15px] shrink-0 transition-transform duration-200", shown && "rotate-180")} />
                 </button>
@@ -304,13 +316,13 @@ export function AppShell({
       title="BlueWave Cargo"
       className="flex min-w-0 items-center gap-3 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45 max-lg:size-9">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/bluewave-mark.png" alt="" className="h-[18px] w-auto" />
       </span>
       {compact ? null : (
         <span className="min-w-0 leading-tight">
-          <span className="g-strong block truncate text-sm font-semibold tracking-tight">BlueWave Cargo</span>
+          <span className="g-strong block truncate text-sm font-semibold tracking-tight max-lg:text-[13px]">BlueWave Cargo</span>
           <span className="g-soft mt-0.5 block truncate text-xs">{tr("Sea Cargo")}</span>
         </span>
       )}
@@ -412,7 +424,7 @@ export function AppShell({
               which on this element would undo the absolute top and bottom that
               hold the drawer to the screen's height — the menu then grew past
               the bottom of the phone and its list could not scroll. */}
-          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] w-[16.5rem] max-w-[78vw]">
+          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] w-[14.75rem] max-w-[78vw]">
             <div className="glass-panel glass-drawer flex h-full min-h-0 flex-col">
             <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3.5">
               {brand(false)}
