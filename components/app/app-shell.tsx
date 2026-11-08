@@ -534,7 +534,7 @@ function UserFooter({
   const [menu, setMenu] = useState(false);
   const tr = (text: string) => t(locale, text);
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
-  const item = "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-foreground/5";
+  const item = "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-foreground/5 dark:hover:bg-white/[0.06]";
   return (
     <div className={cn("relative shrink-0", compact ? "flex flex-col items-center pb-3" : "px-3 pb-3 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]")}>
       <div aria-hidden className="glass-divider mb-2 w-full" />
@@ -543,39 +543,42 @@ function UserFooter({
           <button type="button" aria-label={tr("Close menu")} className="fixed inset-0 z-40 cursor-default" onClick={() => setMenu(false)} />
           {/* Everything that is not a page lives here, so the menu itself stays
               a list of pages: the profile, the bell, the theme, the language, the
-              public site and the way out. */}
+              public site and the way out. Navy like the menu it opens from. */}
           <div
             className={cn(
-              "absolute z-50 w-52 rounded-xl border border-border/70 bg-popover p-1 text-popover-foreground shadow-[0_12px_30px_-12px_rgba(0,0,0,0.55)]",
+              "absolute z-50 w-52 rounded-2xl border border-border/70 bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)] dark:border-white/10 dark:bg-[linear-gradient(180deg,#13234b,#0c1838)] dark:text-white",
               compact ? "bottom-2 left-full ml-3" : "bottom-full left-3 mb-2"
             )}
           >
-            <p className="px-2.5 pb-1.5 pt-1">
+            <p className="px-2.5 pb-2 pt-1.5">
               <span className="block break-words text-[13px] font-semibold leading-snug">{user.name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">{tr(user.roleLabel)}</span>
+              <span className="block truncate text-[11px] text-muted-foreground dark:text-white/55">{tr(user.roleLabel)}</span>
             </p>
-            <div className="my-1 h-px bg-border" />
+            <div className="mx-1 mb-1 h-px bg-border dark:bg-white/10" />
             <Link href="/app/profile" onClick={() => setMenu(false)} className={item}>
-              <UserRound className="size-3.5" />
+              <UserRound className="size-3.5 opacity-70" />
               {tr("Profile")}
             </Link>
             <Link href="/app/notifications" onClick={() => setMenu(false)} className={item}>
-              <Bell className="size-3.5" />
+              <Bell className="size-3.5 opacity-70" />
               <span className="flex-1">{tr("Notifications")}</span>
               {unread > 0 ? (
                 <span className="rounded-full bg-signal px-1.5 text-[10px] font-bold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
               ) : null}
             </Link>
-            <div className="flex items-center justify-between rounded-lg px-2.5 py-0.5 text-[13px]">
+            <div className="flex items-center justify-between rounded-lg px-2.5 py-1 text-[13px]">
               {tr("Theme")}
-              <ThemeToggle />
+              <ThemeToggle className="size-7 rounded-full" />
             </div>
-            <LanguageSwitch current={locale} className="my-1 w-full [&>button]:flex-1 [&>button]:justify-center" />
+            <div className="flex items-center justify-between rounded-lg px-2.5 py-1 text-[13px]">
+              {tr("Language")}
+              <LanguageSwitch current={locale} compact />
+            </div>
             <Link href="/" onClick={() => setMenu(false)} className={item}>
-              <Globe className="size-3.5" />
+              <Globe className="size-3.5 opacity-70" />
               {tr("Main site")}
             </Link>
-            <div className="my-1 h-px bg-border" />
+            <div className="mx-1 my-1 h-px bg-border dark:bg-white/10" />
             <form action={logout}>
               <button type="submit" className={cn(item, "w-full text-rose-600 hover:bg-rose-500/10 dark:text-rose-400")}>
                 <LogOut className="size-3.5" />

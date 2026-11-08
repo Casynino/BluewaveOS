@@ -24,9 +24,12 @@ import { cn } from "@/lib/utils";
 export function LanguageSwitch({
   current,
   className,
+  compact = false,
 }: {
   current: Locale;
   className?: string;
+  /** A small "EN | 中文" pill, for a row in a menu. */
+  compact?: boolean;
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -36,7 +39,12 @@ export function LanguageSwitch({
     <div
       role="group"
       aria-label={t("Language")}
-      className={cn("inline-flex rounded-lg border p-0.5", className)}
+      className={cn(
+        compact
+          ? "inline-flex rounded-full border border-border/70 bg-foreground/[0.04] p-0.5 dark:border-white/10 dark:bg-white/5"
+          : "inline-flex rounded-lg border p-0.5",
+        className
+      )}
     >
       {LOCALES.map((locale) => {
         const active = locale === current;
@@ -48,14 +56,20 @@ export function LanguageSwitch({
             aria-current={active ? "true" : undefined}
             onClick={() => start(async () => { await setLanguage(locale); router.refresh(); })}
             className={cn(
-              "focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors disabled:cursor-default",
-              active
-                ? "bg-brand text-brand-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              compact
+                ? "focus-ring inline-flex h-6 min-w-9 items-center justify-center rounded-full px-2 text-[11px] font-semibold transition-colors disabled:cursor-default"
+                : "focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors disabled:cursor-default",
+              compact
+                ? active
+                  ? "bg-brand text-brand-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+                : active
+                  ? "bg-brand text-brand-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            {locale === "en" ? <Languages className="h-3.5 w-3.5" /> : null}
-            {LOCALE_LABELS[locale]}
+            {locale === "en" && !compact ? <Languages className="h-3.5 w-3.5" /> : null}
+            {compact && locale === "en" ? "EN" : LOCALE_LABELS[locale]}
           </button>
         );
       })}
