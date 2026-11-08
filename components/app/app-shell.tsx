@@ -176,8 +176,8 @@ export function AppShell({
         onClick={() => setOpen(false)}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "relative flex items-center gap-3 rounded-lg px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:min-h-11",
-          child ? "py-1.5" : "py-2",
+          "relative flex items-center gap-3 rounded-lg px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60",
+          child ? "py-1.5 max-lg:min-h-9" : "py-2 max-lg:min-h-10",
           active ? "glass-active g-strong font-medium" : "glass-row g-text g-hover"
         )}
       >
@@ -220,7 +220,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => go(item.href)}
-              className="glass-row g-text g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] max-lg:min-h-11"
+              className="glass-row g-text g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] max-lg:min-h-10"
             >
               <Glyph name={item.icon} className="size-[18px] shrink-0" />
               <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
@@ -264,7 +264,7 @@ export function AppShell({
                   onClick={() => toggle(section)}
                   aria-expanded={shown}
                   className={cn(
-                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:min-h-11",
+                    "glass-row g-hover flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60 max-lg:min-h-10",
                     lit ? "g-strong" : "g-text"
                   )}
                 >
@@ -408,8 +408,13 @@ export function AppShell({
             className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
-          <aside className="glass-panel glass-drawer drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] flex w-72 max-w-[85vw] flex-col">
-            <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-4">
+          {/* The glass is on an inner layer: .glass-panel sets position: relative,
+              which on this element would undo the absolute top and bottom that
+              hold the drawer to the screen's height — the menu then grew past
+              the bottom of the phone and its list could not scroll. */}
+          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] w-[16.5rem] max-w-[78vw]">
+            <div className="glass-panel glass-drawer flex h-full min-h-0 flex-col">
+            <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3.5">
               {brand(false)}
               <button
                 type="button"
@@ -423,6 +428,7 @@ export function AppShell({
             {searchBox()}
             {nav}
             <UserFooter user={user} locale={locale} unread={unread} />
+            </div>
           </aside>
         </div>
       ) : null}

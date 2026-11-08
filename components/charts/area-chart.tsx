@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useState } from "react";
 
 import { areaPath, scalePoints, smoothPath } from "@/lib/chart";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,13 @@ export function AreaChart({
   currency?: string;
   className?: string;
 }) {
-  const uid = useId().replace(/:/g, "");
+  /* The gradients' id comes from the chart's own series and labels, not from
+     useId: the id useId gave on the server and in the browser differed on the
+     owner's home, so the browser warned on every load. Two charts with the
+     same series and labels draw the same gradients, so a shared id is harmless. */
+  const uid = `ac${Array.from(`${series.map((s) => s.name).join("|")}#${labels.join("|")}#${format}`)
+    .reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7)
+    .toString(36)}`;
   const [hover, setHover] = useState<number | null>(null);
 
   const W = 800;

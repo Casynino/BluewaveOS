@@ -32,6 +32,23 @@ const TONES: Record<NonNullable<ActionPill["tone"]>, string> = {
   plain: "border bg-card text-foreground hover:bg-secondary",
 };
 
+/* The same kinds of work, as the jewel on a phone's tile: a gradient square
+   with a soft light on its top edge and a glow of its own colour under it. */
+export const PREMIUM_CHIP: Record<string, string> = {
+  brand: "bg-gradient-to-br from-[#60a5fa] to-[#1d4ed8] shadow-[0_8px_18px_-8px_rgba(37,99,235,0.85)]",
+  marine: "bg-gradient-to-br from-[#22d3ee] to-[#0e7490] shadow-[0_8px_18px_-8px_rgba(8,145,178,0.85)]",
+  signal: "bg-gradient-to-br from-[#fb7185] to-[#e11d48] shadow-[0_8px_18px_-8px_rgba(225,29,72,0.85)]",
+  success: "bg-gradient-to-br from-[#34d399] to-[#059669] shadow-[0_8px_18px_-8px_rgba(5,150,105,0.85)]",
+  warning: "bg-gradient-to-br from-[#fcd34d] to-[#d97706] shadow-[0_8px_18px_-8px_rgba(217,119,6,0.85)]",
+  danger: "bg-gradient-to-br from-[#f87171] to-[#dc2626] shadow-[0_8px_18px_-8px_rgba(220,38,38,0.85)]",
+  violet: "bg-gradient-to-br from-[#c4b5fd] to-[#7c3aed] shadow-[0_8px_18px_-8px_rgba(124,58,237,0.85)]",
+  plain: "bg-gradient-to-br from-[#94a3b8] to-[#475569] shadow-[0_8px_18px_-8px_rgba(71,85,105,0.85)]",
+};
+export const PREMIUM_CHIP_BASE =
+  "relative grid size-10 place-items-center rounded-[14px] text-white ring-1 ring-inset ring-white/25 before:pointer-events-none before:absolute before:inset-x-1 before:top-0.5 before:h-1/2 before:rounded-t-[12px] before:bg-gradient-to-b before:from-white/35 before:to-transparent";
+export const PREMIUM_TILE =
+  "focus-ring flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-border/60 bg-card/80 px-1 pb-2.5 pt-3 text-center shadow-soft backdrop-blur transition-transform active:scale-95";
+
 /* The same kinds of work, as the small coloured square on a phone's tile. */
 const CHIP: Record<NonNullable<ActionPill["tone"]>, string> = {
   brand: "bg-brand/15 text-brand",
@@ -53,21 +70,29 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
 
   return (
     <>
-      {/* PHONE: five tiles across, each a square icon over a short name, and a
-          sixth or seventh a swipe away — thumbs hit tiles, not pills. */}
-      <div className="-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[calc((100%-2rem)/5)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+      {/* PHONE: up to five tiles fill the row edge to edge, each a jewel icon
+          over a short name; a sixth or seventh is a swipe away — thumbs hit
+          tiles, not pills. */}
+      <div
+        className={cn(
+          "lg:hidden",
+          pills.length <= 5
+            ? cn("grid gap-2", ["", "grid-cols-1", "grid-cols-2", "grid-cols-3", "grid-cols-4", "grid-cols-5"][pills.length])
+            : "-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[calc((100%-2rem)/5)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        )}
+      >
         {pills.map((pill) => {
           const Icon = iconFor(pill.icon);
           return (
             <Link
               key={`m-${pill.href}${pill.label}`}
               href={pill.href}
-              className="focus-ring flex snap-start flex-col items-center gap-1.5 rounded-2xl border bg-card px-1 py-2.5 text-center shadow-soft transition-transform active:scale-95"
+              className={cn(PREMIUM_TILE, "snap-start")}
             >
-              <span className={cn("grid size-9 place-items-center rounded-xl", CHIP[pill.tone ?? "plain"])}>
-                {Icon ? <Icon className="size-[18px]" /> : null}
+              <span className={cn(PREMIUM_CHIP_BASE, PREMIUM_CHIP[pill.tone ?? "plain"])}>
+                {Icon ? <Icon className="relative size-[19px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" /> : null}
               </span>
-              <span className="line-clamp-2 min-h-[2.1em] [overflow-wrap:anywhere] text-[10.5px] font-medium leading-tight">{t(pill.short ?? pill.label)}</span>
+              <span className="line-clamp-2 min-h-[2.1em] [overflow-wrap:anywhere] text-[11px] font-medium leading-tight text-foreground/85">{t(pill.short ?? pill.label)}</span>
             </Link>
           );
         })}

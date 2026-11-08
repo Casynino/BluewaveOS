@@ -38,18 +38,27 @@ export function CleanBanner({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-2xl bg-[#0a1a33] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 print:hidden",
+        /* On a phone, a smaller banner in a navy-to-sea gradient; on a computer
+           the flat navy with its glow and photograph. */
+        "relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#0a1b38_0%,#0f3364_55%,#1a5aa0_100%)] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 lg:bg-[#0a1a33] lg:bg-none print:hidden",
         className
       )}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_220px_at_88%_55%,rgba(47,111,208,0.42),transparent_62%)]"
+        className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(700px_220px_at_88%_55%,rgba(47,111,208,0.42),transparent_62%)] lg:block"
       />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_170px_at_50%_0%,rgba(253,196,0,0.10),transparent_72%)]"
       />
+      {image ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-25 [mask-image:linear-gradient(to_left,#000_15%,transparent)] lg:hidden"
+          style={{ backgroundImage: `url(${image})` }}
+        />
+      ) : null}
       {image ? (
         <div
           aria-hidden
@@ -60,13 +69,13 @@ export function CleanBanner({
 
       {tools ? <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">{tools}</div> : null}
 
-      <div className="relative flex min-h-[7.5rem] flex-col items-center justify-center px-5 py-5 text-center">
+      <div className="relative flex min-h-[6rem] flex-col items-center justify-center px-5 py-4 text-center lg:min-h-[7.5rem] lg:py-5">
         <h1
           className={cn(
             "flex max-w-full items-center gap-4 font-semibold uppercase text-white",
             long
-              ? "text-lg tracking-[0.22em] sm:text-2xl sm:tracking-[0.3em] lg:text-3xl"
-              : "text-2xl tracking-[0.35em] sm:text-3xl sm:tracking-[0.5em] lg:text-4xl"
+              ? "text-base tracking-[0.22em] sm:text-2xl sm:tracking-[0.3em] lg:text-3xl"
+              : "text-xl tracking-[0.35em] sm:text-3xl sm:tracking-[0.5em] lg:text-4xl"
           )}
         >
           <span aria-hidden className="hidden h-px w-10 shrink-0 bg-[#fdc400]/60 sm:block" />
@@ -78,9 +87,9 @@ export function CleanBanner({
           <span aria-hidden className="hidden h-px w-10 shrink-0 bg-[#fdc400]/60 sm:block" />
         </h1>
         {kicker ? (
-          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">{kicker}</p>
+          <p className="mt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.32em] text-[#fdc400] lg:mt-2 lg:text-[11px]">{kicker}</p>
         ) : null}
-        {line ? <p className="tnum mt-1.5 text-sm text-white/65">{line}</p> : null}
+        {line ? <p className="tnum mt-1 text-[13px] text-white/70 lg:mt-1.5 lg:text-sm">{line}</p> : null}
         {children ? <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div> : null}
       </div>
     </section>
