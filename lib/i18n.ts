@@ -3883,6 +3883,7 @@ const ZH: Record<string, string> = {
   "This browser cannot search for Bluetooth devices. Open this page in Chrome on the Android phone.": "此浏览器无法搜索蓝牙设备。请在安卓手机的 Chrome 中打开本页面。",
   "Search for the printer": "搜索打印机",
   "Search staff or customers": "搜索员工或客户",
+  "Back to the top": "回到顶部",
   "Dar check-in": "达市核收",
   "other unpaid consignment(s)": "票其他未付款货物",
   "Search cargo, customer or phone": "查询货物、客户或电话",
@@ -4344,6 +4345,7 @@ const ZH: Record<string, string> = {
   "Nothing is waiting on you. Everything agreed sits under the Reconciled filter.":
     "没有等待你处理的记录。已核对的都在“已核对”筛选里。",
   "scroll for": "向下滚动查看",
+  "Scroll for": "向下滚动查看",
   "more": "条",
   "scroll for more": "向下滚动查看更多",
   "never checked": "从未核对",
