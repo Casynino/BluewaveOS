@@ -884,6 +884,33 @@ describe("arrival and Dar verification are two different events", () => {
       select: { number: true, issuedAt: true },
     });
 
+    /* The manager closes the sailing but does not do the floor's part of it:
+       saying a consignment never came off is the Dar floor's, and is refused
+       before anything moves. */
+    as("manager");
+    const refused = await closeActions.closeContainer(
+      {},
+      form({
+        containerId: s.close.containerId,
+        reason: "Sailing finished with; the floor has answered for the rest",
+        [`outcome:${moving}`]: `move:${s.close.landedId}`,
+        [`outcome:${gone}`]: "missing",
+      })
+    );
+    assert.match(refused.error ?? "", /can only be reported missing by the Dar floor/);
+    assert.equal(
+      (await prisma.containerCargo.count({ where: { containerId: s.close.containerId, cargoId: moving } })),
+      1,
+      "nothing moved on a refused close"
+    );
+
+    as("dar");
+    const missing = await darActions.reportMissingAtDar(
+      {},
+      form({ cargoId: gone, note: "Not on the box when it was emptied" })
+    );
+    assert.ok(!missing.error, missing.error);
+
     as("manager");
     const closed = await closeActions.closeContainer(
       {},
@@ -891,7 +918,6 @@ describe("arrival and Dar verification are two different events", () => {
         containerId: s.close.containerId,
         reason: "Sailing finished with; the floor has answered for the rest",
         [`outcome:${moving}`]: `move:${s.close.landedId}`,
-        [`outcome:${gone}`]: "missing",
       })
     );
     assert.ok(closed.ok, closed.error);
@@ -996,14 +1022,33 @@ describe("arrival and Dar verification are two different events", () => {
       "it arrived with its box"
     );
 
+    /* Putting it on a box still loading is the loading bay's: the manager is
+       refused, Dar takes it off the landed box and Foshan loads it. */
     as("manager");
-    const closed = await closeActions.closeContainer(
+    const refused = await closeActions.closeContainer(
       {},
       form({
         containerId: box.containerId,
         reason: "It was never in this box; it is loading in Foshan",
         [`outcome:${cargoId}`]: `move:${s.close.openId}`,
       })
+    );
+    assert.match(refused.error ?? "", /that is the loading bay's/);
+
+    as("dar");
+    const off = await containerActions.takeOffArrivedContainer(
+      {},
+      form({ containerId: box.containerId, cargoId, reason: "It was never in this box; it is loading in Foshan" })
+    );
+    assert.ok(!off.error, off.error);
+    as("china");
+    const loaded = await containerActions.loadCargo({}, form({ containerId: s.close.openId, cargoIds: cargoId }));
+    assert.ok(!loaded.error, loaded.error);
+
+    as("manager");
+    const closed = await closeActions.closeContainer(
+      {},
+      form({ containerId: box.containerId, reason: "It was never in this box; it is loading in Foshan" })
     );
     assert.ok(closed.ok, closed.error);
 

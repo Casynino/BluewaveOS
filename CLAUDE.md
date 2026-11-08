@@ -73,7 +73,7 @@ on the row (FieldChange, old value first), and one press, "Confirm all N prices"
 prices anything still without a draft and issues each bill in its own
 transaction: exchange-rate row pinned, accounts snapshotted, customer told. An
 agreed rate survives confirming; a row the book cannot price blocks only itself.
-`invoice.priceConfirm` is Support's, Finance's, the Manager's and the owner's.
+`invoice.priceConfirm` is Support's, Finance's and the Manager's.
 
 **The system does the arithmetic; the warehouse does the counting.** Receiving
 asks for what is physically there — customer, category, packages, pieces,
@@ -139,9 +139,25 @@ attached to THAT customer — one live customer per phone, one login per
 customer, so nobody is registered twice; Support is told and it is audited, by
 the owner's decision in place of a code. The plain register form only ever
 creates a new customer. Forgot password is never phone-only: it needs a 6-digit
-code from the office (`customer.activate` — Support, the manager, the owner),
+code from the office (`customer.activate` — Support and the manager),
 stored as a hash, good once for 15 minutes and dead after five guesses
 (`lib/customer-activation.ts`).
+
+**The owner watches and administers; the manager supervises; the desks do the
+work.** ADMIN (the CEO) and MANAGER (the Director) hold every `*.view`
+permission and none of `DAILY_WORK` in `lib/rbac.ts` — receiving, scanning,
+loading and sending containers, releasing cargo, recording and verifying
+payments, billing, preparing payroll, answering customers. Those belong to
+Foshan, Dar, Finance and Support, unchanged. The manager alone keeps the
+management-level corrections and decisions (confirming prices and discounts,
+correcting a consignment or CBM, closing a container, deleting cargo or a
+customer, assigning and closing cases); ADMIN keeps staff, settings,
+warehouses, website, exchange rate and the expense and payroll sign-off, and
+reads the audit trail. Closing a sailing does not do the floor's part of it: a
+consignment that never came off is reported missing by Dar, and one going onto
+a box still loading is loaded by Foshan. A page that only *shows* progress must
+be gated on a view permission, never on a desk's action. To do a desk's job,
+work as the person who holds it.
 
 **The customer gate is `customerId` from the session.** Never an id from a URL,
 a form field or a request body. Changing a number in an address bar is the whole

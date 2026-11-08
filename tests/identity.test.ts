@@ -91,7 +91,6 @@ describe("the Chinese the Foshan floor reads", () => {
     [
       /* A comment quoting what the Foshan counter types into the box. */
       "app/app/scan/[cargoId]/page.tsx",
-      "components/app/app-shell.tsx",
       /* A language names itself in its own language, or nobody who needs the
          switch can find it. */
       "components/app/language-switch.tsx",

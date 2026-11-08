@@ -262,7 +262,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Customer support",
+    label: "Support",
     icon: "MessageSquare",
     items: [
       { label: "Tickets", href: "/app/support/tickets", icon: "MessageSquare", permissions: ["conversation.view"] },
@@ -271,7 +271,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "China services",
+    label: "China",
     icon: "Store",
     items: [
       { label: "China markets", href: "/app/support/markets", icon: "Store", permissions: ["conversation.view"] },
@@ -318,7 +318,7 @@ const MANAGER_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Money out",
+    label: "Money",
     icon: "Wallet",
     items: [
       { label: "Credit", href: "/app/finance/credit", icon: "CalendarClock", permissions: ["finance.view"] },
@@ -372,7 +372,7 @@ const MANAGER_SECTIONS: NavSection[] = [
  */
 const ADMIN_SECTIONS: NavSection[] = [
   {
-    label: "Cargo operations",
+    label: "Cargo",
     icon: "Boxes",
     items: [
       { label: "Search", href: "/app/search", icon: "Search", permissions: ["search.global"] },
@@ -406,16 +406,19 @@ const ADMIN_SECTIONS: NavSection[] = [
       { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
       { label: "Expenses", href: "/app/finance/expenses", icon: "Receipt", permissions: ["expense.view"] },
       { label: "Income", href: "/app/finance/income", icon: "HandCoins", permissions: ["accounting.view"] },
-      { label: "Payroll", href: "/app/finance/payroll", icon: "Wallet", permissions: ["payroll.prepare"] },
+      /* The owner signs the month off; Finance prepares it on its own page. */
+      { label: "Payroll", href: "/app/manager/payroll", icon: "Wallet", permissions: ["payroll.approve"] },
+      { label: "Approvals", href: "/app/manager/approvals", icon: "ClipboardCheck", permissions: ["record.review"] },
       { label: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
       { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "PhoneCall", permissions: ["finance.view"] },
     ],
   },
   {
-    label: "Support and issues",
-    icon: "MessageSquare",
+    label: "Customers",
+    icon: "Users",
     items: [
+      { label: "Customers", href: "/app/customers", icon: "Users", permissions: ["customer.view"] },
       { label: "Tickets", href: "/app/support/tickets", icon: "MessageSquare", permissions: ["conversation.view"] },
       /* "Support home", not "Home" — this menu already has one, and a bare Home
          here would read as the owner's own dashboard. */
@@ -424,14 +427,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Customers",
-    icon: "Users",
-    items: [
-      { label: "Customers", href: "/app/customers", icon: "Users", permissions: ["customer.view"] },
-    ],
-  },
-  {
-    label: "Business",
+    label: "Sourcing",
     icon: "Store",
     items: [
       /* The editor, not the support desk's read view: this is the menu of the
@@ -440,14 +436,14 @@ const ADMIN_SECTIONS: NavSection[] = [
       { label: "China guide", href: "/app/admin/explore", icon: "Map", permissions: ["content.manage"] },
       { label: "Sourcing requests", href: "/app/support/sourcing", icon: "ShoppingBag", permissions: ["conversation.view"] },
       { label: "Business visits", href: "/app/support/visits", icon: "Plane", permissions: ["request.view"] },
-      { label: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
     ],
   },
   {
-    label: "Administration",
+    label: "Admin",
     icon: "SlidersHorizontal",
     items: [
       { label: "Staff", href: "/app/admin/users", icon: "UserCog", permissions: ["user.manage"] },
+      { label: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
       { label: "Deleted records", href: "/app/admin/deleted", icon: "Trash2", permissions: ["records.viewDeleted"] },
       { label: "Company settings", href: "/app/admin/settings", icon: "SlidersHorizontal", permissions: ["settings.manage"] },
       /* Both ends of the route, and the address a customer forwards to their
@@ -457,11 +453,11 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    /* No heading, same as the air desk: the logs are where an argument is
-       settled, not a kind of work. Every money action, and beside it every
-       privileged action. */
-    label: "",
-    icon: "",
+    /* The logs are where an argument is settled, not a kind of work: every
+       money action, and beside it every privileged action. Under a heading of
+       their own so the menu has no loose rows below its sections. */
+    label: "Audit",
+    icon: "History",
     items: [
       { label: "Money audit", href: "/app/finance/audit", icon: "History", permissions: ["accounting.view"] },
       { label: "Audit log", href: "/app/admin/audit", icon: "History", permissions: ["audit.view"] },

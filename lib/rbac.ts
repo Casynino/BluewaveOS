@@ -514,6 +514,55 @@ const ALL: Permission[] = Array.from(
 );
 
 /**
+ * DAILY WORK: THE ACTIONS A DESK PERFORMS, THAT NEITHER THE OWNER NOR THE
+ * MANAGER DOES.
+ *
+ * Receiving and checking cargo, scanning, loading, sealing and sending
+ * containers, releasing goods, recording and verifying payments, issuing bills
+ * and receipts, preparing payroll, answering customers. Each has a desk that
+ * owns it (China, Dar, Finance, Support) and that desk keeps it exactly as it
+ * was. The manager and the owner watch these — every view permission stays —
+ * and answer for them, but a manager who received cargo or verified a payment
+ * would be marking their own homework.
+ */
+const DAILY_WORK: Permission[] = [
+  "receiving.china",
+  "receiving.dar",
+  "receiving.verify",
+  "cargo.create",
+  "cargo.scan",
+  "cargo.hold",
+  "cargo.photo",
+  "container.create",
+  "container.edit",
+  "container.load",
+  "container.seal",
+  "container.depart",
+  "container.arrive",
+  "deliveryNote.issue",
+  "packingList.issue",
+  "shipment.edit",
+  "shipment.document",
+  "release.execute",
+  "delivery.manage",
+  "payment.record",
+  "payment.submit",
+  "payment.verify",
+  "receipt.issue",
+  "invoice.create",
+  "invoice.edit",
+  "invoice.issue",
+  "invoice.cancel",
+  "expense.record",
+  "payroll.prepare",
+  "accounting.manage",
+  "conversation.reply",
+  "notification.send",
+  "request.manage",
+  "customer.create",
+];
+
+/**
  * The manager runs the business; the owner owns it.
  *
  * Everything except the things that would let an operator rewrite the rules
@@ -540,8 +589,52 @@ const MANAGER: Permission[] = ALL.filter(
     p !== "container.delete" &&
     /* The audit log is the owner's and the developer's, by the owner's
        decision; Finance keeps its own money audit (accounting.view). */
-    p !== "audit.view"
+    p !== "audit.view" &&
+    !DAILY_WORK.includes(p)
 );
+
+/**
+ * THE OWNER ADMINISTERS AND WATCHES; THE DESKS DO THE WORK.
+ *
+ * The administrator account sees everything and runs the system — staff,
+ * settings, warehouses, the website, the exchange rate, the audit trail — and
+ * signs off the money that needs the owner's name (expenses, payroll). It does
+ * not do any desk's job and it does not correct a desk's record: a correction
+ * is the manager's, or the desk's own. Viewing is untouched — every `*.view`
+ * permission is still held, so the owner can open any cargo, container, bill
+ * or case and read its whole history.
+ *
+ * What it leaves to the manager (corrections and management decisions, kept
+ * there by the owner's decision) is listed apart from the daily work above so
+ * the two reasons read separately.
+ */
+const ADMIN_LEAVES_TO_MANAGER: Permission[] = [
+  "cargo.amendChina",
+  "cargo.amendDar",
+  "cargo.edit",
+  "cargo.delete",
+  "cbm.override",
+  "container.amendArrived",
+  "container.confirmUnchecked",
+  "container.close",
+  "invoice.priceConfirm",
+  "invoice.discount",
+  "customer.manage",
+  "customer.delete",
+  "customer.merge",
+  "customer.activate",
+  "exception.assign",
+  "exception.approve",
+  "exception.close",
+  "exception.resolve",
+  "conversation.assign",
+];
+const ADMIN: Permission[] = ALL.filter(
+  (p) => !DAILY_WORK.includes(p) && !ADMIN_LEAVES_TO_MANAGER.includes(p)
+);
+
+/** Every permission that exists — what a "who can do what" check lists. */
+export const ALL_PERMISSIONS: Permission[] = ALL;
 
 /**
  * A customer holds NO staff permission at all.
@@ -596,7 +689,7 @@ const DEVELOPER: Permission[] = [
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  ADMIN: ALL,
+  ADMIN,
   DEVELOPER,
   MANAGER,
   CUSTOMER_SUPPORT,
@@ -690,8 +783,10 @@ export function canAmendCargo(
  * So: the verb, and then the floor. China-side asks the desk that receives in
  * China; Dar-side asks the desk that receives in Dar, or Finance — the desk
  * that reconciles is the one that finds a consignment entered twice. The
- * manager and the owner hold all of it. Support holds none of it and never
- * has: it answers customers, it does not remove their records.
+ * manager holds all of it — correcting a desk's record is the manager's, by
+ * the owner's decision — and the owner, who watches, holds none. Support holds
+ * none of it and never has: it answers customers, it does not remove their
+ * records.
  *
  * What may be deleted at all is a separate question, and a harder one — see
  * `deleteCargo`, which refuses anything billed, paid or handed over.
@@ -701,6 +796,8 @@ export function canDeleteCargo(
   status: CargoStatus
 ) {
   if (!can(role, "cargo.delete")) return false;
+  /* The manager receives on neither floor and corrects on both. */
+  if (role === "MANAGER") return true;
   /*
     THE SIDE IS WHERE THE BOXES ARE, WHICH IS NOT WHERE CUSTODY IS.
 

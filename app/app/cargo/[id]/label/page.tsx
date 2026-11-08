@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM, type StickerData } from "@/components/app/cargo-sticker";
+import { LabelPaper } from "@/components/app/label-paper";
 import { AutoPrint, PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { recordAudit } from "@/lib/audit";
@@ -109,6 +110,7 @@ export default async function CargoLabelPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 print:max-w-none print:space-y-0">
+      <LabelPaper />
       {/* Arriving with ?print=1 raises the clerk's own print dialog, so "Print
           QR label" on the cargo page is one press rather than a page to find a
           button on. */}

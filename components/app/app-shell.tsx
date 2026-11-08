@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
-import { Bell, ChevronDown, Globe, LogOut, Menu, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronLeft, ChevronRight, Globe, LogOut, Menu, Search, X } from "lucide-react";
 import type { Role } from "@prisma/client";
 
 import { MobileTabbar } from "@/components/app/mobile-tabbar";
@@ -16,7 +16,6 @@ import { NavProvider } from "@/components/app/section-tabs";
 import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { logout } from "@/lib/actions/auth";
 import { BUILD_ID } from "@/lib/build-id";
 import { type NavItem, type NavSection } from "@/lib/nav";
@@ -57,6 +56,12 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  /* Today, short, for the phone bar. Filled in after load so the server and the
+     browser never disagree about what day it is. */
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Dar_es_Salaam" }).format(new Date()));
+  }, []);
   const tr = (text: string) => t(locale, text);
 
   /* The drawer covers the page, so Escape has to take it away again — a
@@ -86,207 +91,369 @@ export function AppShell({
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === current;
 
-  /* FOLDED SECTIONS. A desk with five departments was one long column; now
-     each department folds under its name, and only the one holding the
-     current page starts open. What the reader opens or closes is remembered
-     on this device; moving to a page always opens the section it lives in. */
-  const FOLD_KEY = "bw.nav.open";
-  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  /* WHICH SECTIONS ARE UNFOLDED.
+
+     The one holding the page you are on opens by itself, and opens again when
+     you move to another; the rest stay folded until pressed, so a desk with
+     five departments shows five lines, not thirty. What was pressed is
+     remembered for as long as the page is open. On Home, the first section is
+     the one shown.
+
+     A short menu is not folded at all: a floor clerk with ten rows in all
+     should see every one of them without pressing anything, because the row
+     they need ten times an hour — Receive cargo — must never be behind a fold. */
+  const [pressed, setPressed] = useState<Record<string, boolean>>({});
+  const labelled = sections.filter((s) => s.label);
+  const shortMenu = sections.reduce((n, s) => n + s.items.length, 0) <= 14;
+  const here = sections.find((s) => s.label && s.items.some((i) => i.href === current))?.label;
+  const isOpen = (s: NavSection) =>
+    s.label in pressed ? pressed[s.label] : shortMenu || s.label === (here ?? labelled[0]?.label);
+  const toggle = (s: NavSection) => setPressed((p) => ({ ...p, [s.label]: !isOpen(s) }));
+  useEffect(() => {
+    if (here) setPressed((p) => (p[here] === true ? p : { ...p, [here]: true }));
+  }, [here]);
+
+  /* THE RAIL CAN SHRINK TO ICONS. What was chosen is kept in this browser, and
+     the page always starts wide so the first paint matches the server's. */
+  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(FOLD_KEY) ?? "{}") as Record<string, boolean>;
-      setOpened((now) => ({ ...saved, ...now }));
+      if (localStorage.getItem("bw.sidebar") === "collapsed") setCollapsed(true);
     } catch {
-      /* no storage — every section simply follows the page */
+      /* private window or blocked storage: it simply starts wide */
     }
   }, []);
-  const hereSection = sections.find((s) => s.items.some((i) => i.href === current))?.label;
-  useEffect(() => {
-    if (hereSection) setOpened((now) => (now[hereSection] ? now : { ...now, [hereSection]: true }));
-  }, [hereSection]);
-  const isOpen = (label: string) => opened[label] ?? label === hereSection;
-  const toggle = (label: string) =>
-    setOpened((now) => {
-      const next = { ...now, [label]: !isOpen(label) };
-      try {
-        window.localStorage.setItem(FOLD_KEY, JSON.stringify(next));
-      } catch {
-        /* remembered for this visit only */
-      }
-      return next;
-    });
-
-  /* As on Target Express: the page you are on in the brand colour, the rest
-     quiet. min-h-11 on a phone — 36px rows are a miss-tap apart one-handed;
-     the computer keeps the tighter rhythm. */
-  const row = (item: { href: string; icon: string; label: string }, inGroup = false) => {
-    const active = isActive(item.href);
-    return (
-      <Link
-        href={item.href}
-        onClick={() => setOpen(false)}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "relative flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
-          active ? "bg-brand/10 font-medium text-brand" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-        )}
-      >
-        {/* The page you are on, marked on the hairline too. */}
-        {active && inGroup ? <span aria-hidden className="absolute inset-y-1.5 -left-[9px] w-[3px] rounded-r bg-brand" /> : null}
-        <Glyph name={item.icon} className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
-      </Link>
-    );
+  const setRail = (next: boolean) => {
+    setCollapsed(next);
+    try {
+      localStorage.setItem("bw.sidebar", next ? "collapsed" : "wide");
+    } catch {
+      /* same */
+    }
   };
 
-  const nav = (
-    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-      {/* Home stands on its own above everything, because every desk starts and
-          returns here and it belongs to no department. */}
-      <div className="mb-4">{row(home)}</div>
+  /* SEARCH THE MENU. Every row this person may open, found by what it is called
+     — in their own language or in English. Enter goes to the first one; Ctrl or
+     Cmd + K gets to the box from anywhere on a computer. */
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const every = [
+    { item: home as { href: string; icon: string; label: string }, where: "" },
+    ...sections.flatMap((s) => s.items.map((item) => ({ item, where: s.label }))),
+  ];
+  const needle = q.trim().toLowerCase();
+  const hits = needle
+    ? every.filter(({ item }) => tr(item.label).toLowerCase().includes(needle) || item.label.toLowerCase().includes(needle))
+    : [];
+  const focusSearch = () => {
+    if (collapsed) setRail(false);
+    setTimeout(() => searchRef.current?.focus(), 60);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && window.matchMedia("(min-width: 1024px)").matches) {
+        e.preventDefault();
+        focusSearch();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
+  const go = (href: string) => {
+    setQ("");
+    setOpen(false);
+    router.push(href);
+  };
 
-      {sections.map((section) => {
-        /* A section with no heading is the desk's own top rows, standing with
-           Home rather than grouped under a name — never folded. */
-        if (!section.label) {
-          return (
-            <ul key="top" className="mb-4 space-y-0.5">
-              {section.items.map((item) => (
-                <li key={item.href}>{row(item)}</li>
-              ))}
-            </ul>
-          );
-        }
-        const shown = isOpen(section.label);
-        const holdsCurrent = section.label === hereSection;
-        return (
-          <div key={section.label} className="mb-1.5 last:mb-0">
+  const row = (item: { href: string; icon: string; label: string }) => (
+    <Link
+      href={item.href}
+      onClick={() => setOpen(false)}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] transition-all",
+        isActive(item.href)
+          ? "bg-gradient-to-r from-brand/15 to-brand/5 font-medium text-foreground shadow-sm ring-1 ring-inset ring-brand/30"
+          : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
+      )}
+    >
+      <Glyph name={item.icon} className="size-4 shrink-0" />
+      <span className="truncate">{tr(item.label)}</span>
+    </Link>
+  );
+
+  /* The box at the top of the menu. */
+  const searchBox = (ref?: React.Ref<HTMLInputElement>, hint = false) => (
+    <div className="px-3 pt-3">
+      <label className="flex h-10 items-center gap-2.5 rounded-xl border border-border/60 bg-background/50 px-3 text-sm focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-brand/15">
+        <Search className="size-4 shrink-0 text-muted-foreground" />
+        <input
+          ref={ref}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && hits[0]) go(hits[0].item.href);
+            if (e.key === "Escape") setQ("");
+          }}
+          placeholder={tr("Search pages")}
+          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+        />
+        {hint ? (
+          <kbd className="hidden rounded-md border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground xl:inline">⌘K</kbd>
+        ) : null}
+      </label>
+    </div>
+  );
+
+  const searchResults = (
+    <ul className="space-y-0.5">
+      {hits.length === 0 ? (
+        <li className="px-3 py-6 text-center text-xs text-muted-foreground">{tr("Nothing found")}</li>
+      ) : (
+        hits.map(({ item, where }) => (
+          <li key={`${where}-${item.href}-${item.label}`}>
             <button
               type="button"
-              onClick={() => toggle(section.label)}
-              aria-expanded={shown}
-              className={cn(
-                "focus-ring flex min-h-11 w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors hover:bg-muted/60 hover:text-foreground lg:min-h-0",
-                holdsCurrent ? "text-foreground" : "text-muted-foreground"
-              )}
+              onClick={() => go(item.href)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-1.5 text-left text-[13px] text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
-              <Glyph name={section.icon} className={cn("size-4 shrink-0", holdsCurrent ? "text-brand" : "text-muted-foreground/80")} />
-              <span className="min-w-0 flex-1 truncate">{tr(section.label)}</span>
-              <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200", !shown && "-rotate-90")} />
+              <Glyph name={item.icon} className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{tr(item.label)}</span>
+              {where ? <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">{tr(where)}</span> : null}
             </button>
-            {/* Indented against a hairline: the pages read as belonging to the
-                heading rather than as more top-level rows under it. */}
-            {shown ? (
-              <ul className="mb-2 ml-[1.35rem] mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
+          </li>
+        ))
+      )}
+    </ul>
+  );
+
+  const nav = (
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
+      {needle ? (
+        searchResults
+      ) : (
+        <>
+          {/* Home stands on its own above everything, because every desk starts and
+              returns here and it belongs to no department. A section with no
+              heading is the desk's own top rows and stands with it. */}
+          <p className="px-3 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">{tr("Main")}</p>
+          <div>{row(home)}</div>
+          {sections
+            .filter((section) => !section.label)
+            .map((section) => (
+              <ul key="top" className="space-y-0.5">
                 {section.items.map((item) => (
-                  <li key={item.href}>{row(item, true)}</li>
+                  <li key={item.href}>{row(item)}</li>
                 ))}
               </ul>
-            ) : null}
-          </div>
-        );
-      })}
+            ))}
+
+          {labelled.length > 0 ? (
+            <p className="mt-3 px-3 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">{tr("Workspace")}</p>
+          ) : null}
+          {labelled.map((section) => {
+            const shown = isOpen(section);
+            return (
+              <div key={section.label}>
+                <button
+                  type="button"
+                  onClick={() => toggle(section)}
+                  aria-expanded={shown}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                >
+                  <Glyph name={section.icon} className="size-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{tr(section.label)}</span>
+                  <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !shown && "-rotate-90")} />
+                </button>
+                {/* The rule down the left is what makes a section read as a group
+                    rather than a heading followed by unrelated rows. */}
+                {shown ? (
+                  <ul className="ml-[1.35rem] mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
+                    {section.items.map((item) => (
+                      <li key={item.href}>{row(item)}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            );
+          })}
+        </>
+      )}
+    </nav>
+  );
+
+  /* The same menu squeezed to icons: Home, then one icon per section (lit when
+     it holds the page you are on). Pressing a section opens the rail wide on
+     that section, so nothing is a guess. */
+  const railIcon = "grid size-11 place-items-center rounded-xl transition-all";
+  const rail = (
+    <nav className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto px-2 py-3">
+      <button type="button" onClick={focusSearch} title={`${tr("Search pages")}  (Ctrl K)`} aria-label={tr("Search pages")} className={cn(railIcon, "text-muted-foreground hover:bg-foreground/5 hover:text-foreground")}>
+        <Search className="size-[18px]" />
+      </button>
+      <span aria-hidden className="my-1 h-px w-6 bg-border/70" />
+      <Link
+        href={home.href}
+        title={tr(home.label)}
+        aria-label={tr(home.label)}
+        className={cn(railIcon, isActive(home.href) ? "bg-gradient-to-br from-brand/20 to-brand/5 text-foreground ring-1 ring-inset ring-brand/30" : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground")}
+      >
+        <Glyph name={home.icon} className="size-[18px]" />
+      </Link>
+      {sections.map((section) =>
+        section.label ? (
+          <button
+            key={section.label}
+            type="button"
+            title={tr(section.label)}
+            aria-label={tr(section.label)}
+            onClick={() => {
+              setPressed((p) => ({ ...p, [section.label]: true }));
+              setRail(false);
+            }}
+            className={cn(railIcon, here === section.label ? "bg-gradient-to-br from-brand/20 to-brand/5 text-foreground ring-1 ring-inset ring-brand/30" : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground")}
+          >
+            <Glyph name={section.icon} className="size-[18px]" />
+          </button>
+        ) : (
+          section.items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={tr(item.label)}
+              aria-label={tr(item.label)}
+              className={cn(railIcon, isActive(item.href) ? "bg-gradient-to-br from-brand/20 to-brand/5 text-foreground ring-1 ring-inset ring-brand/30" : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground")}
+            >
+              <Glyph name={item.icon} className="size-[18px]" />
+            </Link>
+          ))
+        )
+      )}
     </nav>
   );
 
   return (
     <LocaleProvider locale={locale}>
-    <div className="flex min-h-dvh bg-surface-2">
-      {/* Desktop rail */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r bg-card lg:flex print:!hidden">
-        <div className="flex h-16 items-center border-b px-4">
-          <Link href={home.href}>
-            <BrandMark size={32} />
-          </Link>
+    <div
+      className="flex min-h-dvh max-w-full touch-pan-x touch-pan-y overflow-x-clip bg-surface-2 print:max-w-none print:overflow-visible"
+      style={{ backgroundImage: "radial-gradient(46rem 34rem at 0% 0%, hsl(var(--brand) / 0.10), transparent 70%), radial-gradient(40rem 30rem at 100% 100%, hsl(var(--brand) / 0.06), transparent 70%)" }}
+    >
+      {/* Desktop rail: a floating glass panel that can shrink to icons. */}
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-dvh shrink-0 p-3 transition-[width] duration-300 ease-out lg:block print:!hidden",
+          collapsed ? "w-[5.5rem]" : "w-[18.5rem]"
+        )}
+      >
+        <div className="relative flex h-full flex-col rounded-[28px] border border-border/60 bg-card/75 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-card/60">
+          <button
+            type="button"
+            onClick={() => setRail(!collapsed)}
+            aria-label={collapsed ? tr("Expand menu") : tr("Collapse menu")}
+            title={collapsed ? tr("Expand menu") : tr("Collapse menu")}
+            className="absolute -right-3 top-7 z-10 grid size-7 place-items-center rounded-full border border-border bg-background text-foreground shadow-md transition-transform hover:scale-110"
+          >
+            <ChevronLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
+          </button>
+          <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center px-2" : "px-4")}>
+            <Link href={home.href} aria-label={tr(home.label)}>
+              <BrandMark size={32} showWordmark={!collapsed} />
+            </Link>
+          </div>
+          {collapsed ? rail : (
+            <>
+              {searchBox(searchRef, true)}
+              {nav}
+            </>
+          )}
+          <UserFooter user={user} locale={locale} compact={collapsed} />
         </div>
-        {nav}
-        <UserFooter user={user} locale={locale} unread={unread} />
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer: the same glass panel, floating off the edge. */}
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             aria-label={tr("Close menu")}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
-          <aside className="drawer-in absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-background pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-xl">
-            <div className="flex h-16 items-center justify-between border-b px-4">
+          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] flex w-72 max-w-[85vw] flex-col rounded-[28px] border border-border/60 bg-background/90 shadow-2xl backdrop-blur-xl dark:border-white/10">
+            <div className="flex h-16 shrink-0 items-center justify-between px-4">
               <BrandMark size={32} />
               <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label={tr("Close menu")}>
                 <X />
               </Button>
             </div>
+            {searchBox()}
             {nav}
-            <UserFooter user={user} locale={locale} unread={unread} />
+            <UserFooter user={user} locale={locale} />
           </aside>
         </div>
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center gap-3 border-b px-4 pt-[env(safe-area-inset-top)] lg:px-8 print:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setOpen(true)}
-            aria-label={tr("Open menu")}
-          >
-            <Menu />
-          </Button>
-          <Link href={home.href} className="lg:hidden">
-            <BrandMark size={28} showWordmark={false} />
-          </Link>
-          <div className="min-w-0 lg:hidden">
-            <MobileBack />
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {tr(user.departmentLabel ?? user.roleLabel)}
-            </span>
-
-            {/* THE WAY OUT TO THE PUBLIC SITE, from every desk. Without it the
-                only door out of the app was Sign out. An ordinary in-tab link:
-                same origin, so the session stays and coming back lands on the
-                desk they left. */}
-            <Link
-              href="/"
-              title={tr("Open the public website — you stay signed in")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:px-2.5"
+        {/* On a phone the bar floats as a rounded card — menu, today's date, the
+            bell — and nothing else; the rest is in the menu. On a computer it is
+            the full-width bar it always was. */}
+        <header className="sticky top-0 z-30 px-3 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top))] lg:p-0 print:hidden">
+          <div className="glass flex h-14 items-center gap-2 rounded-2xl border border-border/60 px-2 shadow-sm lg:h-16 lg:gap-3 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:px-8 lg:shadow-none">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setOpen(true)}
+              aria-label={tr("Open menu")}
             >
-              <Globe className="size-[18px]" />
-              <span className="hidden sm:inline">{tr("Main site")}</span>
-              <span className="sr-only sm:hidden">{tr("Main site")}</span>
-            </Link>
+              <Menu />
+            </Button>
+            {pathname === home.href ? (
+              <span className="min-w-0 truncate text-sm font-medium text-foreground/80 lg:hidden">{today}</span>
+            ) : null}
+            <div className="min-w-0 lg:hidden">
+              <MobileBack />
+            </div>
+            <div className="ml-auto flex items-center gap-1 lg:gap-3">
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                {tr(user.departmentLabel ?? user.roleLabel)}
+              </span>
 
-            {/* THE BELL BELONGS WHERE PEOPLE LOOK FOR IT. Buried in the menu it
-                was a row you scrolled past; up here the count is visible from
-                every screen, which is the only reason to keep a count at all. */}
-            <Link
-              href="/app/notifications"
-              aria-label={
-                unread > 0
-                  ? `${tr("Notifications")}, ${unread}`
-                  : tr("Notifications")
-              }
-              className="relative grid size-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Bell className="size-[18px]" />
-              {unread > 0 ? (
-                <span className="tnum absolute -right-0.5 -top-0.5 grid min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[10px] font-semibold leading-[18px] text-white">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              ) : null}
-            </Link>
+              {/* THE WAY OUT TO THE PUBLIC SITE, from every desk. An ordinary
+                  in-tab link: same origin, so the session stays and coming back
+                  lands on the desk they left. On a phone it is in the user menu. */}
+              <Link
+                href="/"
+                title={tr("Open the public website — you stay signed in")}
+                className="hidden h-9 items-center gap-1.5 rounded-full px-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:inline-flex"
+              >
+                <Globe className="size-[18px]" />
+                <span>{tr("Main site")}</span>
+              </Link>
 
-            <span className="grid size-9 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-foreground">
-              {initials(user.name)}
-            </span>
+              {/* THE BELL BELONGS WHERE PEOPLE LOOK FOR IT: the count is visible
+                  from every screen, which is the only reason to keep a count. */}
+              <Link
+                href="/app/notifications"
+                aria-label={unread > 0 ? `${tr("Notifications")}, ${unread}` : tr("Notifications")}
+                className="relative grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:size-9"
+              >
+                <Bell className="size-[18px]" />
+                {unread > 0 ? (
+                  <span className="tnum absolute -right-0.5 -top-0.5 grid min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[10px] font-semibold leading-[18px] text-white">
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                ) : null}
+              </Link>
+
+              <span className="hidden size-9 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-foreground lg:grid">
+                {initials(user.name)}
+              </span>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8 print:p-0">
+        <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8 print:p-0">
           {/* Records where the reader walked, for every back control. */}
           <Suspense fallback={null}>
             <NavTrail />
@@ -316,49 +483,76 @@ export function AppShell({
 function UserFooter({
   user,
   locale,
-  unread = 0,
+  compact = false,
 }: {
   user: { name: string; email: string; role: Role; roleLabel: string };
   locale: Locale;
-  unread?: number;
+  compact?: boolean;
 }) {
+  const [menu, setMenu] = useState(false);
+  const tr = (text: string) => t(locale, text);
+  const avatar = (
+    <span className="relative grid size-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-foreground">
+      {initials(user.name)}
+      <span aria-hidden className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card bg-emerald-500" />
+    </span>
+  );
   return (
-    /* Never scrolls away, and never sits under a phone's home bar: shrink-0
-       keeps Sign out on screen under a long menu, and the safe-area padding
-       keeps it pressable above the gesture bar. */
-    <div className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      {/* Your own name is where everybody looks for their own settings, so it
-          is the way in rather than a menu item somebody has to find. */}
-      <Link href="/app/profile" className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent">
-        <span className="relative shrink-0">
-          <span className="grid size-9 place-items-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
-            {initials(user.name)}
-          </span>
-          {unread > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          ) : null}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{user.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{t(locale, user.roleLabel)}</span>
-        </span>
-      </Link>
-      {/* How this person reads the screen: English or 中文, and light or dark. */}
-      <div className="flex items-center justify-between gap-2 px-2 py-1">
-        <LanguageSwitch current={locale} />
-        <ThemeToggle />
-      </div>
-      <Separator className="my-2" />
-      {/* Outlined, full width: the one control people go looking for should not
-          be the hardest to find. */}
-      <form action={logout}>
-        <Button type="submit" variant="outline" className="h-11 w-full justify-start gap-2">
-          <LogOut />
-          {t(locale, "Sign out")}
-        </Button>
-      </form>
+    <div className="relative shrink-0 border-t border-border/50 p-2.5">
+      {menu ? (
+        <>
+          <button type="button" aria-label={tr("Close menu")} className="fixed inset-0 z-40 cursor-default" onClick={() => setMenu(false)} />
+          {/* Everything that is not a page lives here, so the menu itself stays
+              a list of pages: your profile, the theme, the language, the way out. */}
+          <div
+            className={cn(
+              "absolute z-50 w-60 rounded-2xl border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl",
+              compact ? "bottom-2 left-full ml-3" : "bottom-full left-2.5 right-2.5 mb-2 w-auto"
+            )}
+          >
+            <p className="px-2 pb-1.5 pt-1 text-xs text-muted-foreground">
+              {user.name} · {tr(user.roleLabel)}
+            </p>
+            <Link href="/app/profile" onClick={() => setMenu(false)} className="flex items-center justify-between rounded-xl px-2 py-2 text-sm transition-colors hover:bg-foreground/5">
+              {tr("Profile")}
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+            <Link href="/" onClick={() => setMenu(false)} className="flex items-center justify-between rounded-xl px-2 py-2 text-sm transition-colors hover:bg-foreground/5 lg:hidden">
+              {tr("Main site")}
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+            <div className="flex items-center justify-between rounded-xl px-2 py-1 text-sm">
+              {tr("Theme")}
+              <ThemeToggle />
+            </div>
+            <LanguageSwitch current={locale} className="my-1 w-full [&>button]:flex-1 [&>button]:justify-center" />
+            <form action={logout}>
+              <button type="submit" className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10">
+                <LogOut className="size-4" />
+                {tr("Sign out")}
+              </button>
+            </form>
+          </div>
+        </>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setMenu((m) => !m)}
+        aria-expanded={menu}
+        title={user.name}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition-colors hover:bg-foreground/5",
+          compact && "justify-center px-0"
+        )}
+      >
+        {avatar}
+        {compact ? null : (
+          <>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{user.name}</span>
+            <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !menu && "-rotate-90")} />
+          </>
+        )}
+      </button>
     </div>
   );
 }

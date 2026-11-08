@@ -44,24 +44,25 @@ export default async function AppLayout({
           : null,
       }}
     >
-      {/* Working as somebody: a small pill at the bottom, with the one thing
-          needed — Stop. On a phone it stands just above the bottom bar (and
-          the home bar under it), never on top of the bar itself. Hover for who
-          is really behind it. */}
+      {/* Working as somebody: a small pill at the bottom, out of the way, with
+          the one thing needed — Stop. On a phone it floats just above the
+          bottom bar (not on it), and a spacer after the page leaves room so it
+          never covers the last thing on the screen. */}
       {user.impersonatedBy ? (
         <div
           title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
-          className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg ring-1 ring-black/10 lg:bottom-4 lg:right-4 print:hidden"
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg lg:bottom-4 lg:right-4"
         >
           <span className="min-w-0 truncate">Working as {user.name}</span>
           <form action={stopWorkAs} className="shrink-0">
-            <button type="submit" className="rounded-full bg-white/25 px-3 py-1 font-semibold hover:bg-white/35">
+            <button type="submit" className="rounded-full bg-white/25 px-3 py-1.5 font-semibold hover:bg-white/35">
               Stop
             </button>
           </form>
         </div>
       ) : null}
       {children}
+      {user.impersonatedBy ? <div aria-hidden className="h-12 lg:hidden" /> : null}
     </AppShell>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle, BarChart3, ChevronDown, ChevronRight, CircleCheck, Info, ScrollText, TriangleAlert } from "lucide-react";
 
+import { CleanBanner } from "@/components/app/clean-banner";
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { Legend, PingBars, RankedBars, ScoreRing, Sparkline, StackedBars } from "@/components/app/dev-charts";
 import { WorkAsDialog } from "@/components/app/work-as-dialog";
@@ -11,7 +12,7 @@ import { developerOverview, GROUPS, type Finding } from "@/lib/developer-overvie
 import { runChecks, type CheckResult } from "@/lib/developer-checks";
 import { activityKpis, businessPulse, dataPulse, dbSize, deployment, errorList, jobsTable, messagesPulse, peoplePulse, securityExtras, securityPulse, settingsPulse, timings } from "@/lib/developer-system";
 import { WhoCanDo } from "@/components/app/who-can-do";
-import { ROLE_PERMISSIONS } from "@/lib/rbac";
+import { ALL_PERMISSIONS, ROLE_PERMISSIONS } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { primeLocale, T } from "@/lib/server-t";
@@ -110,7 +111,7 @@ export default async function DeveloperHome() {
   const fine = checks.filter((c) => c.status === "ok").length;
   const staffRoles = Array.from(new Set(people.map((p) => p.role)));
   const grants = Object.fromEntries(staffRoles.map((r) => [r, ROLE_PERMISSIONS[r as keyof typeof ROLE_PERMISSIONS] as string[]]));
-  const allPermissions = [...ROLE_PERMISSIONS.ADMIN] as string[];
+  const allPermissions = [...ALL_PERMISSIONS] as string[];
 
   const hour = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Dar_es_Salaam" })) % 24;
   const greeting = hour >= 5 && hour < 12 ? T("Good morning") : hour >= 12 && hour < 17 ? T("Good afternoon") : T("Good evening");
@@ -121,30 +122,7 @@ export default async function DeveloperHome() {
 
   return (
     <div className="space-y-6">
-      <section
-        className="relative overflow-hidden rounded-2xl px-5 py-5 text-white sm:px-8 sm:py-6"
-        style={{ backgroundImage: "linear-gradient(135deg, #2e1065 0%, #5b21b6 55%, #7c3aed 100%)" }}
-      >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.12]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-            backgroundSize: "36px 36px",
-          }}
-        />
-        <div className="relative">
-          <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium text-white/80">
-            <span>{hello}</span>
-            <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">{T("Developer")}</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-            {greeting}, {user.name.split(" ")[0]}.
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/80">{T("Your control room for BlueWave Cargo — health, people and everything done, in one place.")}</p>
-        </div>
-      </section>
+      <CleanBanner title={user.name.split(" ")[0]} kicker={T("Developer")} line={hello} image="/photos/port-cranes.jpg" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <WorkAsDialog people={people} />

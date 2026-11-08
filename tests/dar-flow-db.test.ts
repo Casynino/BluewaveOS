@@ -591,9 +591,11 @@ describe("the Dar floor never sees a price and cannot set one", () => {
     }
     /* Shutting the sailing is the office's: Dar counts the boxes off it. */
     assert.equal(rbac.can("DAR_WAREHOUSE", "container.close"), false);
-    for (const role of ["FINANCE", "MANAGER", "ADMIN"] as const) {
+    for (const role of ["FINANCE", "MANAGER"] as const) {
       assert.ok(rbac.can(role, "container.close"), role);
     }
+    /* The owner watches the sailing close; the manager and Finance close it. */
+    assert.equal(rbac.can("ADMIN", "container.close"), false);
     assert.equal(rbac.can("CUSTOMER_SUPPORT", "container.close"), false);
     assert.equal(rbac.can("CHINA_WAREHOUSE", "container.close"), false);
   });
@@ -603,7 +605,9 @@ describe("the Dar floor never sees a price and cannot set one", () => {
     assert.equal(rbac.can("CUSTOMER_SUPPORT", "container.confirmUnchecked"), false);
     assert.equal(rbac.can("FINANCE", "container.confirmUnchecked"), false);
     assert.equal(rbac.can("MANAGER", "container.confirmUnchecked"), true);
-    assert.equal(rbac.can("ADMIN", "container.confirmUnchecked"), true);
+    /* The owner watches this and does not do it: a sign-off over uncounted cargo
+       is the manager's management decision. */
+    assert.equal(rbac.can("ADMIN", "container.confirmUnchecked"), false);
   });
 
   test("once Dar holds the boxes, the record is Dar's to amend", () => {

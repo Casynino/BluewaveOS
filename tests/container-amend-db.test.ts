@@ -439,18 +439,13 @@ describe("cargo found inside a box that has already sailed", () => {
 });
 
 describe("who may correct a container", () => {
-  test("the sailed pair is Foshan's and management's, never the Dar floor's", async () => {
+  test("the sailed pair is Foshan's, never the Dar floor's", async () => {
     /* `container.load` and `shipment.edit`: the desk that packs the box and
        the desk that owns the sailing. Nobody has opened a container at sea, so
        the only people who can say what is inside it are the people who put it
-       there. */
-    for (const role of ["CHINA_WAREHOUSE", "MANAGER", "ADMIN"] as const) {
-      assert.ok(
-        rbac.canAny(role, ["container.load", "shipment.edit"]),
-        `${role} may correct a sailed box`
-      );
-    }
-    for (const role of ["DAR_WAREHOUSE", "CUSTOMER_SUPPORT", "FINANCE", "CUSTOMER"] as const) {
+       there. The manager and the owner watch the box; they do not pack it. */
+    assert.ok(rbac.canAny("CHINA_WAREHOUSE", ["container.load", "shipment.edit"]));
+    for (const role of ["MANAGER", "ADMIN", "DAR_WAREHOUSE", "CUSTOMER_SUPPORT", "FINANCE", "CUSTOMER"] as const) {
       assert.ok(
         !rbac.canAny(role, ["container.load", "shipment.edit"]),
         `${role} may not`
@@ -492,13 +487,14 @@ describe("who may correct a container", () => {
       "CUSTOMER_SUPPORT",
       "FINANCE",
       "MANAGER",
-      "ADMIN",
     ] as const) {
       assert.ok(
         rbac.canAny(role, constants.CONTAINER_EDIT_PERMISSIONS),
         `${role} may open the container edit page`
       );
     }
+    /* The owner reads the container; there is no job of theirs on the edit page. */
+    assert.ok(!rbac.canAny("ADMIN", constants.CONTAINER_EDIT_PERMISSIONS));
     assert.ok(!rbac.canAny("CUSTOMER", constants.CONTAINER_EDIT_PERMISSIONS));
 
     /* And the sailing itself stays with the desk that books the space. */

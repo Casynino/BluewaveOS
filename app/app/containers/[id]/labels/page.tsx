@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { CargoSticker, LABEL_MM } from "@/components/app/cargo-sticker";
 import { DocumentActions } from "@/components/app/document-actions";
+import { LabelPaper } from "@/components/app/label-paper";
 import { SmartBack } from "@/components/app/smart-back";
 import { recordAudit } from "@/lib/audit";
 import { boxCountFor, stickersFor } from "@/lib/box-labels";
@@ -65,6 +66,7 @@ export default async function ContainerLabelsPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 print:max-w-none print:space-y-0">
+      <LabelPaper />
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
           <SmartBack fallbackHref={`/app/containers/${container.id}`} fallbackLabel={container.reference} />

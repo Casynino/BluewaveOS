@@ -20,7 +20,6 @@ import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
-import { DEVELOPER_CHANGES_ONLY } from "@/lib/audit-quiet";
 import { localeOf } from "@/lib/viewer-locale";
 
 import { primeLocale } from "@/lib/server-t";
@@ -96,9 +95,19 @@ export default async function AuditPage({
   const from = darDay(params.from, false);
   const to = darDay(params.to, true);
 
+  /* The developer's track belongs to the developer and the owner, and to the
+     owner only where something was changed. Nobody else reads it. Lines from
+     before sign-ins stopped being recorded are left out for the owner too. */
+  const NOT_CHANGES = ["auth.login", "auth.login.failed", "auth.logout", "developer.work_as.start", "developer.work_as.stop"];
+  const developerFilter: Prisma.AuditLogWhereInput =
+    user.role === "DEVELOPER"
+      ? {}
+      : user.role === "ADMIN"
+        ? { NOT: { actorType: "DEVELOPER", action: { in: NOT_CHANGES } } }
+        : { NOT: { actorType: "DEVELOPER" } };
+
   const where: Prisma.AuditLogWhereInput = {
-    /* The developer's sign-ins, page views and Work as are not the owner's to read. */
-    ...(user.role === "DEVELOPER" ? {} : { AND: [DEVELOPER_CHANGES_ONLY] }),
+    ...developerFilter,
     ...(params.who ? { actorId: params.who } : {}),
     ...(params.entity ? { entity: params.entity } : {}),
     ...(from || to
@@ -128,11 +137,11 @@ export default async function AuditPage({
     /* Only people who have a line in the log. A name in the picker that can
        only ever return "Nothing recorded" is a question already answered. */
     prisma.user.findMany({
-      where: { auditLogs: { some: {} } },
+      where: { auditLogs: { some: developerFilter }, ...(user.role === "DEVELOPER" ? {} : { role: { not: "DEVELOPER" as const } }) },
       orderBy: { name: "asc" },
       select: { id: true, name: true, role: true },
     }),
-    prisma.auditLog.groupBy({ by: ["entity"], orderBy: { entity: "asc" } }),
+    prisma.auditLog.groupBy({ by: ["entity"], where: developerFilter, orderBy: { entity: "asc" } }),
   ]);
 
   /* Which consignment a bill belongs to is the first thing anybody asks of a

@@ -131,21 +131,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Suspended and former staff keep their history but lose access.
         if (!usable || !ok) {
           await record(false);
-          /* A failed attempt on the developer account is a security event worth
-             a line of its own — the owner reads these, not just the lockout. */
-          if (user?.role === "DEVELOPER") {
-            await prisma.auditLog.create({
-              data: {
-                ...auditIdentity(user),
-                action: "auth.login.failed",
-                entity: "User",
-                entityId: user.id,
-                summary: "Failed sign-in to the developer account",
-                outcome: "FAILURE",
-                requestId: head.get("x-vercel-id") ?? undefined,
-              },
-            });
-          }
+          /* The developer's failed sign-ins are in the sign-in log on the
+             developer's home. They are not changes, so no audit line. */
           return null;
         }
 
@@ -178,19 +165,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               )
             : undefined;
 
-        await prisma.auditLog.create({
-          data: {
-            ...auditIdentity(user),
-            action: "auth.login",
-            entity: "User",
-            entityId: user.id,
-            summary:
-              user.role === "DEVELOPER"
-                ? `${user.name} signed in to the developer account`
-                : `${user.name} signed in`,
-            requestId: head.get("x-vercel-id") ?? undefined,
-          },
-        });
+        /* Signing in is not a change: the developer's sign-ins live in the
+           sign-in log and leave no line in the audit trail. */
+        if (user.role !== "DEVELOPER") {
+          await prisma.auditLog.create({
+            data: {
+              ...auditIdentity(user),
+              action: "auth.login",
+              entity: "User",
+              entityId: user.id,
+              summary: `${user.name} signed in`,
+              requestId: head.get("x-vercel-id") ?? undefined,
+            },
+          });
+        }
 
         return {
           id: user.id,

@@ -320,13 +320,19 @@ describe("pricing is Finance's, wherever the boxes are", () => {
     assert.equal(await liveBills(s.late.cargoId), 0);
   });
 
-  test("the manager and the owner may", async () => {
-    for (const desk of ["manager", "admin"]) {
-      as(desk);
-      const done = await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
-      assert.ok(done.ok || done.error, `${desk} reached the action`);
-      as(null);
-    }
+  test("the manager may; the owner watches and does not price", async () => {
+    as("admin");
+    const owner = await priceActions
+      .confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }))
+      .catch((error: unknown) => ({ error: String(error) }));
+    assert.ok(!("ok" in owner && owner.ok), "the owner was refused");
+    as(null);
+    assert.equal(await liveBills(s.late.cargoId), 0);
+
+    as("manager");
+    const done = await priceActions.confirmPrices({}, form({ scope: "china", cargoIds: [s.early.cargoId, s.late.cargoId] }));
+    assert.ok(done.ok || done.error, "manager reached the action");
+    as(null);
     assert.equal(await liveBills(s.late.cargoId), 1, "and it is billed once");
   });
 });

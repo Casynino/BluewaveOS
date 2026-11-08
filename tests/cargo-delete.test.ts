@@ -39,11 +39,10 @@ describe("deleting a consignment belongs to the floor holding it", () => {
     assert.ok(mayNot("FINANCE", CHINA_SIDE));
   });
 
-  test("the manager and the owner remove either side", () => {
-    for (const role of ["MANAGER", "ADMIN"] as Role[]) {
-      assert.ok(may(role, CHINA_SIDE), `${role} in China`);
-      assert.ok(may(role, DAR_SIDE), `${role} in Dar`);
-    }
+  test("the manager removes either side; the owner watches and removes nothing", () => {
+    assert.ok(may("MANAGER", CHINA_SIDE), "MANAGER in China");
+    assert.ok(may("MANAGER", DAR_SIDE), "MANAGER in Dar");
+    assert.ok(mayNot("ADMIN", [...CHINA_SIDE, ...DAR_SIDE]));
   });
 
   test("Support removes nothing, anywhere", () => {

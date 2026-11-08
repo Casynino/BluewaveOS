@@ -150,10 +150,15 @@ describe("the support desk explains; it does not do", () => {
   test("the port steps belong to every desk in Dar that may hear first", () => {
     /* By the owner's decision, the port arrival is marked by whichever of
        these desks learns of it — the floor, Finance with the bill of lading,
-       Support with the shipping line on the phone, the manager, the owner.
-       Foshan does not. There is no clearance step to mark. */
-    for (const role of ["DAR_WAREHOUSE", "FINANCE", "CUSTOMER_SUPPORT", "MANAGER", "ADMIN"] as Role[]) {
+       Support with the shipping line on the phone. Foshan does not. There is
+       no clearance step to mark. */
+    for (const role of ["DAR_WAREHOUSE", "FINANCE", "CUSTOMER_SUPPORT"] as Role[]) {
       assert.ok(can(role, "container.arrive"), `${role} marks arrival`);
+    }
+    /* The manager and the owner see the port steps and answer for them; they do
+       not mark them. */
+    for (const role of ["MANAGER", "ADMIN"] as Role[]) {
+      assert.equal(can(role, "container.arrive"), false, role);
     }
     assert.equal(can("CHINA_WAREHOUSE", "container.arrive"), false);
     assert.equal(can("CUSTOMER_SUPPORT", "receiving.dar"), false);
@@ -177,25 +182,30 @@ describe("the support desk explains; it does not do", () => {
     }
   });
 
-  test("every desk may add and edit a customer; only the manager and the owner delete one", () => {
+  test("every desk may add and edit a customer; only the manager deletes one", () => {
     /* The owner's decision: the desk the customer is standing at is the one
        that hears the new number, so every desk corrects details. Removing a
        customer is not the same act and is not handed out with it. */
-    for (const role of ["CHINA_WAREHOUSE", "DAR_WAREHOUSE", "CUSTOMER_SUPPORT", "FINANCE", "MANAGER", "ADMIN"] as Role[]) {
+    for (const role of ["CHINA_WAREHOUSE", "DAR_WAREHOUSE", "CUSTOMER_SUPPORT", "FINANCE"] as Role[]) {
       assert.ok(can(role, "customer.create"), role);
       assert.ok(can(role, "customer.manage"), role);
     }
+    /* The manager corrects a customer's record; registering one is a desk's work. */
+    assert.ok(can("MANAGER", "customer.manage"));
+    assert.equal(can("MANAGER", "customer.create"), false);
+    assert.equal(can("ADMIN", "customer.create"), false);
+    assert.equal(can("ADMIN", "customer.manage"), false);
     assert.equal(can("CUSTOMER", "customer.create"), false);
     assert.equal(can("CUSTOMER", "customer.manage"), false);
     const deleters = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) => can(r, "customer.delete"));
-    assert.deepEqual(deleters.sort(), ["ADMIN", "MANAGER"]);
+    assert.deepEqual(deleters.sort(), ["MANAGER"]);
   });
 
   test("payment.verify is Finance's and nobody else's", () => {
     const holders = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((r) =>
       can(r, "payment.verify")
     );
-    assert.deepEqual(holders.sort(), ["ADMIN", "FINANCE", "MANAGER"]);
+    assert.deepEqual(holders.sort(), ["FINANCE"]);
   });
 });
 
