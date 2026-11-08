@@ -323,7 +323,7 @@ export async function controlRoom(now = new Date()): Promise<ControlLine[]> {
       detail: "Booked in short of the packing list, or not found on the container at all.",
       count: dar.count,
       oldestDays: dar.oldestDays,
-      href: "/app/receive/dar",
+      href: "/app/containers/arrived?view=checkin",
       severity: "bad",
     },
     {

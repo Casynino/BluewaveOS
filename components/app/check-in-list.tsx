@@ -157,6 +157,7 @@ export function CheckInList({
   otherContainers,
   addable,
   canAmend,
+  canCheckIn,
   canConfirmUnchecked,
 }: {
   containerId: string;
@@ -170,6 +171,8 @@ export function CheckInList({
   /** Consignments that could be added to this manifest. */
   addable: { id: string; label: string }[];
   canAmend: boolean;
+  /** Is this the floor? Ticking, counting and reporting a row are its alone. */
+  canCheckIn: boolean;
   /** May this desk sign the box off over cargo nobody counted? */
   canConfirmUnchecked: boolean;
 }) {
@@ -262,7 +265,7 @@ export function CheckInList({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {open.length > 0 ? (
+          {open.length > 0 && canCheckIn ? (
             <>
               <Button
                 type="button"
@@ -282,8 +285,10 @@ export function CheckInList({
           {/* The box is shut once, at the end. While rows are still open the
               press that matters is the armful above it, and a desk that may
               close a box over untouched cargo keeps its own control — that
-              permission exists for exactly that case. */}
-          {open.length === 0 || canConfirmUnchecked ? (
+              permission exists for exactly that case. A desk that is not the
+              floor gets only that control: with nothing left unchecked, the
+              confirmation is the floor's sign-off of its own count. */}
+          {(canCheckIn && open.length === 0) || (canConfirmUnchecked && open.length > 0) ? (
             <FinishCheckIn
               containerId={containerId}
               remaining={open.map((r) => r.id)}
@@ -291,6 +296,7 @@ export function CheckInList({
                 rows.filter((r) => r.arrivedPackages !== null && !r.verified && !r.discrepancy)
                   .length
               }
+              canCheckIn={canCheckIn}
               canConfirmUnchecked={canConfirmUnchecked}
             />
           ) : null}
@@ -328,7 +334,7 @@ export function CheckInList({
             <thead className="sticky top-0 z-10 bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="w-8 px-2 py-2">
-                  {pickableShown.length > 0 ? (
+                  {pickableShown.length > 0 && canCheckIn ? (
                     <input
                       type="checkbox"
                       className="size-4 align-middle"
@@ -371,9 +377,10 @@ export function CheckInList({
                   cargoTypes={cargoTypes}
                   otherContainers={otherContainers}
                   canAmend={canAmend}
+                  canCheckIn={canCheckIn}
                   picked={picked.has(row.id)}
                   onPick={
-                    row.arrivedPackages === null && !row.missing
+                    canCheckIn && row.arrivedPackages === null && !row.missing
                       ? () => pick(row.id)
                       : undefined
                   }
@@ -416,11 +423,13 @@ function FinishCheckIn({
   containerId,
   remaining,
   toVerify,
+  canCheckIn,
   canConfirmUnchecked,
 }: {
   containerId: string;
   remaining: string[];
   toVerify: number;
+  canCheckIn: boolean;
   canConfirmUnchecked: boolean;
 }) {
   const [asking, setAsking] = useState(false);
@@ -489,18 +498,20 @@ function FinishCheckIn({
                 They are either on the floor or they are a case, and the
                 container cannot be confirmed until somebody says which.
               </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full"
-                onClick={tickThroughAndConfirm}
-                disabled={pending}
-              >
-                {pending
-                  ? "Checking in…"
-                  : `Tick the ${remaining.length} through as sent, then confirm`}
-              </Button>
+              {canCheckIn ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={tickThroughAndConfirm}
+                  disabled={pending}
+                >
+                  {pending
+                    ? "Checking in…"
+                    : `Tick the ${remaining.length} through as sent, then confirm`}
+                </Button>
+              ) : null}
               {canConfirmUnchecked ? (
                 /* The evening decision, with a name on it. Every consignment it
                    rules over keeps a case, so none of them leaves the dock
@@ -610,6 +621,7 @@ function CheckInRowView({
   cargoTypes,
   otherContainers,
   canAmend,
+  canCheckIn,
   picked,
   onPick,
 }: {
@@ -620,6 +632,7 @@ function CheckInRowView({
   cargoTypes: string[];
   otherContainers: { id: string; reference: string }[];
   canAmend: boolean;
+  canCheckIn: boolean;
   picked: boolean;
   onPick?: () => void;
 }) {
@@ -709,8 +722,8 @@ function CheckInRowView({
             person who can say what it is standing in front of it. The floor
             still never sees a price — what it sets is what the goods are. */}
         <td className="hidden px-3 py-2 text-muted-foreground lg:table-cell">
-          {row.cargoTypes.length > 1 ? (
-            <span>{row.cargoTypes.join(", ")}</span>
+          {row.cargoTypes.length > 1 || !canCheckIn ? (
+            <span>{row.cargoTypes.join(", ") || "—"}</span>
           ) : (
             <CargoTypeCell
               cargoId={row.id}
@@ -800,7 +813,7 @@ function CheckInRowView({
         {/* The three answers, in the order they happen: it is here and right,
             the count is different, something is wrong with it. */}
         <td className="px-3 py-2">
-          {row.missing ? (
+          {row.missing || !canCheckIn ? (
             <span className="text-xs text-muted-foreground">—</span>
           ) : (
             <div className="flex items-center justify-center gap-1">

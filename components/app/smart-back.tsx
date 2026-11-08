@@ -134,16 +134,11 @@ export function MobileBack({ desktop = false }: { desktop?: boolean }) {
   }, [pathname]);
 
   /* On a computer the page header may already carry its own back link, named
-     for that page's parent; this one is only for a page that has none. */
-  const [headerHasOne, setHeaderHasOne] = useState(false);
-  useEffect(() => {
-    if (!desktop) return;
-    const id = window.setTimeout(() => setHeaderHasOne(!!document.querySelector("[data-smart-back]")), 50);
-    return () => window.clearTimeout(id);
-  }, [desktop, pathname]);
-
+     for that page's parent; this one is only for a page that has none. A
+     stylesheet rule hides it whenever the page holds one (globals.css,
+     [data-desktop-back]) — a one-off look on arrival missed a header that
+     streamed in after the loading skeleton, and showed two. */
   if (ROOTS.has(pathname)) return null;
-  if (desktop && headerHasOne) return null;
 
   const match = PARENTS.find((p) => pathname.startsWith(p.prefix) && pathname !== p.parent);
   const dest = walked ?? (match ? { href: match.parent, label: match.label } : { href: "/app/dashboard", label: "Home" });
@@ -152,6 +147,7 @@ export function MobileBack({ desktop = false }: { desktop?: boolean }) {
     <button
       type="button"
       onClick={() => router.push(dest.href)}
+      data-desktop-back={desktop ? "" : undefined}
       className={cn(
         "-ml-1 h-11 max-w-[10rem] items-center gap-0.5 rounded-md pl-1 pr-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-secondary print:hidden",
         desktop ? "mb-2 hidden lg:inline-flex" : "inline-flex"

@@ -364,13 +364,17 @@ export default async function FinanceHubPage() {
         )}
         actions={
           <>
-            <RecordPaymentButton compact />
-            <Button asChild size="sm" variant="outline">
-              <Link href="/app/finance/payments/new">
-                <Layers />
-                {L("Merge")}
-              </Link>
-            </Button>
+            {can(user.role, "payment.submit") ? (
+              <>
+                <RecordPaymentButton compact />
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/app/finance/payments/new">
+                    <Layers />
+                    {L("Merge")}
+                  </Link>
+                </Button>
+              </>
+            ) : null}
             {/* Confirming a container's prices is not a finance-desk shortcut:
                 it happens on the container itself, from Arrived containers,
                 once Dar has counted it. */}

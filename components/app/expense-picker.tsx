@@ -31,7 +31,7 @@ import {
   Search,
   Ship,
   ShieldCheck,
-  Sparkles,
+  History,
   Truck,
   UserRound,
   Users,
@@ -552,7 +552,7 @@ export function RecordExpense({
                 ) : (
                   <>
                     <RailRow
-                      icon={<Sparkles className="size-4 shrink-0" />}
+                      icon={<History className="size-4 shrink-0" />}
                       name={scope === "SPECIAL" ? tx("Special before") : tx("Used most")}
                       count={history.length}
                       active={!searching && groupId === "used-most"}

@@ -11,6 +11,7 @@ import { t, type Locale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { parseScan } from "@/lib/qr";
 import { globalSearch, type SearchHit } from "@/lib/search";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 import { primeLocale } from "@/lib/server-t";
@@ -98,12 +99,14 @@ export default async function SearchPage({
           "Find a box by its QR label, tracking number, customer name or phone number."
         )}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/app/scan">
-              <ScanLine />
-              {t(locale, "Use the camera")}
-            </Link>
-          </Button>
+          can(user.role, "cargo.scan") ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/app/scan">
+                <ScanLine />
+                {t(locale, "Use the camera")}
+              </Link>
+            </Button>
+          ) : null
         }
       />
 

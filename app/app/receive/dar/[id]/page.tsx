@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   ClipboardCheck,
@@ -21,8 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCbm, formatDate } from "@/lib/format";
 import { manifestTally } from "@/lib/manifest-tally";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
-import { requirePermission } from "@/lib/session";
+import { can, canAny } from "@/lib/rbac";
+import { requireStaff } from "@/lib/session";
 import { BoxScanner } from "@/components/app/box-scanner";
 import { cargoTypeOptions } from "@/lib/valuation";
 import { verificationOf, verificationSummary } from "@/lib/verification";
@@ -49,7 +49,14 @@ export default async function CheckInContainerPage({
   searchParams: Promise<{ cargo?: string }>;
 }) {
   await primeLocale();
-  const user = await requirePermission("receiving.dar");
+  /* The floor works this screen. The manager opens it for one thing only: to
+     rule over the consignments the floor could not account for, which is why
+     every control below that counts, ticks or reports is the floor's alone. */
+  const user = await requireStaff();
+  if (!canAny(user.role, ["receiving.dar", "container.confirmUnchecked"])) {
+    redirect("/app/no-access");
+  }
+  const mayCheckIn = can(user.role, "receiving.dar");
   const { id } = await params;
   const { cargo: cargoId } = await searchParams;
 
@@ -239,7 +246,12 @@ export default async function CheckInContainerPage({
         description={`${container.shipment?.vessel ?? "Vessel not recorded"}${
           container.shipment?.voyage ? ` / ${container.shipment.voyage}` : ""
         } · arrived ${formatDate(container.shipment?.actualArrival)}`}
-        back={{ href: "/app/receive/dar", label: "Receiving dock" }}
+        /* The dock is the floor's index; anybody else came from the box. */
+        back={
+          mayCheckIn
+            ? { href: "/app/receive/dar", label: "Receiving dock" }
+            : { href: `/app/containers/${container.id}`, label: container.reference }
+        }
         actions={
           <>
             <Badge tone={waiting === 0 ? "good" : "progress"}>
@@ -263,6 +275,7 @@ export default async function CheckInContainerPage({
 
       {/* Every box off the container, scanned one at a time. Arrival only —
           each consignment is still checked in below. */}
+      {mayCheckIn ? (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -277,6 +290,7 @@ export default async function CheckInContainerPage({
           <BoxScanner mode="dar" containerId={container.id} initial={boxProgress} />
         </CardContent>
       </Card>
+      ) : null}
 
       {/*
         THE CONTAINER'S OWN ARITHMETIC, ABOVE THE ROWS THAT MAKE IT.
@@ -383,6 +397,7 @@ export default async function CheckInContainerPage({
         cargoTypes={cargoTypes}
         otherContainers={otherContainers}
         canAmend={mayAmend}
+        canCheckIn={mayCheckIn}
         canConfirmUnchecked={can(user.role, "container.confirmUnchecked")}
         addable={addable.map((c) => ({
           id: c.id,

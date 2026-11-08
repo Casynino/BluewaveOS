@@ -24,7 +24,7 @@ import {
   setWaitingCargoType,
 } from "@/lib/price-confirmation";
 import { acceptAsExpectedBy } from "@/lib/accept-as-expected";
-import { authorize } from "@/lib/session";
+import { authorize, authorizeAny } from "@/lib/session";
 import { store, UploadError } from "@/lib/storage";
 import { cargoTypeOptions } from "@/lib/valuation";
 
@@ -471,7 +471,11 @@ export async function verifyContainer(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const actor = await authorize("receiving.verify");
+  /* Two desks reach this press for two different sentences. The floor signs
+     off what it counted; the manager, who counts nothing, rules over what the
+     floor could not. */
+  const actor = await authorizeAny(["receiving.verify", "container.confirmUnchecked"]);
+  const mayVerify = can(actor.role, "receiving.verify");
 
   const containerId = String(formData.get("containerId") ?? "");
   const overrideReason = String(formData.get("overrideReason") ?? "").trim();
@@ -485,12 +489,27 @@ export async function verifyContainer(
   let result: Awaited<ReturnType<typeof confirmContainerAtDar>>;
   try {
     result = await prisma.$transaction(
-      (tx) =>
-        confirmContainerAtDar(tx, actor, {
+      async (tx) => {
+        const outcome = await confirmContainerAtDar(tx, actor, {
           container,
           overrideReason,
           mayOverride: can(actor.role, "container.confirmUnchecked"),
-        }),
+        });
+        /*
+          WITHOUT THE FLOOR'S AUTHORITY, ONLY THE OVERRIDE.
+
+          A box with nothing left unchecked is an ordinary sign-off of a count,
+          and that is Dar's: a manager who signed it would be marking the
+          floor's homework. Decided from what the confirmation actually did, in
+          the same transaction, so a row checked in a moment earlier cannot
+          turn the manager's ruling into the floor's signature — refusing here
+          undoes everything written above, the customers' messages included.
+        */
+        if (!mayVerify && !outcome.overridden) {
+          throw new ConfirmationRefused("You do not have permission to do that.");
+        }
+        return outcome;
+      },
       { timeout: 20_000 }
     );
   } catch (error) {

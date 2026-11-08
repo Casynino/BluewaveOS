@@ -130,7 +130,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
       title: `${overdueCredit} · ${tr("Credit past its date")}`,
       detail: tr("Cargo released on a promise, and the promise has run out."),
       href: "/app/finance/credit",
-      meta: overview.money.creditOwedTzs > 0 ? money(overview.money.creditOwedTzs) : undefined,
+      meta: overview.money.creditOverdueTzs > 0 ? money(overview.money.creditOverdueTzs) : undefined,
     });
   }
 
@@ -146,9 +146,15 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
       : []),
   ];
   const held = overview.heldTzs;
+  /* Shares are of what the ring draws: an overdrawn account is left out of the
+     ring, so it is left out of the whole the shares are taken from too. */
+  const shownHeld = moneySlices.reduce((s, x) => s + x.value, 0);
   const collectedToday = overview.money.collectedTodayTzs;
   const spentToday = overview.money.spentToday.tzs;
-  const netToday = collectedToday - spentToday;
+  /* Net cash takes away only costs that left an account today; a cost recorded
+     but not yet paid has moved no money. "Spent today" still lists them all. */
+  const paidOutToday = figures(books, periodRange("today").current).paidOut.tzs;
+  const netToday = collectedToday - paidOutToday;
 
   // ------------------------------------------------- a year, month by month
   const here = darFields(new Date());
@@ -472,7 +478,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
                 <Donut size={92} stroke={14} slices={moneySlices} className="shrink-0" />
                 <ul className="min-w-0 flex-1 space-y-2">
                   {moneySlices.map((slice) => {
-                    const share = held > 0 ? (slice.value / held) * 100 : 0;
+                    const share = shownHeld > 0 ? (slice.value / shownHeld) * 100 : 0;
                     return (
                       <li key={slice.label} className="min-w-0">
                         <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
@@ -540,7 +546,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
             index={6}
             label={tr("Cargo this month")}
             value={`${now.cbmReceived.toFixed(2)} CBM`}
-            hint={`${now.packages} ${tr("packages")} · ${now.customers} ${tr("customers")}`}
+            hint={`${now.packages} ${tr("packages")} · ${now.customers} ${tr("customers billed")}`}
             icon={Package}
             tone="marine"
             href="/app/inventory"
@@ -620,7 +626,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
                       <div className="h-full rounded-full bg-success" style={{ width: `${share}%` }} />
                     </div>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {money(row.collected)} {tr("collected")} · {Math.round(share)}%
+                      {money(row.collected)} {tr("received")} · {Math.round(share)}%
                     </p>
                   </li>
                 );
@@ -705,7 +711,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
             </div>
             {oldestDays > 0 ? (
               <p className="shrink-0 text-right text-xs text-muted-foreground">
-                {tr("oldest")} <span className="font-mono font-semibold text-foreground">{oldestDays}d</span>
+                {tr("oldest")} <span className="font-mono font-semibold text-foreground">{oldestDays}{tr("d")}</span>
               </p>
             ) : null}
           </div>

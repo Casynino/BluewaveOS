@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { History, Package, Users } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -21,7 +22,8 @@ import type { ReleaseMethod } from "@prisma/client";
 
 import { formatDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/session";
+import { canAny } from "@/lib/rbac";
+import { requireStaff } from "@/lib/session";
 
 import { primeLocale, T } from "@/lib/server-t";
 export const metadata: Metadata = { title: "Collected cargo" };
@@ -46,7 +48,12 @@ export default async function CollectedCargoPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   await primeLocale();
-  await requirePermission("release.execute");
+  /*
+    A read-only register. The counter reads it to answer a customer; the
+    manager reads it to review what left, without being able to release.
+  */
+  const user = await requireStaff();
+  if (!canAny(user.role, ["release.execute", "record.review"])) redirect("/app/no-access");
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
 

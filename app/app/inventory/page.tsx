@@ -329,7 +329,8 @@ export default async function InventoryPage({
   const seesPrice = inChina && can(user.role, "finance.view");
   /* Keyed by consignment, so each row can show what the book makes it without
      the list below and the figures beside it being two different reads. */
-  const chinaPrices = seesPrice ? await priceListForChinaFloor() : null;
+  const chinaPrices =
+    seesPrice && can(user.role, "invoice.priceConfirm") ? await priceListForChinaFloor() : null;
 
   /*
     A COLUMN OF NOTHING IS NOT A COLUMN.

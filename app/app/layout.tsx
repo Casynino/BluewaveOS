@@ -51,7 +51,7 @@ export default async function AppLayout({
       {user.impersonatedBy ? (
         <div
           title={`Everything you do is recorded as ${user.impersonatedBy.name} (Developer)`}
-          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg lg:bottom-4 lg:right-4"
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-warning py-1 pl-3 pr-1 text-xs font-medium text-white shadow-lg lg:bottom-4 lg:right-4 print:hidden"
         >
           <span className="min-w-0 truncate">Working as {user.name}</span>
           <form action={stopWorkAs} className="shrink-0">
@@ -62,7 +62,7 @@ export default async function AppLayout({
         </div>
       ) : null}
       {children}
-      {user.impersonatedBy ? <div aria-hidden className="h-12 lg:hidden" /> : null}
+      {user.impersonatedBy ? <div aria-hidden className="h-12 lg:hidden print:hidden" /> : null}
     </AppShell>
   );
 }

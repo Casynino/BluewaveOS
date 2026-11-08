@@ -40,6 +40,7 @@ const COLLECTOR_SUB = [
 export function CollectionsHeader({
   recordPayment,
   canVerify,
+  canRecord,
 }: {
   /** The dialog is loaded on the server; the header only places it. */
   recordPayment?: React.ReactNode;
@@ -49,6 +50,11 @@ export function CollectionsHeader({
    * cannot open. Navigation only — every action still checks for itself.
    */
   canVerify: boolean;
+  /**
+   * payment.submit. Merging, asking for credit and recording a payment are the
+   * desk's daily work; a reader who only reviews the queue is not shown them.
+   */
+  canRecord: boolean;
 }) {
   const tx = useT();
   const pathname = usePathname();
@@ -61,12 +67,14 @@ export function CollectionsHeader({
         description={tx("Who owes us money, what has gone to Finance, and what has come back.")}
         actions={
           <>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/app/finance/payments/new">
-                <Layers />
-                {tx("Merge Payment")}
-              </Link>
-            </Button>
+            {canRecord ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/app/finance/payments/new">
+                  <Layers />
+                  {tx("Merge Payment")}
+                </Link>
+              </Button>
+            ) : null}
             {canVerify ? (
               <Button asChild variant="outline" size="sm">
                 <Link href="/app/finance/credit">
@@ -74,10 +82,10 @@ export function CollectionsHeader({
                   {tx("Release on credit")}
                 </Link>
               </Button>
-            ) : (
+            ) : canRecord ? (
               <AskForCredit canApprove={false} />
-            )}
-            {recordPayment}
+            ) : null}
+            {canRecord ? recordPayment : null}
           </>
         }
       />

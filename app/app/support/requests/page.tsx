@@ -12,6 +12,7 @@ import {
   QuoteControl,
   RequestFiles,
   ScheduleControl,
+  type RequestFile,
 } from "@/components/app/request-desk";
 import { ListCap } from "@/components/app/list-cap";
 import { SectionLabel } from "@/components/app/section-label";
@@ -55,6 +56,33 @@ function Facts({ items }: { items: [string, string | null | undefined][] }) {
   );
 }
 
+/** The desk's note and papers, for a reader who does not work the request. */
+function DeskRecord({ notes, files = [] }: { notes: string | null; files?: RequestFile[] }) {
+  return (
+    <>
+      {notes ? (
+        <p className="rounded-md bg-secondary px-3 py-2 text-xs">{notes}</p>
+      ) : null}
+      {files.length > 0 ? (
+        <ul className="flex flex-wrap gap-2">
+          {files.map((file) => (
+            <li key={file.id}>
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border px-2 py-1 text-xs underline"
+              >
+                {file.label ?? (file.kind === "PROOF" ? T("Proof") : T("Document"))}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * WHAT CAME IN OFF THE WEBSITE.
  *
@@ -82,6 +110,12 @@ export default async function RequestsPage() {
   await primeLocale();
   const viewer = await requirePermission("request.view");
   const mayQuote = can(viewer.role, "rate.view");
+  /* Working a request is `request.manage` and converting one is
+     `customer.manage`; the owner and the manager read this desk without working
+     it. A reader keeps what the controls would have shown — the desk's note, the
+     papers, the consignment or customer it became — without the forms. */
+  const mayManage = can(viewer.role, "request.manage");
+  const mayConvert = can(viewer.role, "customer.manage");
 
   const [quotes, pickups, bookings, staff, quoteCount, pickupCount, bookingCount] =
     await Promise.all([
@@ -209,28 +243,38 @@ export default async function RequestsPage() {
                       {formatRelative(pickup.createdAt)}
                     </p>
                   </div>
-                  <div className="mt-4 space-y-3 border-t pt-4">
-                    <RequestControls
-                      kind="pickup"
-                      id={pickup.id}
-                      status={pickup.status}
-                      notes={pickup.staffNotes}
-                    />
-                    <AssignControl
-                      kind="pickup"
-                      id={pickup.id}
-                      assignedToId={pickup.assignedToId}
-                      staff={staffOptions}
-                    />
-                    <ScheduleControl
-                      id={pickup.id}
-                      scheduledDate={iso(pickup.scheduledDate)}
-                    />
-                    <LinkCargoControl
-                      id={pickup.id}
-                      cargoReference={pickup.cargo?.reference ?? null}
-                    />
-                    <RequestFiles pickupRequestId={pickup.id} files={pickup.documents} />
+                  <div className="mt-4 space-y-3 border-t pt-4 empty:hidden">
+                    {mayManage ? (
+                      <>
+                        <RequestControls
+                          kind="pickup"
+                          id={pickup.id}
+                          status={pickup.status}
+                          notes={pickup.staffNotes}
+                        />
+                        <AssignControl
+                          kind="pickup"
+                          id={pickup.id}
+                          assignedToId={pickup.assignedToId}
+                          staff={staffOptions}
+                        />
+                        <ScheduleControl
+                          id={pickup.id}
+                          scheduledDate={iso(pickup.scheduledDate)}
+                        />
+                      </>
+                    ) : null}
+                    {mayManage || pickup.cargo ? (
+                      <LinkCargoControl
+                        id={pickup.id}
+                        cargoReference={pickup.cargo?.reference ?? null}
+                      />
+                    ) : null}
+                    {mayManage ? (
+                      <RequestFiles pickupRequestId={pickup.id} files={pickup.documents} />
+                    ) : (
+                      <DeskRecord notes={pickup.staffNotes} files={pickup.documents} />
+                    )}
                   </div>
                 </Card>
               </li>
@@ -338,42 +382,48 @@ export default async function RequestsPage() {
                       {formatRelative(booking.createdAt)}
                     </p>
                   </div>
-                  <div className="mt-4 space-y-3 border-t pt-4">
-                    <RequestControls
-                      kind="booking"
-                      id={booking.id}
-                      status={booking.status}
-                      notes={booking.staffNotes}
-                    />
-                    <AssignControl
-                      kind="booking"
-                      id={booking.id}
-                      assignedToId={booking.assignedToId}
-                      staff={staffOptions}
-                    />
-                    <RequestFiles bookingId={booking.id} files={booking.documents} />
-                    {mayQuote ? (
+                  <div className="mt-4 space-y-3 border-t pt-4 empty:hidden">
+                    {mayManage ? (
                       <>
-                        <QuoteControl
-                          id={booking.id}
-                          quotedAmount={
-                            booking.quotedAmount ? booking.quotedAmount.toString() : null
-                          }
-                          quotedCurrency={booking.quotedCurrency}
-                        />
-                        <ConvertControl
+                        <RequestControls
+                          kind="booking"
                           id={booking.id}
                           status={booking.status}
-                          convertedTo={
-                            booking.convertedCustomer
-                              ? {
-                                  code: booking.convertedCustomer.code,
-                                  name: booking.convertedCustomer.fullName,
-                                }
-                              : null
-                          }
+                          notes={booking.staffNotes}
                         />
+                        <AssignControl
+                          kind="booking"
+                          id={booking.id}
+                          assignedToId={booking.assignedToId}
+                          staff={staffOptions}
+                        />
+                        <RequestFiles bookingId={booking.id} files={booking.documents} />
                       </>
+                    ) : (
+                      <DeskRecord notes={booking.staffNotes} files={booking.documents} />
+                    )}
+                    {mayQuote && mayManage ? (
+                      <QuoteControl
+                        id={booking.id}
+                        quotedAmount={
+                          booking.quotedAmount ? booking.quotedAmount.toString() : null
+                        }
+                        quotedCurrency={booking.quotedCurrency}
+                      />
+                    ) : null}
+                    {mayQuote && (mayConvert || booking.convertedCustomer) ? (
+                      <ConvertControl
+                        id={booking.id}
+                        status={booking.status}
+                        convertedTo={
+                          booking.convertedCustomer
+                            ? {
+                                code: booking.convertedCustomer.code,
+                                name: booking.convertedCustomer.fullName,
+                              }
+                            : null
+                        }
+                      />
                     ) : null}
                   </div>
                 </Card>
@@ -426,13 +476,17 @@ export default async function RequestsPage() {
                       {formatRelative(quote.createdAt)}
                     </p>
                   </div>
-                  <div className="mt-4 border-t pt-4">
-                    <RequestControls
-                      kind="quote"
-                      id={quote.id}
-                      status={quote.status}
-                      notes={quote.responseNotes}
-                    />
+                  <div className="mt-4 border-t pt-4 empty:hidden">
+                    {mayManage ? (
+                      <RequestControls
+                        kind="quote"
+                        id={quote.id}
+                        status={quote.status}
+                        notes={quote.responseNotes}
+                      />
+                    ) : (
+                      <DeskRecord notes={quote.responseNotes} />
+                    )}
                   </div>
                 </Card>
               </li>

@@ -59,8 +59,22 @@ export function AppShell({
      browser never disagree about what day it is. */
   const [today, setToday] = useState("");
   useEffect(() => {
-    setToday(new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Dar_es_Salaam" }).format(new Date()));
-  }, []);
+    /* In the reader's language and on the desk's own clock — Foshan's day,
+       for Foshan — so the bar never disagrees with the banner under it. */
+    setToday(
+      new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        timeZone: user.role === "CHINA_WAREHOUSE" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam",
+      }).format(new Date())
+    );
+  }, [locale, user.role]);
+  /* A move to another page closes the phone's menu, whichever link moved it —
+     the person menu's Profile and Notifications included. */
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
   const tr = (text: string) => t(locale, text);
 
   /* The drawer covers the page, so Escape has to take it away again — a
@@ -383,13 +397,13 @@ export function AppShell({
   return (
     <LocaleProvider locale={locale}>
     <div
-      className="flex min-h-dvh max-w-full touch-pan-x touch-pan-y overflow-x-clip bg-surface-2 print:max-w-none print:overflow-visible"
+      className="flex min-h-dvh max-w-full overflow-x-clip bg-surface-2 print:max-w-none print:overflow-visible"
       style={{ backgroundImage: "radial-gradient(48rem 36rem at 0% 0%, rgba(54, 96, 200, 0.14), transparent 70%), radial-gradient(40rem 30rem at 100% 100%, rgba(54, 96, 200, 0.08), transparent 70%)" }}
     >
       {/* Desktop menu: a floating glass panel that can fold to a rail of icons. */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh shrink-0 p-3 transition-[width] duration-300 ease-out lg:block print:!hidden",
+          "sticky top-0 z-40 hidden h-dvh shrink-0 p-3 transition-[width] duration-300 ease-out lg:block print:!hidden",
           collapsed ? "w-[5.9rem]" : "w-[15.5rem]"
         )}
       >
@@ -549,6 +563,25 @@ function UserFooter({
   compact?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  /* The glass panel is a containing block for anything fixed inside it, so a
+     full-screen catcher in here would only cover the panel. Listen on the
+     document instead: a press outside the menu, or Escape, closes it. */
+  const wrapper = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: PointerEvent) => {
+      if (wrapper.current && !wrapper.current.contains(e.target as Node)) setMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
   const tr = (text: string) => t(locale, text);
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
@@ -561,11 +594,10 @@ function UserFooter({
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
   const item = "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors hover:bg-foreground/5 dark:hover:bg-white/[0.06]";
   return (
-    <div className={cn("relative shrink-0", compact ? "flex flex-col items-center pb-3" : "px-3 pb-3 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]")}>
+    <div ref={wrapper} className={cn("relative shrink-0", compact ? "flex flex-col items-center pb-3" : "px-3 pb-3 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]")}>
       <div aria-hidden className="glass-divider mb-2 w-full" />
       {menu ? (
         <>
-          <button type="button" aria-label={tr("Close menu")} className="fixed inset-0 z-40 cursor-default" onClick={() => setMenu(false)} />
           {/* Everything that is not a page lives here, so the menu itself stays
               a list of pages: the profile, the bell, the theme, the language, the
               public site and the way out. Navy like the menu it opens from. */}

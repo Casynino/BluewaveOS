@@ -191,11 +191,18 @@
   /* The page never scrolls or zooms sideways: whatever is too wide scrolls
      inside its own box (a table, a chart), and an invisible element out to the
      right can no longer make the phone shrink the whole screen to fit it.
-     `clip`, not `hidden`, so the sticky header keeps working. */
-  html,
+     `clip`, not `hidden`, so the sticky header keeps working. On the body
+     only: clipped on <html> as well, the body's overflow stops reaching the
+     viewport, and a dialog setting it to hidden could no longer hold the page
+     still behind it. */
   body {
     max-width: 100%;
     overflow-x: clip;
+  }
+  /* The computer's own back control steps aside for a page that names its
+     parent in its header. */
+  main:has([data-smart-back]) [data-desktop-back] {
+    display: none !important;
   }
   a,
   button,

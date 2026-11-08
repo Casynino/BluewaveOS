@@ -39,6 +39,7 @@ export default async function Page({
       <CollectionsHeader
         recordPayment={<RecordPaymentButton />}
         canVerify={can(user.role, "payment.verify")}
+        canRecord={can(user.role, "payment.submit")}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

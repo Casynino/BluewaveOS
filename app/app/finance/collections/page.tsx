@@ -437,6 +437,7 @@ export default async function CollectionsPage({
       <CollectionsHeader
         recordPayment={<RecordPaymentButton />}
         canVerify={can(user.role, "payment.verify")}
+        canRecord={can(user.role, "payment.submit")}
       />
 
       {unpricedLanded > 0 ? (

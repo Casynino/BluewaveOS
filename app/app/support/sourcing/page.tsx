@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { localeOf } from "@/lib/viewer-locale";
 
@@ -50,7 +51,10 @@ export default async function SourcingPage({
   const user = await requirePermission("conversation.view");
   const { q, new: newParam } = await searchParams;
   const query = (q ?? "").trim();
-  const creating = newParam === "1";
+  /* Opening a request is answering a customer (`conversation.reply`), which the
+     owner and the manager read here without doing; the action asks again. */
+  const mayCreate = can(user.role, "conversation.reply");
+  const creating = mayCreate && newParam === "1";
 
   const where: Prisma.SourcingRequestWhereInput = query
     ? {
@@ -110,7 +114,7 @@ export default async function SourcingPage({
         title={t(locale, "Sourcing requests")}
         description={t(locale, "Customers who want something found in China.")}
         actions={
-          creating ? (
+          !mayCreate ? undefined : creating ? (
             <Button asChild variant="outline">
               <Link href={keep({})}>
                 <X />

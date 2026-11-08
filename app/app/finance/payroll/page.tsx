@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { PayrollStatus } from "@prisma/client";
 import { Clock, Undo2 } from "lucide-react";
@@ -20,7 +21,8 @@ import {
 } from "@/lib/payroll";
 import { currentExchangeRate } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/session";
+import { can } from "@/lib/rbac";
+import { requireStaff } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { localeOf } from "@/lib/viewer-locale";
 
@@ -69,7 +71,14 @@ export default async function FinancePayrollPage({
   searchParams: Promise<{ run?: string }>;
 }) {
   await primeLocale();
-  const user = await requirePermission("payroll.prepare");
+  /*
+    The Finance tabs show Payroll to the desk that agrees the run as well as the
+    one that prepares it. The approver has its own screen for the same run.
+  */
+  const user = await requireStaff();
+  if (!can(user.role, "payroll.prepare")) {
+    redirect(can(user.role, "payroll.approve") ? "/app/manager/payroll" : "/app/no-access");
+  }
   const { run: asked } = await searchParams;
 
   const [locale, runs, accounts, roster, rateRow] = await Promise.all([

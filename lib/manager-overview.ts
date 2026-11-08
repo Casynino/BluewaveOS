@@ -578,7 +578,7 @@ export async function managerOverview(locale: Locale = "en", now = new Date()) {
         tone: "bad",
         title: count(shortBoxes, "box(es) short of the manifest"),
         detail: t(locale, "Booked in at Dar with fewer packages than Foshan recorded, and nobody has reviewed the gap."),
-        href: "/app/receive/dar",
+        href: "/app/containers/arrived?view=checkin",
       },
       {
         id: "dar-missing",
@@ -624,7 +624,7 @@ export async function managerOverview(locale: Locale = "en", now = new Date()) {
         tone: "neutral",
         title: count(position.ready, "ready, not collected"),
         detail: t(locale, "Paid for and ready to go, and still on our floor."),
-        href: "/app/release",
+        href: "/app/finance/collections?view=ready",
       },
       {
         id: "fin-drafts",
@@ -918,6 +918,7 @@ export async function managerOverview(locale: Locale = "en", now = new Date()) {
       billedToday,
       spentToday,
       creditOwedTzs: credit.overview.owed.toNumber(),
+      creditOverdueTzs: credit.overview.overdue.toNumber(),
       creditUnconvertedUsd: credit.overview.unconvertedUsd.toNumber(),
       owedTzs: owed.tzs.toNumber(),
       owedUsd: owed.usd.toNumber(),

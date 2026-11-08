@@ -444,13 +444,13 @@ export default async function InvoicePage({
             </CardContent>
           </Card>
         ) : null}
-        {otherUnpaid > 0 ? (
+        {otherUnpaid > 0 && can(user.role, "payment.submit") ? (
           <Link
             href={`/app/finance/payments/new/${invoice.customerId}`}
             className="block rounded-xl border border-brand/40 bg-brand/5 p-4 text-sm hover:bg-brand/10"
           >
             <span className="font-medium">
-              {invoice.customer.fullName} has {otherUnpaid} other unpaid consignment{otherUnpaid === 1 ? "" : "s"}
+              {invoice.customer.fullName} · {otherUnpaid} {T("other unpaid consignment(s)")}
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">{T("Paying for several at once? Take it as one payment.")}</span>
           </Link>

@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer-locale";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import {
   OPEN_SOURCING,
@@ -251,11 +252,20 @@ export default async function SupportHome() {
 
   /* The same row the desk's pills are defined in once, so the home and any
      other screen that shows them cannot drift apart. The shell's global dialog
-     opens on "#record-payment", over whatever screen the desk is on. */
-  const pills: ActionPill[] = pillsFor("CUSTOMER_SUPPORT").map((pill) => ({
-    ...pill,
-    label: t(locale, pill.label),
-  }));
+     opens on "#record-payment", over whatever screen the desk is on.
+     The owner and the manager read this home too and hand up no payment claim,
+     so the two payment pills are only offered to whoever can submit one. */
+  const mayTakePayment = can(user.role, "payment.submit");
+  const pills: ActionPill[] = pillsFor("CUSTOMER_SUPPORT")
+    .filter(
+      (pill) =>
+        mayTakePayment ||
+        (pill.href !== "#record-payment" && pill.href !== "/app/finance/payments/new")
+    )
+    .map((pill) => ({
+      ...pill,
+      label: t(locale, pill.label),
+    }));
 
   return (
     <div className="space-y-8">

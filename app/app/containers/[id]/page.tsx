@@ -623,10 +623,12 @@ export default async function ContainerPage({
                 }
               />
             ) : null}
-            {can(user.role, "receiving.dar") && awaitingCheckIn > 0 ? (
+            {/* The manager reaches the same page to confirm over consignments
+                nobody could check in; only Dar checks them in. */}
+            {canAny(user.role, ["receiving.dar", "container.confirmUnchecked"]) && awaitingCheckIn > 0 ? (
               <Button asChild>
                 <Link href={`/app/receive/dar/${container.id}`}>
-                  {T("Check in at Dar")} ({awaitingCheckIn})
+                  {can(user.role, "receiving.dar") ? T("Check in at Dar") : T("Dar check-in")} ({awaitingCheckIn})
                 </Link>
               </Button>
             ) : null}

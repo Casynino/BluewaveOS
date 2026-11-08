@@ -64,7 +64,7 @@ const QUEUES: Record<QueueKey, QueueDef> = {
     label: "Prices to confirm",
     detail: "Counted at Dar or priced in draft, and nobody has been billed yet.",
     href: "/app/containers/arrived?view=pricing",
-    permission: "invoice.issue",
+    permission: "invoice.priceConfirm",
   },
   rates: {
     key: "rates",
