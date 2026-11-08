@@ -231,8 +231,12 @@ export function KpiCard({
             </span>
           ) : null}
 
+          {/* No trend line beside the figure on a phone: at half a phone's
+              width it pushed the number and its words into a column. */}
           {trend && trend.length > 1 ? (
-            <Sparkline values={trend} tone={SPARK_TONE[tone]} label={label} />
+            <span className="hidden sm:block">
+              <Sparkline values={trend} tone={SPARK_TONE[tone]} label={label} />
+            </span>
           ) : null}
         </div>
       </div>
