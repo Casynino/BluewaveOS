@@ -116,7 +116,7 @@ export function KpiCard({
   const card = (
     <div
       className={cn(
-        "animate-in-up group relative h-full overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all",
+        "animate-in-up group relative h-full overflow-hidden rounded-xl border bg-card p-4 shadow-soft transition-all sm:p-5",
         href && "hover:-translate-y-0.5 hover:shadow-raised",
         className
       )}
@@ -132,13 +132,23 @@ export function KpiCard({
 
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="line-clamp-2 break-words text-xs font-medium uppercase tracking-wide text-muted-foreground sm:line-clamp-1">
             <Tx>{label}</Tx>
           </p>
 
           <p
             className={cn(
-              "tnum mt-2.5 text-[28px] font-semibold leading-none tracking-tight",
+              /* A figure stays on one line: "TZS" on one line and the amount on
+                 the next reads as two numbers. A longer figure is set smaller
+                 instead, so two cards still sit side by side on a phone. */
+              "tnum mt-2.5 whitespace-nowrap font-semibold leading-none tracking-tight",
+              (value ?? "").length > 14
+                ? "text-[14px] sm:text-[22px] 2xl:text-[26px]"
+                : (value ?? "").length > 10
+                  ? "text-[15px] sm:text-[24px] 2xl:text-[28px]"
+                  : (value ?? "").length > 6
+                    ? "text-[20px] sm:text-[28px]"
+                    : "text-[28px]",
               VALUE_TONES[tone]
             )}
           >
@@ -192,15 +202,24 @@ export function KpiCard({
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-3">
+          {/* No ring beside the figure on a phone: at half a phone's width it
+              covered the number. The icon stands in for it there. */}
+          {ring && Icon ? (
+            <span className={cn("grid size-9 place-items-center rounded-lg sm:hidden", ICON_TONES[tone])}>
+              <Icon className="size-4" />
+            </span>
+          ) : null}
           {ring ? (
+            <span className="hidden sm:block">
             <Ring
               value={ring.value}
               total={ring.total}
               tone={SPARK_TONE[tone]}
-              size={52}
-              stroke={6}
+              size={44}
+              stroke={5}
               label={label}
             />
+            </span>
           ) : Icon ? (
             <span
               className={cn(

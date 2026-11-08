@@ -3,72 +3,85 @@ import { cn } from "@/lib/utils";
 /**
  * THE BANNER AT THE TOP OF A HOME SCREEN, KEPT TO WHAT IT IS FOR.
  *
- * A title, one small line saying whose it is, one line for the day, and at most
- * a couple of buttons. Everything else — a sentence of explanation, a search
- * box, a row of chips — is on the page below or in the menu, where it already
- * lives. Centred, with the title set wide and a thin rule either side, so it
- * reads as a heading to a screen rather than as another panel of controls.
+ * The person's name in wide capitals between two thin gold rules, their job
+ * title small and gold under it, then the day — the same banner on every
+ * desk's home. At most a couple of buttons under that; everything
+ * else is on the page below or in the menu, where it already lives.
  *
- * Dark in both themes, so a bright banner never competes with the data under it.
+ * Navy in both themes, so a bright banner never competes with the data under
+ * it. The photograph fades in from the right on a computer only: on a phone it
+ * would sit under the name.
  */
 export function CleanBanner({
   title,
   kicker,
   line,
   children,
-  image,
+  image = "/photos/port-cranes.jpg",
+  tools,
   className,
 }: {
   title: React.ReactNode;
-  /** Whose it is: the desk, or the route. Set small and wide. */
+  /** Whose it is: the job title, or the route. Set small, wide and gold. */
   kicker?: React.ReactNode;
   /** The day, or whatever one line belongs under the title. */
   line?: React.ReactNode;
   /** A button or two, centred under the lines. */
   children?: React.ReactNode;
   /** A photo that fades in from the right edge, from /public/photos. */
-  image?: string;
+  image?: string | null;
+  /** The bell and the night switch, small at the left on a computer. */
+  tools?: React.ReactNode;
   className?: string;
 }) {
+  const long = typeof title === "string" && title.length > 10;
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-3xl border border-white/10 bg-ink px-5 py-7 text-center text-white shadow-raised sm:px-8 sm:py-9",
+        "relative overflow-hidden rounded-2xl bg-[#0a1a33] text-white shadow-[0_10px_30px_-14px_rgba(5,22,39,0.7)] ring-1 ring-white/10 print:hidden",
         className
       )}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_90%_130%,hsl(var(--brand)/0.55),transparent_55%),radial-gradient(ellipse_at_0%_-20%,hsl(var(--signal)/0.22),transparent_50%),radial-gradient(ellipse_at_50%_-40%,hsl(var(--marine)/0.35),transparent_60%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_220px_at_88%_55%,rgba(47,111,208,0.42),transparent_62%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_170px_at_50%_0%,rgba(253,196,0,0.10),transparent_72%)]"
       />
       {image ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 bg-cover bg-center opacity-80 [mask-image:linear-gradient(to_right,transparent,black_55%)] md:block"
+          className="pointer-events-none absolute inset-y-0 right-0 hidden w-[30%] bg-cover bg-center opacity-75 [mask-image:linear-gradient(to_left,#000_40%,transparent)] lg:block"
           style={{ backgroundImage: `url(${image})` }}
         />
       ) : null}
-      <div className="relative">
-        <div className="flex items-center justify-center gap-4">
-          <span aria-hidden className="hidden h-px w-10 bg-signal/70 sm:block" />
-          <h1
-            className={cn(
-              "min-w-0 text-balance font-semibold uppercase",
-              /* A long name keeps its size down so it stays on one or two lines. */
-              typeof title === "string" && title.length > 13
-                ? "text-lg tracking-[0.2em] sm:text-3xl sm:tracking-[0.24em]"
-                : "text-xl tracking-[0.3em] sm:text-4xl"
-            )}
-          >
+
+      {tools ? <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">{tools}</div> : null}
+
+      <div className="relative flex min-h-[7.5rem] flex-col items-center justify-center px-5 py-5 text-center">
+        <h1
+          className={cn(
+            "flex max-w-full items-center gap-4 font-semibold uppercase text-white",
+            long
+              ? "text-lg tracking-[0.22em] sm:text-2xl sm:tracking-[0.3em] lg:text-3xl"
+              : "text-2xl tracking-[0.35em] sm:text-3xl sm:tracking-[0.5em] lg:text-4xl"
+          )}
+        >
+          <span aria-hidden className="hidden h-px w-10 shrink-0 bg-[#fdc400]/60 sm:block" />
+          {/* The padding gives back the space the wide tracking leaves after the
+              last letter, so the word sits truly in the middle. */}
+          <span className={cn("min-w-0 break-words", long ? "pl-[0.22em] sm:pl-[0.3em]" : "pl-[0.35em] sm:pl-[0.5em]")}>
             {title}
-          </h1>
-          <span aria-hidden className="hidden h-px w-10 bg-signal/70 sm:block" />
-        </div>
+          </span>
+          <span aria-hidden className="hidden h-px w-10 shrink-0 bg-[#fdc400]/60 sm:block" />
+        </h1>
         {kicker ? (
-          <p className="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.32em] text-signal">{kicker}</p>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-[#fdc400]">{kicker}</p>
         ) : null}
-        {line ? <p className="tnum mt-1.5 text-sm text-white/70">{line}</p> : null}
-        {children ? <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{children}</div> : null}
+        {line ? <p className="tnum mt-1.5 text-sm text-white/65">{line}</p> : null}
+        {children ? <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div> : null}
       </div>
     </section>
   );

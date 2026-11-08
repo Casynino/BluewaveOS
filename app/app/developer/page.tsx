@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle, BarChart3, ChevronDown, ChevronRight, CircleCheck, Info, ScrollText, TriangleAlert } from "lucide-react";
 
+import { BannerTools } from "@/components/app/banner-tools";
 import { CleanBanner } from "@/components/app/clean-banner";
 import { AddAccountDialog } from "@/components/app/add-account-dialog";
 import { Legend, PingBars, RankedBars, ScoreRing, Sparkline, StackedBars } from "@/components/app/dev-charts";
@@ -115,14 +116,14 @@ export default async function DeveloperHome() {
 
   const hour = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Dar_es_Salaam" })) % 24;
   const greeting = hour >= 5 && hour < 12 ? T("Good morning") : hour >= 12 && hour < 17 ? T("Good afternoon") : T("Good evening");
-  const hello = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" });
+  const hello = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Dar_es_Salaam" });
   const need = o.findings.filter((f) => f.tone !== "info");
   const good = o.findings.filter((f) => f.tone === "info");
   const verdict = o.counts.fix > 0 ? "Something is broken" : o.counts.look > 0 ? "Working, with a few things to look at" : "Everything is healthy";
 
   return (
     <div className="space-y-6">
-      <CleanBanner title={user.name.split(" ")[0]} kicker={T("Developer")} line={hello} image="/photos/port-cranes.jpg" />
+      <CleanBanner title={user.name.split(" ")[0]} kicker={T("Developer")} line={hello} image="/photos/port-cranes.jpg" tools={<BannerTools />} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <WorkAsDialog people={people} />

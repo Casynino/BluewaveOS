@@ -100,6 +100,7 @@ export async function loadBooks(client: TxClient | typeof prisma = prisma) {
             select: {
               id: true,
               reference: true,
+              service: true,
               pickupNote: { select: { onCredit: true, status: true, usedAt: true } },
               darReceiving: { select: { cbm: true } },
               containerLines: {
@@ -169,6 +170,7 @@ export async function loadBooks(client: TxClient | typeof prisma = prisma) {
       customerId: i.customer.id,
       customer: i.customer.businessName || i.customer.fullName,
       cargo: i.cargo.reference,
+      service: i.cargo.service,
       containerId: i.cargo.containerLines[0]?.containerId ?? null,
       /* The bill's own shilling figures, not dollars times a rate again. */
       total: balance.totalTzs ? { usd: Number(i.total), tzs: balance.totalTzs.toNumber() } : pair(Number(i.total)),

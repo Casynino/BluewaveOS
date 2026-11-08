@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 
 import { ActionPills } from "@/components/app/action-pills";
 import { AttentionCenter } from "@/components/app/attention-center";
-import { CommandCentre } from "@/components/app/command-centre";
+import { ExecutiveHome } from "@/components/app/executive-home";
 import { DeskHero } from "@/components/app/desk-hero";
 import { KpiCard } from "@/components/app/kpi-card";
 import { MoneyTile } from "@/components/app/money-tile";
@@ -160,11 +160,10 @@ export default async function DashboardPage() {
      /app/manager so the sidebar and the landing page are the same place. */
   if (user.role === "MANAGER") redirect("/app/manager");
 
-  /* The owner's home is the command centre itself, on this address, reading
-     the same object the manager's does. The owner asked to see at least what
-     the manager sees; a separate owner dashboard deriving the day's money its
-     own way is how the two screens would start to disagree. */
-  if (user.role === "ADMIN") return <CommandCentre user={user} />;
+  /* The owner's home is the whole business on one screen, reading the
+     same books and the same overview the manager's command centre and the
+     finance pages read, so no two screens can disagree about a figure. */
+  if (user.role === "ADMIN") return <ExecutiveHome user={user} />;
 
   /* Finance has a home of its own: the money, what needs chasing and what each
      container is making — not the warehouse's floor charts with money beside

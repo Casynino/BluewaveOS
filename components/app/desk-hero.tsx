@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Search, type LucideIcon } from "lucide-react";
 
+import { BannerTools } from "@/components/app/banner-tools";
 import { CleanBanner } from "@/components/app/clean-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { t } from "@/lib/i18n";
+import { requireUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer-locale";
 
 /**
@@ -49,39 +51,17 @@ export async function DeskHero({
   /** A desk that starts more than one kind of job offers each, in order of use. */
   actions?: { href: string; label: string; icon?: LucideIcon }[];
 }) {
-  const now = new Date();
-
-  const today = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Africa/Dar_es_Salaam",
+  const locale = await viewerLocale();
+  const tr = (text: string) => t(locale, text);
+  const user = await requireUser();
+  /* The day where this desk stands: Foshan reads its own date, everyone else Dar's. */
+  const today = new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
-  }).format(now);
-
-  /*
-    TWO CLOCKS, BECAUSE THE COMPANY LIVES IN TWO OF THEM.
-
-    Foshan is five hours ahead of Dar es Salaam. Half of what goes wrong
-    between the two ends is somebody ringing a warehouse that closed three hours
-    ago, or promising a customer a photograph from a floor where it is
-    midnight. Rendered on the server, so it is the time when the page was
-    built — near enough for a warehouse, and honest about being a page.
-  */
-  const clocks = [
-    { place: "Foshan", zone: "Asia/Shanghai", offset: "GMT+8" },
-    { place: "Dar es Salaam", zone: "Africa/Dar_es_Salaam", offset: "GMT+3" },
-  ].map((c) => ({
-    ...c,
-    time: new Intl.DateTimeFormat("en-GB", {
-      timeZone: c.zone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(now),
-  }));
-
-  const locale = await viewerLocale();
-  const tr = (text: string) => t(locale, text);
+    year: "numeric",
+    timeZone: user.role === "CHINA_WAREHOUSE" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam",
+  }).format(new Date());
 
   /* `action` (the one thing a desk does most) is already the first coloured
      shortcut under the banner, so it is not offered a second time here. */
@@ -97,33 +77,22 @@ export async function DeskHero({
         title={title ?? name}
         kicker={tr(kicker ?? department)}
         image="/photos/port-cranes.jpg"
-        line={
-          <>
-            {today}
-            {clocks.map((clock) => (
-              <span key={clock.place} className="hidden sm:inline">
-                {"  ·  "}
-                {tr(clock.place)} <span className="font-semibold text-white">{clock.time}</span>
-              </span>
-            ))}
-          </>
-        }
+        line={today}
+        tools={<BannerTools />}
       />
+      {/* One slim rounded field with a magnifier; Enter searches. */}
       {search ? (
-      <form action={searchAction} className="flex max-w-2xl gap-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            name="q"
-            placeholder={tr(searchPlaceholder)}
-            aria-label={tr("Search")}
-            className="h-11 rounded-full pl-11 text-sm"
-          />
-        </div>
-        <Button type="submit" className="hidden h-11 rounded-full px-5 sm:inline-flex">
-          {tr("Search")}
-        </Button>
-      </form>
+        <form action={searchAction} className="max-w-2xl">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              name="q"
+              placeholder={tr(searchPlaceholder)}
+              aria-label={tr("Search")}
+              className="h-10 rounded-full pl-11 text-sm"
+            />
+          </label>
+        </form>
       ) : null}
       {buttons.length ? (
         <div className="flex flex-wrap gap-2">
