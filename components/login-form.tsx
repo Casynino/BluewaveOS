@@ -24,11 +24,11 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
   const [state, action] = useActionState<LoginState, FormData>(login, {});
 
   return (
-    <form action={action} className="mt-8 space-y-4">
+    <form action={action} className="mt-8 space-y-4 max-md:mt-4 max-md:space-y-3">
       <input type="hidden" name="callbackUrl" value={callbackUrl} />
 
       <div className="space-y-2">
-        <Label htmlFor="identifier">Phone number or email</Label>
+        <Label htmlFor="identifier" className="max-md:text-[13px]">Phone number or email</Label>
         <Input
           id="identifier"
           name="identifier"
@@ -43,13 +43,13 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           autoFocus
           placeholder="0712 345 678"
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-md:text-[11px] max-md:leading-snug">
           Customers: your Tanzanian number, such as 0712 345 678. Staff: your work email.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="max-md:text-[13px]">Password</Label>
         <PasswordInput
           id="password"
           name="password"

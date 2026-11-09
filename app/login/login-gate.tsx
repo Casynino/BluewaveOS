@@ -37,9 +37,8 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
       </button>
       {/* A browser tab always keeps its address bar; the installed app is full screen. Only phones that have not installed it see this. */}
       {/* On a phone that has not installed BlueWave, the pop-up opens by itself a moment after the page does. */}
-      <InstallPrompt dark />
+      <InstallPrompt />
       <InstallButton
-        dark
         render={(openSheet) => (
           <button
             type="button"
@@ -57,12 +56,12 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
         className={cn(
           "md:contents",
           open
-            ? "max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:items-start max-md:justify-center max-md:overflow-y-auto max-md:bg-[#030812]/65 max-md:p-5 max-md:pt-[max(14vh,calc(env(safe-area-inset-top)+1rem))] max-md:backdrop-blur-[3px]"
+            ? "max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:items-start max-md:justify-center max-md:overflow-y-auto max-md:bg-[#030812]/35 max-md:p-5 max-md:pt-[max(12vh,calc(env(safe-area-inset-top)+1rem))] max-md:backdrop-blur-[2px]"
             : "max-md:hidden"
         )}
         onClick={(e) => e.target === e.currentTarget && setOpen(false)}
       >
-        <div className={cn("relative w-full max-w-sm", open && "ls-pop md:animate-none")}>
+        <div className={cn("relative w-full max-w-sm max-md:max-w-[20rem]", open && "ls-pop md:animate-none")}>
           {children}
           {open ? (
             <button

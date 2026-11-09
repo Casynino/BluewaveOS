@@ -342,6 +342,20 @@
     --ls-a: 360deg;
   }
 }
+/* On a phone the card is a quiet pop-up, like the install card: see-through
+   navy and a hairline edge, without the travelling light. */
+@media (max-width: 767px) {
+  .ls-card {
+    background: rgba(6, 20, 43, 0.55);
+    border-color: rgba(255, 255, 255, 0.09);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.75);
+  }
+  .ls-card::before {
+    display: none;
+  }
+}
 /* the Sign in button catches the light every few seconds */
 .ls-card button[type="submit"] {
   position: relative;
