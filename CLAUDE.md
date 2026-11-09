@@ -193,8 +193,16 @@ deleted.
   the card as a pop-up (`app/login/login-gate.tsx`); from `md` up the card sits
   on the page. "Get the full-screen app" (`components/install-app.tsx`) shows
   how to add it to the home screen in the words of the browser in use (Safari,
-  Chrome, Samsung, Huawei, WeChat/WhatsApp); it opens by itself once after
-  sign-in on a phone and sits in the person's menu as "App".
+  Chrome, Samsung, Huawei, WeChat/WhatsApp). On Android it is one tap ("Install
+  the app"): a small script in `app/layout.tsx`'s head keeps Chrome's install
+  offer (`window.__scInstall`) before the page's code loads. It opens by itself
+  ~1.5s after a phone opens the sign-in page, the staff app or the portal, on
+  every visit until installed (closing it is remembered in sessionStorage for
+  that visit only), never on a computer, and sits in the person's menu as "App".
+- `htmlLimitedBots: /.*/` in `next.config.mjs` keeps every page's metadata in
+  the `<head>`. Without it Next sends it inside the body to ordinary browsers,
+  Chrome never finds the manifest (no install offer at all) and an iPhone
+  ignores its home-screen tags. iPhone launch pictures: `scripts/make-splash.mjs`.
 - Fields are 16px on a phone so an iPhone never zooms into them; bottom tabs
   carry one word each.
 

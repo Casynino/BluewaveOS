@@ -30,14 +30,23 @@ export function InstallApp() {
   can hide them; the only full-screen version is the one put on the home
   screen. So a phone that has not done that gets a small sheet saying how, in
   the words of the browser it is actually using: one tap on Android, three
-  steps on an iPhone. It opens by itself once after sign-in, and any time from
-  the sign-in page and the person's menu. Nothing shows once it is installed.
+  steps on an iPhone. It opens by itself on the sign-in page, the staff app and
+  the customer portal, on every visit until the app is installed (closing it
+  hides it for that visit only), and any time from the sign-in page and the
+  person's menu. Nothing shows once it is installed, and never on a computer.
 */
 
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
+
+declare global {
+  interface Window {
+    /** Set by the small script in the page head (app/layout.tsx), which hears Chrome's install offer before this file has loaded. */
+    __scInstall?: InstallEvent | null;
+  }
+}
 
 // Chrome on Android fires this once, early; kept here so any part of the page can use it later.
 let deferred: InstallEvent | null = null;
@@ -50,10 +59,17 @@ if (typeof window !== "undefined") {
   });
   window.addEventListener("appinstalled", () => {
     deferred = null;
+    window.__scInstall = null;
     listeners.forEach((f) => f());
   });
+  window.addEventListener("sc-install-ready", () => {
+    deferred = deferred ?? window.__scInstall ?? null;
+    listeners.forEach((f) => f());
+  });
+  deferred = window.__scInstall ?? null;
 }
 
+/* Remembered for this visit only: closing the pop-up hides it until the phone opens BlueWave again. */
 const SEEN = "bw.installSeen";
 
 /**
@@ -110,11 +126,17 @@ export function useInstall() {
   }, []);
   const install = useCallback(async () => {
     if (!deferred) return false;
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    deferred = null;
-    listeners.forEach((f) => f());
-    return outcome === "accepted";
+    try {
+      await deferred.prompt();
+      const { outcome } = await deferred.userChoice;
+      deferred = null;
+      window.__scInstall = null;
+      listeners.forEach((f) => f());
+      return outcome === "accepted";
+    } catch {
+      // an offer can be used once; a second tap falls back to the steps
+      return false;
+    }
   }, []);
   return { ...state, install };
 }
@@ -196,7 +218,10 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
         </div>
       </div>
 
-      {canPrompt ? (
+      {/* One tap where the browser offers it (Chrome and the browsers built on it, on
+          Android). An iPhone never can — Apple lets only Safari's own Share sheet add
+          an app — so it always gets the steps. */}
+      {canPrompt && !ios ? (
         <div className="mt-4 flex flex-col gap-2">
           <Button
             type="button"
@@ -279,29 +304,33 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
   );
 }
 
-/** Opens by itself once, a moment after a phone's browser opens the app (never when it is installed); closing it is remembered. */
-export function InstallPrompt() {
+/**
+ * Opens by itself a moment after a phone's browser opens BlueWave, on every
+ * visit until the app is installed; closing it is remembered for that visit
+ * only. Never once installed, never on a computer.
+ */
+export function InstallPrompt({ dark = false }: { dark?: boolean }) {
   const { ready, phone, installed } = useInstall();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!ready || !phone || installed) return;
     try {
-      if (window.localStorage.getItem(SEEN)) return;
+      if (window.sessionStorage.getItem(SEEN)) return;
     } catch {
       return;
     }
-    const timer = window.setTimeout(() => setOpen(true), 2500);
+    const timer = window.setTimeout(() => setOpen(true), 1500);
     return () => window.clearTimeout(timer);
   }, [ready, phone, installed]);
   const close = () => {
     setOpen(false);
     try {
-      window.localStorage.setItem(SEEN, "1");
+      window.sessionStorage.setItem(SEEN, "1");
     } catch {
       /* a private window simply asks again next time */
     }
   };
-  return <InstallSheet open={open} onClose={close} />;
+  return <InstallSheet open={open} onClose={close} dark={dark} />;
 }
 
 /** A button that opens the sheet. Draws nothing on a computer or once the app is installed; `render` lets the caller style it. */

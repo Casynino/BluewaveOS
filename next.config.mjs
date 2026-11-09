@@ -28,6 +28,12 @@ const nextConfig = {
   /* A production build can be made beside a running dev server for timing. */
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
+  /* Every browser gets the page's metadata in the <head>. Left to itself, Next
+     sends it later, inside the body, to ordinary browsers — and Chrome only
+     reads the app manifest from the head, so it never saw BlueWave as an app
+     and never offered Android its one-tap Install; an iPhone likewise ignores
+     its home-screen tags there. */
+  htmlLimitedBots: /.*/,
   /* Development only: lets a phone on the same Wi-Fi load the dev server's
      scripts, so the site can be checked on a real handset. Comma-separated
      hosts in ALLOWED_DEV_ORIGINS, e.g. 192.168.1.155. */

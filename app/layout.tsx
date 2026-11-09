@@ -24,6 +24,14 @@ const display = Archivo({
   display: "swap",
 });
 
+/* iPhone screens (points wide, high, pixel ratio), each with a launch picture in
+   public/brand/splash (scripts/make-splash.mjs): the home-screen app opens on
+   the sign-in scene's navy and the app tile instead of a white flash. */
+const SPLASH = [
+  [440, 956, 3], [430, 932, 3], [428, 926, 3], [420, 912, 3], [414, 896, 3], [414, 896, 2], [414, 736, 3],
+  [402, 874, 3], [393, 852, 3], [390, 844, 3], [375, 812, 3], [375, 667, 2], [320, 568, 2],
+] as const;
+
 export const metadata: Metadata = {
   metadataBase: metadataBaseUrl(),
   title: {
@@ -49,6 +57,10 @@ export const metadata: Metadata = {
     capable: true,
     title: "BlueWave Cargo",
     statusBarStyle: "black-translucent",
+    startupImage: SPLASH.map(([w, h, r]) => ({
+      url: `/brand/splash/${w}x${h}@${r}.png`,
+      media: `screen and (device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait)`,
+    })),
   },
   formatDetection: { telephone: false },
 };
@@ -83,6 +95,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Chrome offers "Install" once and early, often before the page's own
+            code has loaded. This keeps the offer so the pop-up can use it later
+            and the install is one tap (components/install-app.tsx). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__scInstall=e;window.dispatchEvent(new Event('sc-install-ready'))});",
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${display.variable} font-sans`}>
         <ThemeProvider>
           <ThemeColor />

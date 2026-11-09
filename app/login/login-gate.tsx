@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Smartphone, X } from "lucide-react";
 
-import { InstallButton } from "@/components/install-app";
+import { InstallButton, InstallPrompt } from "@/components/install-app";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +36,8 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
         <ArrowRight className="size-4" />
       </button>
       {/* A browser tab always keeps its address bar; the installed app is full screen. Only phones that have not installed it see this. */}
+      {/* On a phone that has not installed BlueWave, the pop-up opens by itself a moment after the page does. */}
+      <InstallPrompt dark />
       <InstallButton
         dark
         render={(openSheet) => (
