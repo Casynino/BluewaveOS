@@ -143,17 +143,18 @@ export function useInstall() {
 
 function Step({ n, icon: Icon, children }: { n: number; icon?: typeof Share; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-3 rounded-xl bg-secondary px-3 py-2.5 text-[13px] leading-snug">
-      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-semibold text-brand-foreground">
+    <li className="flex items-center gap-2.5 rounded-lg bg-secondary px-2.5 py-2 text-[12.5px] leading-snug">
+      <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-foreground">
         {n}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
-      {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" /> : null}
+      {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" /> : null}
     </li>
   );
 }
 
-/** A small card in the middle of the screen, over a dimmed page; Escape, the X or a tap outside closes it. */
+/** A small card in the middle of the screen, over a dimmed page; Escape, the X or a tap outside closes it.
+    Kept small on purpose: it is a hint, not a page (owner, 9 Nov 2026). */
 function Sheet({ onClose, dark, labelId, children }: { onClose: () => void; dark: boolean; labelId: string; children: React.ReactNode }) {
   const close = useRef(onClose);
   close.current = onClose;
@@ -181,7 +182,7 @@ function Sheet({ onClose, dark, labelId, children }: { onClose: () => void; dark
           role="dialog"
           aria-modal="true"
           aria-labelledby={labelId}
-          className="relative w-full max-w-sm rounded-2xl border bg-card p-5 text-card-foreground shadow-lg"
+          className="relative w-full max-w-[19rem] rounded-2xl border bg-card p-4 text-card-foreground shadow-lg"
         >
           {children}
         </div>
@@ -202,19 +203,19 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
         type="button"
         onClick={onClose}
         aria-label={t("Close")}
-        className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className="absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
       >
-        <X className="size-4" />
+        <X className="size-3.5" />
       </button>
-      <div className="flex items-center gap-3 pr-6">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0a1a33] text-white">
-          <Smartphone className="size-5" />
+      <div className="flex items-center gap-2.5 pr-6">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#0a1a33] text-white">
+          <Smartphone className="size-4" />
         </span>
-        <div>
-          <h2 id={labelId} className="text-base font-semibold">
+        <div className="min-w-0">
+          <h2 id={labelId} className="text-[15px] font-semibold leading-tight">
             {t("Use it like an app")}
           </h2>
-          <p className="text-[13px] text-muted-foreground">{t("Full screen, no browser bar, its own icon.")}</p>
+          <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">{t("Full screen, no browser bar, its own icon.")}</p>
         </div>
       </div>
 
@@ -222,9 +223,11 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
           Android). An iPhone never can — Apple lets only Safari's own Share sheet add
           an app — so it always gets the steps. */}
       {canPrompt && !ios ? (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-1.5">
           <Button
             type="button"
+            size="sm"
+            className="h-10 text-[13px]"
             onClick={async () => {
               if (await install()) onClose();
             }}
@@ -232,13 +235,13 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
             <Download />
             {t("Install the app")}
           </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onClose}>
             {t("Not now")}
           </Button>
         </div>
       ) : (
         <>
-          <ol className="mt-4 space-y-2">
+          <ol className="mt-3 space-y-1.5">
             {browser === "in-app" ? (
               <>
                 <Step n={1} icon={EllipsisVertical}>
@@ -253,14 +256,12 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
             ) : ios ? (
               <>
                 <Step n={1} icon={Share}>
-                  {browser === "safari"
-                    ? t("Tap Share in Safari (on a newer iPhone, tap ··· first).")
-                    : t("Tap Share in the address bar or the menu.")}
+                  {browser === "safari" ? t("Tap Share (newer iPhones: tap ··· first).") : t("Tap Share in the address bar or the menu.")}
                 </Step>
                 <Step n={2} icon={SquarePlus}>
-                  {t("Tap Add to Home Screen (scroll down or tap View More if you do not see it).")}
+                  {t("Tap Add to Home Screen.")}
                 </Step>
-                <Step n={3}>{t("Tap Add, then open BlueWave Cargo from your home screen.")}</Step>
+                <Step n={3}>{t("Tap Add, then open it from your home screen.")}</Step>
               </>
             ) : browser === "samsung" ? (
               <>
@@ -289,13 +290,11 @@ export function InstallSheet({ open, onClose, dark = false }: { open: boolean; o
             )}
           </ol>
           {browser !== "in-app" ? (
-            <p className="mt-3 text-[12px] text-muted-foreground">
-              {ios
-                ? t("If this page opened inside WeChat or WhatsApp, open it in Safari first.")
-                : t("If this page opened inside WeChat or WhatsApp, open it in Chrome first.")}
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+              {ios ? t("In WhatsApp or WeChat? Open it in Safari first.") : t("In WhatsApp or WeChat? Open it in Chrome first.")}
             </p>
           ) : null}
-          <Button type="button" variant="outline" className="mt-4 w-full" onClick={onClose}>
+          <Button type="button" variant="outline" size="sm" className="mt-3 w-full text-[13px]" onClick={onClose}>
             {t("Got it")}
           </Button>
         </>
