@@ -118,7 +118,7 @@ function Dialog({
   /* Portalled to the body so the card's overflow does not clip it. */
   return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center overflow-y-auto bg-black/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

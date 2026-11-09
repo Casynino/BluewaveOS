@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Inter } from "next/font/google";
 
 import { InstallApp } from "@/components/install-app";
+import { ThemeColor } from "@/components/theme-color";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UploadBudget } from "@/components/upload-budget";
 import { metadataBaseUrl } from "@/lib/site-url";
@@ -52,10 +53,13 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
+/* The phone's bar colour before the page has loaded, matching the app's
+   ground. ThemeColor then keeps it with the look the person chose in BlueWave
+   (and the sign-in page and the website set their own navy). */
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1320" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#181d2a" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -80,7 +84,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${display.variable} font-sans`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ThemeColor />
+          {/* The home-screen app runs under the phone's clock: this strip is that bar's colour (globals.css). */}
+          <div aria-hidden className="status-strip" />
+          {children}
+        </ThemeProvider>
         <UploadBudget limitBytes={UPLOAD_REQUEST_BUDGET} />
         <InstallApp />
       </body>

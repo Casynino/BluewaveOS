@@ -76,7 +76,7 @@ function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-10">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-10">
       <button type="button" aria-label={tx("Close")} onClick={onClose} className="absolute inset-0 cursor-default" />
       <section role="dialog" aria-modal="true" aria-label={title} className="relative w-full max-w-lg rounded-xl border bg-card text-left shadow-lg">
         <header className="flex items-start justify-between gap-3 border-b px-5 py-4">

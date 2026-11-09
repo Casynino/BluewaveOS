@@ -463,11 +463,18 @@ export function AppShell({
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         {/* On a phone the bar floats as a rounded card — menu, today's date, the
             bell. A computer has no bar at all: the banner carries the bell and
             the night switch, and the person's menu the rest. */}
-        <header className="sticky top-0 z-30 px-3 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top))] lg:hidden print:hidden">
+        <header
+          className="sticky top-0 z-30 px-3 pb-1 pt-[calc(0.75rem+env(safe-area-inset-top))] lg:hidden print:hidden"
+          style={{
+            /* The shell's own ground, solid at the top and fading out under the
+               floating bar, so a scrolled page never shows through above it. */
+            background: "linear-gradient(to bottom, hsl(var(--surface-2)) 60%, hsl(var(--surface-2) / 0))",
+          }}
+        >
           <div className="glass flex h-14 items-center gap-2 rounded-2xl border border-border/60 px-2 shadow-sm lg:h-16 lg:gap-3 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:px-8 lg:shadow-none">
             <Button
               variant="ghost"

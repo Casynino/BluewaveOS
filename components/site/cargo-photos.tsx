@@ -60,10 +60,10 @@ export function CargoPhotos({
     shown && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="fixed inset-0 z-50 flex flex-col bg-black/90"
+            className="fixed inset-0 z-50 flex flex-col bg-black/90 pb-[env(safe-area-inset-bottom)]"
             onClick={() => setOpen(null)}
           >
-            <div className="flex items-center justify-between gap-3 p-3">
+            <div className="flex items-center justify-between gap-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
               <span className="tnum text-xs text-white/70">
                 {reference}
                 {photos.length > 1 ? ` · ${open! + 1}/${photos.length}` : ""}

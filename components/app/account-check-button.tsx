@@ -106,7 +106,7 @@ export function AccountCheckButton({
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8"
+          className="fixed inset-0 z-50 overflow-y-auto bg-background/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-8"
           role="dialog"
           aria-modal="true"
           aria-label={t(locale, "Reconcile an account")}

@@ -20,8 +20,10 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     display_override: ["standalone"],
     orientation: "portrait",
-    background_color: "#0a3350",
-    theme_color: "#0a3350",
+    /* The sign-in scene's navy: the app opens on it, so the launch screen and
+       the status bar match the first page instead of flashing another colour. */
+    background_color: "#06142b",
+    theme_color: "#06142b",
     categories: ["business", "productivity", "logistics"],
     icons: [
       { src: "/brand/app-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

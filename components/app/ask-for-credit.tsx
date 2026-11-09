@@ -105,7 +105,7 @@ export function AskForCredit({ canApprove }: { canApprove: boolean }) {
       {trigger}
       {createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:p-8"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8"
           onClick={(e) => {
             if (e.target === e.currentTarget) close();
           }}
@@ -391,7 +391,7 @@ export function AskCreditButton({
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+              className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
               onClick={(e) => {
                 if (e.target === e.currentTarget) setOpen(false);
               }}

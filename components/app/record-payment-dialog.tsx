@@ -269,7 +269,7 @@ export function RecordPaymentDialog({ canClear = false }: { canClear?: boolean }
   const here = accounts.filter((a) => a.currency === tendered);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-8">
       <button
         type="button"
         aria-label={tx("Close")}

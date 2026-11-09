@@ -259,7 +259,8 @@ export default async function ManagerReport({
         <div className="divide-y rounded-xl border bg-card">
           {rows.map((r) => (
             <div key={r.label} className="flex items-baseline gap-3 px-3 py-2.5">
-              <span className="min-w-0 flex-1">
+              {/* the name keeps room for itself; a note beside the figure wraps instead */}
+              <span className="min-w-[5rem] flex-1">
                 <span className="block text-sm font-medium">{t(locale, r.label)}</span>
                 {r.sub ? <span className="block text-[11px] text-muted-foreground"><Tx>{r.sub}</Tx></span> : null}
               </span>

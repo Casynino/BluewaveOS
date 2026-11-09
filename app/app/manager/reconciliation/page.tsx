@@ -366,7 +366,7 @@ export default async function ManagerReconciliation({
                   <span className="block truncate text-[13px] font-medium text-muted-foreground">
                     {t(locale, meta.label)}
                   </span>
-                  <span className={cn("tnum mt-1.5 block text-[26px] font-bold leading-none", meta.figure)}>
+                  <span className={cn("tnum mt-1.5 block text-[26px] font-bold leading-none max-[359px]:text-[22px]", meta.figure)}>
                     {queue.counts[state].toLocaleString("en-US")}
                   </span>
                   <span className="mt-1.5 block text-[11px] text-muted-foreground">
@@ -377,7 +377,7 @@ export default async function ManagerReconciliation({
                 </span>
                 <span
                   className={cn(
-                    "inline-flex size-7 shrink-0 items-center justify-center rounded-lg",
+                    "inline-flex size-7 shrink-0 items-center justify-center rounded-lg max-[359px]:hidden",
                     meta.iconChip
                   )}
                 >
@@ -512,9 +512,9 @@ export default async function ManagerReconciliation({
                   tone: queue.totals.netTzs.isNegative() ? "text-destructive" : "text-foreground",
                 },
               ].map((cell) => (
-                <div key={cell.label} className="rounded-lg bg-muted/30 px-2 py-1.5">
+                <div key={cell.label} className="rounded-lg bg-muted/30 px-2 py-1.5 max-[359px]:px-1">
                   <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{t(locale, cell.label)}</dt>
-                  <dd className={cn("tnum text-xs font-semibold", cell.tone)}>{cell.value}</dd>
+                  <dd className={cn("tnum text-xs font-semibold max-[359px]:text-[11px]", cell.tone)}>{cell.value}</dd>
                   {cell.aside ? <dd className="text-[10px] text-muted-foreground">{cell.aside}</dd> : null}
                 </div>
               ))}

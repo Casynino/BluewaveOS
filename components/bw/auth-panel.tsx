@@ -38,7 +38,7 @@ export function AuthPanel({
 }) {
   const picture = PHOTOS[photo];
   return (
-    <div className={`bw dark ${bwFontVars} relative isolate min-h-dvh overflow-hidden bg-bw-night text-white`}>
+    <div data-auth-scene className={`bw dark ${bwFontVars} relative isolate min-h-dvh overflow-hidden bg-bw-night text-white`}>
       <a
         href="#auth-form"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-bw-panel focus:px-4 focus:py-2 focus:text-bw-fg"
@@ -53,7 +53,7 @@ export function AuthPanel({
       </div>
       <BwSky />
 
-      <div className="mx-auto flex min-h-dvh max-w-[1320px] flex-col px-4 pb-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:px-8 lg:px-12 lg:pt-8">
+      <div className="mx-auto flex min-h-dvh max-w-[1320px] flex-col safe-px pb-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:[--safe-px:2rem] lg:[--safe-px:3rem] lg:pt-8">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" aria-label="BlueWave Cargo — home" className="shrink-0">
             <Lockup dark />

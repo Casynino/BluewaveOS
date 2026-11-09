@@ -29,7 +29,7 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ls-up inline-flex h-11 items-center gap-2 rounded-full bg-[#40c0e8] px-7 text-[15px] font-semibold text-[#06142b] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] transition hover:brightness-105 active:scale-[0.98] md:hidden"
+        className="ls-up inline-flex h-11 items-center gap-2 rounded-full bg-[#40c0e8] px-8 text-[15px] font-semibold text-[#06142b] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] transition hover:brightness-105 active:scale-[0.98] md:hidden"
         style={{ "--rd": "0.5s" } as React.CSSProperties}
       >
         Sign in
@@ -37,11 +37,12 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
       </button>
       {/* A browser tab always keeps its address bar; the installed app is full screen. Only phones that have not installed it see this. */}
       <InstallButton
+        dark
         render={(openSheet) => (
           <button
             type="button"
             onClick={openSheet}
-            className="ls-up mt-3 inline-flex items-center gap-1.5 text-[13px] text-white/65 underline-offset-4 transition-colors hover:text-white hover:underline md:hidden"
+            className="ls-up mt-4 inline-flex items-center gap-1.5 text-[13px] text-white/65 underline-offset-4 transition-colors hover:text-white hover:underline md:hidden"
             style={{ "--rd": "0.7s" } as React.CSSProperties}
           >
             <Smartphone className="size-3.5" />

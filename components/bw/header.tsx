@@ -153,7 +153,7 @@ export function BwHeader({ contact }: { contact: Contact }) {
       )}
       onMouseLeave={leavePanel}
     >
-      <div className="mx-auto flex h-[4.5rem] max-w-[1320px] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-10">
+      <div className="mx-auto flex h-[4.5rem] max-w-[1320px] items-center gap-2 safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem] sm:gap-3">
         <Link href="/" aria-label="BlueWave Cargo — home" className="shrink-0">
           {/* Over the dark opening band the light cut; once solid, the theme's. */}
           <Lockup dark={!solid} />
@@ -267,7 +267,7 @@ export function BwHeader({ contact }: { contact: Contact }) {
           aria-label="Menu"
           className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bw-night text-white"
         >
-          <div className="mx-auto flex h-[4.5rem] w-full max-w-[1320px] shrink-0 items-center justify-between px-4 pt-[env(safe-area-inset-top)] sm:px-6">
+          <div className="mx-auto flex h-[calc(4.5rem+env(safe-area-inset-top))] w-full max-w-[1320px] shrink-0 items-center justify-between safe-px pt-[env(safe-area-inset-top)] sm:[--safe-px:1.5rem]">
             <Lockup dark />
             <button
               type="button"
@@ -278,7 +278,7 @@ export function BwHeader({ contact }: { contact: Contact }) {
               <X className="size-5" />
             </button>
           </div>
-          <div className="mx-auto w-full max-w-[1320px] flex-1 px-4 pb-10 sm:px-6">
+          <div className="mx-auto w-full max-w-[1320px] flex-1 safe-px pb-10 sm:[--safe-px:1.5rem]">
             <div className="mt-4">
               <TrackField dark id="bw-track-menu" />
             </div>

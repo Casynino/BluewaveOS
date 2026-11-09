@@ -689,7 +689,7 @@ export default async function DarReceivePage({
                 className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors hover:bg-secondary/50"
               >
                 <span className="min-w-0">
-                  <span className="tnum block text-sm font-medium">
+                  <span className="tnum block text-sm font-medium max-[359px]:text-[13px]">
                     {container.reference}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">

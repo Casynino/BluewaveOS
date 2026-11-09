@@ -21,7 +21,7 @@ export function Frame({
   children: React.ReactNode;
   as?: "div" | "section" | "header" | "footer" | "nav";
 }) {
-  return <Tag className={cn("mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-10", className)}>{children}</Tag>;
+  return <Tag className={cn("mx-auto w-full max-w-[1320px] safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem]", className)}>{children}</Tag>;
 }
 
 /** A manifest line: mono capitals behind a coral square. */

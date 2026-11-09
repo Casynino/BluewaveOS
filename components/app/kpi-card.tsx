@@ -142,12 +142,14 @@ export function KpiCard({
                  the next reads as two numbers. A longer figure is set smaller
                  instead, so two cards still sit side by side on a phone. */
               "tnum mt-2.5 whitespace-nowrap font-semibold leading-none tracking-tight",
+              /* The smallest phones (under 360px: a 4-inch Android) take one
+                 size down again, so the figure still fits half the screen. */
               (value ?? "").length > 14
-                ? "text-[14px] sm:text-[22px] 2xl:text-[26px]"
+                ? "text-[14px] max-[359px]:text-[12px] sm:text-[22px] 2xl:text-[26px]"
                 : (value ?? "").length > 10
-                  ? "text-[15px] sm:text-[24px] 2xl:text-[28px]"
+                  ? "text-[15px] max-[359px]:text-[13px] sm:text-[24px] 2xl:text-[28px]"
                   : (value ?? "").length > 6
-                    ? "text-[20px] sm:text-[28px]"
+                    ? "text-[20px] max-[359px]:text-[17px] sm:text-[28px]"
                     : "text-[28px]",
               VALUE_TONES[tone]
             )}
@@ -203,7 +205,7 @@ export function KpiCard({
 
         {/* A long figure on a phone gets the whole width: beside the icon it ran
             under the tile and lost its last digits. */}
-        <div className={cn("flex shrink-0 flex-col items-end gap-3", (value ?? "").length > 6 && "max-sm:hidden")}>
+        <div className={cn("flex shrink-0 flex-col items-end gap-3 max-[359px]:hidden", (value ?? "").length > 6 && "max-sm:hidden")}>
           {/* No ring beside the figure on a phone: at half a phone's width it
               covered the number. The icon stands in for it there. */}
           {ring && Icon ? (

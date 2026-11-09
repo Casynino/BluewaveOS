@@ -1,8 +1,11 @@
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { AuthPanel } from "@/components/bw/auth-panel";
 import { PortalAccess } from "@/components/site/portal-access";
+
+/* The register page is always the dark port scene, so the phone's bar is navy too. */
+export const viewport: Viewport = { themeColor: "#06131f" };
 
 export const metadata: Metadata = {
   title: "Open an account",

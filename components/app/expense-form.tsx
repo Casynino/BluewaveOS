@@ -48,7 +48,7 @@ export function ExpenseForm({
   return (
     /* Over the page, like Record Payment — the header it is opened from has no
        room for a form, and the list underneath is what the desk goes back to. */
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 text-left backdrop-blur-sm sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-left backdrop-blur-sm sm:p-8">
       <button type="button" aria-label={tx("Close")} onClick={() => setOpen(false)} className="absolute inset-0 cursor-default" />
     <Card role="dialog" aria-modal="true" aria-label={tx("Record a cost")} className="relative w-full max-w-2xl p-6">
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-destructive">{tx("Record a cost")}</p>

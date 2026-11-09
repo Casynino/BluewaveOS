@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { BadgeCheck, ShieldX } from "lucide-react";
 
 import { formatCurrency } from "@/lib/currency";
@@ -8,6 +8,9 @@ import { formatDate } from "@/lib/format";
 import { balanceOf } from "@/lib/invoice-balance";
 import { readInvoiceVerifyToken } from "@/lib/invoice-verify";
 import { prisma } from "@/lib/prisma";
+
+/* The check page is navy in either look, so the phone's bar is too. */
+export const viewport: Viewport = { themeColor: "#0a3350" };
 
 export const metadata: Metadata = {
   title: "Verify an invoice",

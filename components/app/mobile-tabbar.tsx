@@ -123,7 +123,7 @@ export function MobileTabbar({
        on a cargo label is a reprint. Under the drawer's z-50. */
     <nav
       aria-label={t("Navigation")}
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] lg:hidden print:hidden"
     >
       <div className="flex h-14 items-stretch">
         {tabs.map((tab) => {
@@ -135,7 +135,7 @@ export function MobileTabbar({
               href={tab.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 transition-colors active:bg-secondary",
+                "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors active:bg-secondary",
                 active ? "text-brand" : "text-muted-foreground"
               )}
             >
@@ -145,7 +145,7 @@ export function MobileTabbar({
                 <span aria-hidden className="absolute inset-x-2.5 top-0 h-0.5 rounded-full bg-brand" />
               ) : null}
               <Icon className="size-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
-              <span className="w-full truncate px-0.5 text-center text-[10.5px] font-medium leading-tight">
+              <span className="max-w-full truncate px-0.5 text-center text-[11px] font-medium leading-tight">
                 {t(tab.label ?? labels.get(tab.href) ?? "")}
               </span>
             </Link>
@@ -155,10 +155,10 @@ export function MobileTabbar({
         <button
           type="button"
           onClick={onMore}
-          className="flex min-w-0 flex-1 flex-col items-center justify-start gap-0.5 pt-1.5 text-muted-foreground transition-colors active:bg-secondary"
+          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors active:bg-secondary"
         >
           <Menu className="size-5 shrink-0" />
-          <span className="w-full truncate px-0.5 text-center text-[10.5px] font-medium leading-tight">
+          <span className="max-w-full truncate px-0.5 text-center text-[11px] font-medium leading-tight">
             {t("Menu")}
           </span>
         </button>

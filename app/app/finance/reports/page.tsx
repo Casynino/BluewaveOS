@@ -121,7 +121,7 @@ export default async function ProfitAndLossPage({
   const maxCbm = Math.max(0.001, ...months.map((m) => m.cbm));
 
   const cell = "min-w-0 break-words bg-card px-4 py-4";
-  const label = "text-[11px] font-semibold uppercase tracking-widest text-muted-foreground";
+  const label = "text-[11px] font-semibold uppercase tracking-widest text-muted-foreground max-[359px]:tracking-normal";
 
   return (
     <div className="space-y-6">
@@ -204,9 +204,9 @@ export default async function ProfitAndLossPage({
             ["Written off", now.writtenOff, "text-warning"],
             ["VAT billed — owed to TRA", now.vat, "text-muted-foreground"],
           ].map(([l, m, tone]) => (
-            <div key={l as string} className="bg-card px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{l as string}</p>
-              <p className={cn("tnum mt-0.5 text-sm font-semibold", tone as string)}>{lead(m as Money)}</p>
+            <div key={l as string} className="bg-card px-4 py-3 max-[359px]:px-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground max-[359px]:tracking-normal">{l as string}</p>
+              <p className={cn("tnum mt-0.5 text-sm font-semibold max-[359px]:text-xs", tone as string)}>{lead(m as Money)}</p>
             </div>
           ))}
         </div>
@@ -431,7 +431,7 @@ export default async function ProfitAndLossPage({
           </header>
           <div className="grid grid-cols-1 gap-px border-b bg-border sm:grid-cols-3">
             {[["Expected", now.revenue, ""], ["Collected", now.revenue.usd ? { usd: now.revenue.usd - now.outstanding.usd, tzs: now.revenue.tzs - now.outstanding.tzs } : now.collected, "text-success"], ["Outstanding", now.outstanding, "text-destructive"]].map(([l, m, tone]) => (
-              <div key={l as string} className="bg-card px-4 py-3">
+              <div key={l as string} className="bg-card px-4 py-3 max-[359px]:px-2.5">
                 <p className={label}>{l as string}</p>
                 <p className={cn("tnum mt-1 font-semibold", tone as string)}>{lead(m as Money)}</p>
               </div>
@@ -467,7 +467,7 @@ export default async function ProfitAndLossPage({
                  under a tile that said "Special" read as one-offs. */
               ["Special & executive", sum(now.costs.filter((c) => c.scope === "SPECIAL" || c.scope === "EXECUTIVE"), (c) => c.amount)],
             ].map(([l, m]) => (
-              <div key={l as string} className="bg-card px-4 py-3">
+              <div key={l as string} className="bg-card px-4 py-3 max-[359px]:px-2.5">
                 <p className={label}>{l as string}</p>
                 <p className="tnum mt-1 font-semibold text-destructive">{lead(m as Money)}</p>
               </div>
@@ -528,7 +528,7 @@ export default async function ProfitAndLossPage({
           </div>
           <div className="grid grid-cols-4 gap-px border-t bg-border">
             {[["Paid", now.counts.paid], ["Unpaid", now.counts.unpaid], ["Part paid", now.counts.partPaid], ["To verify", now.counts.toVerify]].map(([l, n]) => (
-              <div key={l as string} className="bg-card px-4 py-3">
+              <div key={l as string} className="bg-card px-4 py-3 max-[359px]:px-2.5">
                 <p className={label}>{l as string}</p>
                 <p className="tnum mt-1 text-xl font-semibold">{n as number}</p>
               </div>

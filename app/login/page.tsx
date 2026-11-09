@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
-import { AlertTriangle, ArrowLeft, PackageCheck, ReceiptText, Ship } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowUpRight, PackageCheck, ReceiptText, Ship } from "lucide-react";
 
 import { LoginForm } from "@/components/login-form";
 import { LoginGate } from "./login-gate";
@@ -48,18 +48,19 @@ export default async function LoginPage({
   const sessionEnded = revoked && params.reason === "session-ended";
 
   return (
-    <div className="relative isolate min-h-dvh overflow-hidden bg-[#06142b]">
+    <div data-login-scene className="relative isolate min-h-dvh overflow-hidden bg-[#06142b]">
       {/* the animated scene fills the whole page */}
       <LoginScene />
 
       <div className="relative z-10 grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
-        {/* inside the grid, so the phone pop-up's backdrop covers it */}
+        {/* Inside the grid, so the phone pop-up's backdrop covers it. Top left on
+            a phone, where the thumb reaches back; top right on a computer. */}
         <Link
           href="/"
-          className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.07] px-3 py-1.5 text-[12px] text-white/75 backdrop-blur transition-colors hover:border-white/40 hover:text-white lg:right-8 lg:top-6"
+          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.07] px-3 py-1.5 text-[12px] text-white/75 backdrop-blur transition-colors hover:border-white/40 hover:text-white md:left-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:text-[13px] lg:right-8 lg:top-6"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
-          Website
+          Back to site
         </Link>
         {/* Words (wide screens) */}
         <section className="hidden flex-col justify-between p-12 text-white lg:flex">
@@ -92,19 +93,27 @@ export default async function LoginPage({
         </section>
 
         {/* Sign-in card, floating over the scene */}
-        <section className="flex flex-col items-center px-5 py-6 max-md:pt-[calc(env(safe-area-inset-top)+9vh)] lg:justify-center lg:py-10">
+        <section className="flex flex-col items-center px-5 py-6 text-center max-md:pt-[calc(env(safe-area-inset-top)+4.5rem+3vh)] max-md:[@media(max-height:700px)]:pt-[calc(env(safe-area-inset-top)+3.75rem)] md:text-left lg:justify-center lg:py-10">
           <div className="ls-up ls-brand mb-4 self-center md:mb-6 lg:hidden" style={delay(0.05)}>
-            <Logo className="h-28 w-auto sm:h-32" />
+            {/* a short phone (an SE, a small Android) takes a smaller logo so the button stays above the sea */}
+            <Logo className="h-28 w-auto sm:h-32 [@media(min-height:601px)_and_(max-height:700px)]:h-24 [@media(max-height:600px)]:h-20" />
           </div>
-          {/* phones: the scene stays in view, with one button that opens the form */}
+          {/* Phones: the scene is the page — the logo, who it is for, and one
+              button that opens the form over the sea. */}
           <p
-            className="ls-up mb-5 mt-[10vh] max-w-[16rem] text-balance text-center text-[15px] leading-snug text-white/85 md:hidden"
+            className="ls-up mt-[min(11vh,6rem)] font-display [@media(min-height:601px)_and_(max-height:700px)]:mt-[5vh] [@media(max-height:600px)]:mt-[3vh] text-[22px] font-semibold tracking-tight text-white md:hidden"
             style={delay(0.25)}
           >
-            Your cargo from China, in one place
+            Welcome aboard
+          </p>
+          <p
+            className="ls-up mb-6 mt-1.5 max-w-[17rem] text-balance text-sm text-white/65 md:hidden"
+            style={delay(0.32)}
+          >
+            Your cargo from China to Dar, in one place.
           </p>
           <LoginGate defaultOpen={revoked}>
-            <div className="ls-card ls-up dark w-full p-7 text-foreground sm:p-8" style={delay(0.2)}>
+            <div className="ls-card ls-up dark w-full p-7 text-left text-foreground sm:p-8" style={delay(0.2)}>
               <h1 className="ls-title text-2xl font-semibold tracking-tight">Sign in</h1>
               <p className="mt-1.5 text-sm text-white/65">Staff and customers use the same door.</p>
 
@@ -138,9 +147,25 @@ export default async function LoginPage({
               </p>
             </div>
           </LoginGate>
-          <p className="mt-5 text-xs text-white/60 max-md:fixed max-md:inset-x-0 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:z-10 max-md:text-center max-md:text-white/50">
-            BlueWave Cargo · China to Tanzania by sea
-          </p>
+          {/* The foot of the page: whose it is, and who made the system — one quiet
+              link to Nino's page and work (owner, 9 Nov 2026, as on the Vegas sign-in). */}
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 text-xs text-white/60 max-md:fixed max-md:inset-x-0 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-md:z-10 max-md:text-white/50">
+            <span>
+              BlueWave Cargo<span className="max-md:hidden"> · China to Tanzania by sea</span>
+            </span>
+            <span aria-hidden>·</span>
+            <Link
+              href="/nino"
+              className="group -my-2 inline-flex min-h-10 items-center gap-1 rounded-sm text-white/55 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40c0e8]"
+            >
+              Developed by{" "}
+              <span className="font-semibold text-white/80 transition-colors group-hover:text-[#c6f432]">Nino</span>
+              <ArrowUpRight
+                className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                aria-hidden
+              />
+            </Link>
+          </div>
         </section>
       </div>
     </div>

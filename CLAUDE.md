@@ -177,6 +177,37 @@ Releasing to the sender is releasing to the wrong person.
 `ExceptionEvent`, `FieldChange`, `AuditLog`. None of those is ever updated or
 deleted.
 
+## Phone: full screen, like an app (owner, 9 Nov 2026)
+
+- The page runs edge to edge (`viewportFit: "cover"` in `app/layout.tsx`).
+  Anything fixed or sticky at the top or bottom pads itself with
+  `env(safe-area-inset-*)`. The home-screen app runs under the status bar
+  (`black-translucent`); `.status-strip` in `globals.css` keeps the clock
+  readable, and the sign-in and register scenes (`data-login-scene`) run under
+  it themselves.
+- The phone's bar colour follows the look the person chose in BlueWave, not
+  only the phone's setting: `components/theme-color.tsx`. The sign-in scene,
+  the website (`data-site`) and the check page set their own navy. Colours
+  there, in each route's `viewport` and in `globals.css` move together.
+- Sign-in on a phone: the scene with the logo and one Sign in button that opens
+  the card as a pop-up (`app/login/login-gate.tsx`); from `md` up the card sits
+  on the page. "Get the full-screen app" (`components/install-app.tsx`) shows
+  how to add it to the home screen in the words of the browser in use (Safari,
+  Chrome, Samsung, Huawei, WeChat/WhatsApp); it opens by itself once after
+  sign-in on a phone and sits in the person's menu as "App".
+- Fields are 16px on a phone so an iPhone never zooms into them; bottom tabs
+  carry one word each.
+
+## Developed by Nino (owner, 9 Nov 2026)
+
+The sign-in page's foot links "Developed by Nino" to `/nino`, the developer's
+page copied from the Vegas project: every live project with a screenshot of its
+real home page (`public/nino`), the code on GitHub, and how to reach him. It
+names other companies as his clients, by the owner's choice — including other
+China → Tanzania cargo firms — so `tests/identity.test.ts` exempts
+`app/nino/work.ts`, and only that file. Lines on the cards come from each
+project's own site or README, never invented.
+
 ## Language
 
 Every user-facing string goes through `t(locale, "English")`. English is the key;

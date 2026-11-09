@@ -3,6 +3,10 @@ import { bwFontVars } from "@/components/bw/fonts";
 import { BwFooter } from "@/components/bw/footer";
 import { BwHeader } from "@/components/bw/header";
 import { BwSky } from "@/components/bw/sky";
+import type { Viewport } from "next";
+
+/* Every page of the website opens on the night band, so the phone's bar is that navy too. */
+export const viewport: Viewport = { themeColor: "#06131f" };
 
 /**
  * The public site: its own type, its own palette, its own header and footer.
@@ -11,7 +15,7 @@ import { BwSky } from "@/components/bw/sky";
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const company = await bwCompany();
   return (
-    <div className={`bw ${bwFontVars} relative isolate flex min-h-dvh flex-col`}>
+    <div data-site className={`bw ${bwFontVars} relative isolate flex min-h-dvh flex-col`}>
       <BwSky />
       <a
         href="#main"

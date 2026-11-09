@@ -203,7 +203,7 @@ export function LedgerRowFix({
             /* Portalled to the body: the register scrolls sideways, and an
                overflow-clipping ancestor confines even a fixed dialog to its
                own rectangle, leaving the rest of the page lit behind it. */
-            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center">
               <div
                 role="dialog"
                 aria-modal="true"

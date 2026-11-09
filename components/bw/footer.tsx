@@ -66,7 +66,7 @@ export function BwFooter({ company }: { company: BwCompany }) {
         />
       </div>
 
-      <div className="mx-auto grid max-w-[1320px] gap-10 px-4 py-14 sm:px-6 lg:grid-cols-12 lg:px-10">
+      <div className="mx-auto grid max-w-[1320px] gap-10 safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem] py-14 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <Lockup dark />
           <p className="mt-5 max-w-sm leading-relaxed text-white/65">
@@ -114,7 +114,7 @@ export function BwFooter({ company }: { company: BwCompany }) {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="bw-mono mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 px-4 py-5 text-[0.7rem] uppercase tracking-[0.12em] text-white/45 sm:px-6 lg:px-10">
+        <div className="bw-mono mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem] py-5 text-[0.7rem] uppercase tracking-[0.12em] text-white/45">
           <p>
             {/* The year Dar is in, not the year the server's own clock is in:
                 for three hours every New Year's Eve those are different. */}

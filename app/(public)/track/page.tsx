@@ -73,7 +73,7 @@ export default async function TrackPage() {
               ].map(([title, note], i) => (
                 <div key={title} className="min-w-0">
                   <p className="bw-mono text-[0.68rem] text-bw-cyan">{String(i + 1).padStart(2, "0")}</p>
-                  <p className="font-bw-display text-lg font-semibold uppercase sm:text-2xl">{title}</p>
+                  <p className="font-bw-display text-lg font-semibold uppercase max-[359px]:text-[15px] sm:text-2xl">{title}</p>
                   <p className="text-xs text-white/55 sm:text-sm">{note}</p>
                 </div>
               ))}

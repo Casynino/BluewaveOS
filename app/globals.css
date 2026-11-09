@@ -211,7 +211,9 @@
   select {
     touch-action: manipulation;
   }
-  @media (max-width: 767px) {
+  /* An iPhone zooms into any field under 16px and stays zoomed — upright
+     (under 768px) and turned sideways (a phone is under 500px tall then). */
+  @media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
     select,
     textarea {
@@ -1278,3 +1280,74 @@ html.dark .glass-chip { background: #101a2d; color: #dce5f2; }
 .glass-tree > li { position: relative; }
 .glass-tree > li::before { content: ""; position: absolute; left: -1.05rem; top: 50%; width: 0.8rem; height: 0.8rem; border-left: 1px solid var(--glass-line); border-bottom: 1px solid var(--glass-line); border-bottom-left-radius: 0.65rem; transform: translateY(-88%); pointer-events: none; }
 .glass-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--glass-line), transparent); }
+
+/* ───────── Full screen on a phone, like an app ─────────
+   The page runs edge to edge (viewport-fit=cover in app/layout.tsx). The
+   home-screen app runs under the phone's status bar (black-translucent, white
+   clock), so this strip is that bar's own colour: the app's ground at night,
+   the banner navy by day so the white clock stays readable, the night band on
+   the website. It has no height in a browser tab, where the browser draws its
+   own bar. The sign-in scene runs under the clock itself; the register page keeps the strip in its navy.
+   Colours move together with components/theme-color.tsx. */
+.status-strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  height: env(safe-area-inset-top, 0px);
+  background: #0a1a33;
+  pointer-events: none;
+}
+html.dark .status-strip {
+  background: #181d2a;
+}
+body:has([data-site]) .status-strip {
+  background: #06131f;
+}
+body:has([data-login-scene]) .status-strip {
+  display: none;
+}
+/* the register page scrolls, so its form must not slide under the clock: the strip stays, in its own navy */
+body:has([data-auth-scene]) .status-strip {
+  background: #06131f;
+}
+body:has([data-auth-scene]) {
+  background-color: #06131f;
+}
+/* the developer's page is black in both looks */
+body:has([data-nino]) .status-strip {
+  background: #0a0a0b;
+}
+body:has([data-nino]) {
+  background-color: #0a0a0b;
+}
+/* behind the scene's edges (the bounce at the top and bottom of a phone page) it is night too */
+body:has([data-login-scene]) {
+  background-color: #06142b;
+}
+@media print {
+  .status-strip {
+    display: none;
+  }
+}
+/* A phone turned sideways keeps content clear of the notch while every band's
+   background still runs to the screen edge: rows pad by --safe-px or the
+   notch, whichever is wider (set --safe-px per breakpoint where they sit). */
+.safe-px {
+  padding-left: max(var(--safe-px, 1rem), env(safe-area-inset-left));
+  padding-right: max(var(--safe-px, 1rem), env(safe-area-inset-right));
+}
+/* taps act at once (no double-tap zoom), and a long press does not select a button, as in an app */
+html {
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  nav a {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}

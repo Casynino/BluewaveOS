@@ -55,9 +55,14 @@ describe("nothing of the system this one was rebuilt from", () => {
     /\bswift\b(?!\s*(?:ly|er|ness))/i,
   ];
 
+  /* Nino's page lists the companies he has built for, by the owner's decision
+     (9 Nov 2026) — clients named as clients, not words left over from a copy.
+     That one data file is the only exception. */
+  const CLIENT_LIST = join(ROOT, "app", "nino", "work.ts");
+
   test("no file names another company", () => {
     const found: string[] = [];
-    for (const file of SOURCE) {
+    for (const file of SOURCE.filter((f) => f !== CLIENT_LIST)) {
       const src = readFileSync(file, "utf8");
       for (const pattern of FOREIGN) {
         const hit = pattern.exec(src);
