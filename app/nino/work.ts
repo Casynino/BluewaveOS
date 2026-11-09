@@ -1,8 +1,8 @@
 /**
  * Nino's work, as shown on /nino (linked from the sign-in page: "Developed by Nino"). Every line comes from the
  * project's own live site (its title and description), its own README, or from Nino — nothing invented. Screenshots in
- * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil: its brand picture;
- * Hao Labs and BlueWave Cargo: their sign-in pages, 2026-11-09). Kept in step with the same list on the Hao Labs system
+ * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil, Hao Labs and
+ * BlueWave Cargo: their live sign-in pages, retaken 2026-11-09). Kept in step with the same list on the Hao Labs system
  * (Hao-Stock/client/src/pages/nino.work.js), which has the latest wording. The other companies named here are Nino's clients, listed by the owner's
  * decision (2026-11-09); tests/identity.test.ts allows their names in this file only.
  */
@@ -40,13 +40,13 @@ export const LIVE: Project[] = [
   {
     name: "Super Drive Oil", kind: "Lubricants · sales & distribution",
     line: "Sales, stock and credit in one place — counter sales, cash and daily closing, credit control, and every movement recorded against the person who made it.",
-    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive-brand.webp",
+    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive-signin.webp",
     tags: ["Point of sale", "Credit control", "Stock", "Daily closing"], code: `${GH}/Super-Drive-OS`,
   },
   {
     name: "Hao Labs", kind: "Stock, settlement & commission system",
     line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs.webp",
+    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs-signin.webp",
     tags: ["Stock control", "Settlements", "Commission", "Reports"], code: `${GH}/The-Lab`,
   },
   {
