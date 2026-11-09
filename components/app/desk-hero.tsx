@@ -78,6 +78,8 @@ export async function DeskHero({
         kicker={tr(kicker ?? department)}
         image="/photos/port-cranes.jpg"
         line={today}
+        /* A phone's top bar already shows the day; the banner says it only on a computer. */
+        lineClassName="max-lg:hidden"
         tools={<BannerTools />}
       />
       {/* One slim rounded field with a magnifier; Enter searches. */}

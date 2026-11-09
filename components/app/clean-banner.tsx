@@ -16,6 +16,7 @@ export function CleanBanner({
   title,
   kicker,
   line,
+  lineClassName,
   children,
   image = "/photos/port-cranes.jpg",
   tools,
@@ -26,6 +27,8 @@ export function CleanBanner({
   kicker?: React.ReactNode;
   /** The day, or whatever one line belongs under the title. */
   line?: React.ReactNode;
+  /** Where that line shows: the day is hidden on a phone, whose top bar already carries it. */
+  lineClassName?: string;
   /** A button or two, centred under the lines. */
   children?: React.ReactNode;
   /** A photo that fades in from the right edge, from /public/photos. */
@@ -97,7 +100,7 @@ export function CleanBanner({
         {kicker ? (
           <p className="mt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.32em] text-[#fdc400] lg:mt-2 lg:text-[11px]">{kicker}</p>
         ) : null}
-        {line ? <p className="tnum mt-1 text-[13px] text-white/70 lg:mt-1.5 lg:text-sm">{line}</p> : null}
+        {line ? <p className={cn("tnum mt-1 text-[13px] text-white/70 lg:mt-1.5 lg:text-sm", lineClassName)}>{line}</p> : null}
         {children ? <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div> : null}
       </div>
     </section>
