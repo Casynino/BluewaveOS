@@ -1,8 +1,9 @@
 /**
  * Nino's work, as shown on /nino (linked from the sign-in page: "Developed by Nino"). Every line comes from the
  * project's own live site (its title and description), its own README, or from Nino — nothing invented. Screenshots in
- * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil: its sign-in page, 2026-11-09; BlueWave
- * Cargo: its home page, 2026-11-09). The other companies named here are Nino's clients, listed by the owner's
+ * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil and Hao Labs: their sign-in pages, and
+ * BlueWave Cargo: its home page, 2026-11-09). Kept in step with the same list on the Hao Labs system
+ * (Hao-Stock/client/src/pages/nino.work.js), which has the latest wording. The other companies named here are Nino's clients, listed by the owner's
  * decision (2026-11-09); tests/identity.test.ts allows their names in this file only.
  */
 
@@ -37,10 +38,16 @@ export const LIVE: Project[] = [
     tags: ["Booking engine", "Mobile money", "Staff system", "Reports"],
   },
   {
-    name: "Swift Cargo", kind: "Sea freight · China → Tanzania",
-    line: "Loose cargo and full containers from Guangzhou to Dar es Salaam — track a shipment, work out the CBM and see the price.",
-    url: "https://www.swiftcargotz.com", domain: "swiftcargotz.com", shot: "/nino/swiftcargo.webp",
-    tags: ["Tracking", "Price calculator"],
+    name: "Super Drive Oil", kind: "Lubricants · sales & distribution",
+    line: "Sales, stock and credit in one place — counter sales, cash and daily closing, credit control, and every movement recorded against the person who made it.",
+    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive.webp",
+    tags: ["Point of sale", "Credit control", "Stock", "Daily closing"], code: `${GH}/Super-Drive-OS`,
+  },
+  {
+    name: "Hao Labs", kind: "Stock, settlement & commission system",
+    line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
+    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs.webp",
+    tags: ["Stock control", "Settlements", "Commission", "Reports"], code: `${GH}/The-Lab`,
   },
   {
     name: "Target Express Air Cargo", kind: "Air cargo · China → Tanzania",
@@ -49,10 +56,10 @@ export const LIVE: Project[] = [
     tags: ["Tracking", "Bookings"],
   },
   {
-    name: "Super Drive Oil", kind: "Oil distribution · sales, stock & credit",
-    line: "Sales, stock and credit in one place — every sale, payment and stock movement is recorded against the person who made it.",
-    url: "https://super-drive-os.vercel.app", domain: "super-drive-os.vercel.app", shot: "/nino/superdrive.webp",
-    tags: ["Live stock", "Cash & daily closing", "Credit control"], code: `${GH}/Super-Drive-OS`,
+    name: "Swift Cargo", kind: "Sea freight · China → Tanzania",
+    line: "Loose cargo and full containers from Guangzhou to Dar es Salaam — track a shipment, work out the CBM and see the price.",
+    url: "https://www.swiftcargotz.com", domain: "swiftcargotz.com", shot: "/nino/swiftcargo.webp",
+    tags: ["Tracking", "Price calculator"],
   },
   {
     name: "AiTransit Cargo", kind: "Air cargo · China → Zambia",
@@ -89,12 +96,6 @@ export const LIVE: Project[] = [
     line: "Menstrual health, education and period dignity for every girl and woman across Tanzania.",
     url: "https://www.ora.co.tz", domain: "ora.co.tz", shot: "/nino/ora.webp",
     tags: ["Brand site", "Community"],
-  },
-  {
-    name: "The Lab", kind: "Stock & commission dashboard",
-    line: "Request stock, track commission and watch performance. Take stock, make moves, earn more.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/thelab.webp",
-    tags: ["Dashboard", "Accounts"],
   },
   {
     name: "Reckless Lab", kind: "Fashion label & store",

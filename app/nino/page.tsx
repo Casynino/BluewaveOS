@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: { type: "profile", title: TITLE, description: DESCRIPTION, images: [{ url: "/nino/og.jpg", width: 1200, height: 630, alt: "NINO. — Systems scientist & developer", type: "image/jpeg" }] },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/nino/og.jpg"] },
 };
-export const viewport: Viewport = { themeColor: "#0a0a0b" };
+export const viewport: Viewport = { themeColor: "#06142b" };
 
 const ICONS: Record<(typeof EXPERTISE)[number]["icon"], LucideIcon> = {
   Smartphone, Globe, PenTool, LayoutDashboard, Plug, CreditCard, MapPin, Bot, Database, Workflow, TrendingUp,
@@ -29,7 +29,7 @@ const wa = (digits: string) => `https://wa.me/${digits}?text=${HELLO}`;
 
 const wrap = "relative z-10 mx-auto w-full max-w-[1320px] safe-px sm:[--safe-px:2rem]";
 const eyebrow = "font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--faint)]";
-const focus = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0b]";
+const focus = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#06142b]";
 const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 /**
@@ -42,7 +42,7 @@ export default function NinoPage() {
   return (
     <div data-nino className={cn(s.page, "relative min-h-svh flex-1 overflow-x-clip font-sans antialiased")}>
       {/* ── Top bar ── */}
-      <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[#0a0a0b]/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-[var(--rule)] bg-[#06142b]/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className={cn(wrap, "flex h-14 items-center justify-between gap-4")}>
           <a href="#top" className={cn("text-lg font-black tracking-[-0.06em]", focus)}>NINO<span className="text-[var(--accent)]">.</span></a>
           <nav aria-label="Page" className="flex items-center gap-1 sm:gap-2">
@@ -71,7 +71,7 @@ export default function NinoPage() {
                 <span className="text-[var(--muted)]"> Then I design the system and build it around that.</span>
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
-                <a href="#work" className={cn("inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-sm font-semibold text-[#0a0a0b] transition hover:bg-white", focus)}>
+                <a href="#work" className={cn("inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-sm font-semibold text-[#06142b] transition hover:bg-white", focus)}>
                   See the work<ArrowDown className="size-4" aria-hidden="true" />
                 </a>
                 <a href={wa(CONTACT.whatsapp[0].digits)} {...ext} className={cn("inline-flex h-11 items-center gap-2 rounded-full border border-[var(--rule)] px-5 text-sm font-semibold transition-colors hover:border-[var(--muted)]", focus)}>
@@ -152,7 +152,7 @@ export default function NinoPage() {
 
         {/* ── Work with me ── */}
         <section id="contact" aria-labelledby="contact-title" className={cn(wrap, "scroll-mt-20 pb-16 pt-10 sm:pb-24 sm:pt-16")}>
-          <div className="relative overflow-hidden rounded-[2rem] border border-[var(--rule)] bg-[linear-gradient(140deg,rgb(198_244_50/0.10),rgb(255_255_255/0.02)_45%)] p-6 sm:p-12">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[var(--rule)] bg-[linear-gradient(140deg,rgb(64_192_232/0.12),rgb(255_255_255/0.02)_45%)] p-6 sm:p-12">
             <p className={eyebrow}>04 — Work with me</p>
             <h2 id="contact-title" className="mt-4 max-w-3xl text-balance text-4xl font-black leading-[0.95] tracking-[-0.045em] sm:text-6xl">
               Have something to build? Let&apos;s talk<span className="text-[var(--accent)]">.</span>
@@ -163,8 +163,8 @@ export default function NinoPage() {
             </p>
             <ul className="mt-9 grid gap-3 md:grid-cols-3">
               <li>
-                <a href={`mailto:${CONTACT.email}?subject=${encodeURIComponent("A project for Nino")}`} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#0a0a0b]/60 p-4 sm:p-5", focus)}>
-                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-[#0a0a0b]"><Mail className="size-[18px]" aria-hidden="true" /></span>
+                <a href={`mailto:${CONTACT.email}?subject=${encodeURIComponent("A project for Nino")}`} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#06142b]/60 p-4 sm:p-5", focus)}>
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-[#06142b]"><Mail className="size-[18px]" aria-hidden="true" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs text-[var(--faint)]">Email</span>
                     <span className="block truncate text-[15px] font-semibold">{CONTACT.email}</span>
@@ -174,7 +174,7 @@ export default function NinoPage() {
               </li>
               {CONTACT.whatsapp.map((w) => (
                 <li key={w.place}>
-                  <a href={wa(w.digits)} {...ext} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#0a0a0b]/60 p-4 sm:p-5", focus)}>
+                  <a href={wa(w.digits)} {...ext} className={cn(s.card, "group flex h-full items-center gap-4 rounded-2xl border border-[var(--rule)] bg-[#06142b]/60 p-4 sm:p-5", focus)}>
                     <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#25D366] text-[#06351b]"><MessageCircle className="size-[18px]" aria-hidden="true" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs text-[var(--faint)]">WhatsApp · {w.place}</span>
@@ -216,7 +216,7 @@ function SectionHead({ id, index, title, note }: { id: string; index: string; ti
 /** A browser window around the live site's home page. */
 function Shot({ p, priority, sizes }: { p: Project; priority?: boolean; sizes: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--rule)] bg-[#141416]">
+    <div className="overflow-hidden rounded-xl border border-[var(--rule)] bg-[#0b1d3a]">
       <div className="flex h-7 items-center gap-1.5 border-b border-[var(--rule)] px-3">
         <span className="size-2 rounded-full bg-white/15" /><span className="size-2 rounded-full bg-white/15" /><span className="size-2 rounded-full bg-white/15" />
         <span className="ml-2 min-w-0 flex-1 truncate rounded-md bg-white/[0.05] px-2 py-0.5 text-center font-mono text-[10px] text-[var(--faint)]">{p.domain}</span>

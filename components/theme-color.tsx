@@ -21,7 +21,7 @@ export const BAR_COLOR = {
   scene: "#06142b", // the sign-in scene
   site: "#06131f", // the website's opening band and the register page (bw-night)
   verify: "#0a3350", // the pickup-note check page, navy in both looks
-  nino: "#0a0a0b", // the developer's page, black in both looks
+  nino: "#06142b", // the developer's page, in the sign-in scene's navy
 } as const;
 
 function colourFor(pathname: string, theme: string | undefined) {

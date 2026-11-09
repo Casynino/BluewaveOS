@@ -1313,12 +1313,12 @@ body:has([data-auth-scene]) .status-strip {
 body:has([data-auth-scene]) {
   background-color: #06131f;
 }
-/* the developer's page is black in both looks */
+/* the developer's page wears the sign-in scene's navy in both looks */
 body:has([data-nino]) .status-strip {
-  background: #0a0a0b;
+  background: #06142b;
 }
 body:has([data-nino]) {
-  background-color: #0a0a0b;
+  background-color: #06142b;
 }
 /* behind the scene's edges (the bounce at the top and bottom of a phone page) it is night too */
 body:has([data-login-scene]) {
