@@ -43,7 +43,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
           autoFocus
           placeholder="0712 345 678"
         />
-        <p className="text-xs text-muted-foreground max-md:text-[11px] max-md:leading-snug">
+        <p className="text-xs text-muted-foreground max-md:hidden">
           Customers: your Tanzanian number, such as 0712 345 678. Staff: your work email.
         </p>
       </div>

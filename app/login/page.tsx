@@ -115,7 +115,7 @@ export default async function LoginPage({
           <LoginGate defaultOpen={revoked}>
             <div className="ls-card ls-up dark w-full p-7 text-left text-foreground max-md:p-5 sm:p-8" style={delay(0.2)}>
               <h1 className="ls-title text-2xl font-semibold tracking-tight max-md:text-[19px]">Sign in</h1>
-              <p className="mt-1.5 text-sm text-white/65 max-md:mt-1 max-md:text-[12.5px]">Staff and customers use the same door.</p>
+              <p className="mt-1.5 text-sm text-white/65 max-md:hidden">Staff and customers use the same door.</p>
 
               {revoked ? (
                 <div
@@ -133,13 +133,23 @@ export default async function LoginPage({
 
               <LoginForm callbackUrl={params.callbackUrl ?? ""} />
 
-              <p className="mt-4 text-sm max-md:mt-3 max-md:text-[13px]">
+              {/* A phone keeps only what is needed: the two ways out sit on one small line. */}
+              <div className="mt-3.5 flex items-center justify-between gap-3 text-[12.5px] md:hidden">
+                <Link href="/register?mode=reset" className="text-white/60 underline-offset-4 hover:text-white hover:underline">
+                  Forgot password?
+                </Link>
+                <Link href="/register" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
+                  Open an account
+                </Link>
+              </div>
+
+              <p className="mt-4 text-sm max-md:hidden">
                 <Link href="/register?mode=reset" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
                   Forgot your password?
                 </Link>
               </p>
 
-              <p className="mt-4 border-t border-white/10 pt-4 text-sm text-white/65 max-md:mt-3 max-md:pt-3 max-md:text-[12.5px]">
+              <p className="mt-4 border-t border-white/10 pt-4 text-sm text-white/65 max-md:hidden">
                 New customer, or shipped with us before?{" "}
                 <Link href="/register" className="font-semibold text-[#7fd8f5] underline-offset-4 hover:underline">
                   Open an account
