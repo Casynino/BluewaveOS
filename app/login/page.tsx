@@ -147,25 +147,25 @@ export default async function LoginPage({
               </p>
             </div>
           </LoginGate>
-          {/* The foot of the page: whose it is, and who made the system — one quiet
-              link to Nino's page and work (owner, 9 Nov 2026, as on the Vegas sign-in). */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 text-xs text-white/60 max-md:fixed max-md:inset-x-0 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-md:z-10 max-md:text-white/50">
-            <span>
-              BlueWave Cargo<span className="max-md:hidden"> · China to Tanzania by sea</span>
-            </span>
-            <span aria-hidden>·</span>
+          {/* Who made the system — one quiet line to Nino's page and work: the
+              system's name and "by Nino", worded like the other systems' sign-in
+              pages ("The Distribution Chain by Nino", "Pad Distribution Chain by
+              Nino"). The company's name is not repeated: the logo above says it
+              (owner, 9 Nov 2026). */}
+          <p className="mt-5 flex flex-wrap items-center justify-center gap-x-1.5 text-xs text-white/55 max-md:fixed max-md:inset-x-0 max-md:bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-md:z-10">
+            <span>Sea Cargo System</span>
             <Link
               href="/nino"
-              className="group -my-2 inline-flex min-h-10 items-center gap-1 rounded-sm text-white/55 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40c0e8]"
+              aria-label="Sea Cargo System by Nino: see his work"
+              className="group -my-2 inline-flex min-h-10 items-center gap-1 rounded-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40c0e8]"
             >
-              Developed by{" "}
-              <span className="font-semibold text-white/80 transition-colors group-hover:text-[#c6f432]">Nino</span>
+              by <span className="font-semibold text-white/80 transition-colors group-hover:text-[#40c0e8]">Nino</span>
               <ArrowUpRight
                 className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
                 aria-hidden
               />
             </Link>
-          </div>
+          </p>
         </section>
       </div>
     </div>
