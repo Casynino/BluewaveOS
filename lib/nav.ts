@@ -3,7 +3,10 @@ import type { Role } from "@prisma/client";
 import { can, canAny, type Permission } from "@/lib/rbac";
 
 export type NavItem = {
+  /** One simple word: what the sidebar and the department's tabs show (owner, 9 Nov 2026). */
   label: string;
+  /** The page's full name, where the word alone is shorter: found by the menu's search and shown on hover. */
+  full?: string;
   href: string;
   icon: string;
   /** Any one of these opens the item. */
@@ -47,7 +50,8 @@ const SECTIONS: NavSection[] = [
          is what they do when the label will not read. First item, first
          section. */
       {
-        label: "Scan & release",
+        label: "Scan",
+        full: "Scan & release",
         href: "/app/scan",
         icon: "ScanLine",
         permissions: ["cargo.scan"],
@@ -80,12 +84,12 @@ const SECTIONS: NavSection[] = [
       /* TAKING CARGO IN COMES BEFORE LOOKING AT WHAT IS ALREADY THERE. Each
          warehouse's intake screen leads — Foshan receives, Dar checks a
          container off — and the floor is what those two screens fill. */
-      { label: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
-      { label: "Receiving dock", href: "/app/receive/dar", icon: "PackageCheck", permissions: ["receiving.dar"] },
-      { label: "Warehouse floor", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["FINANCE"] },
+      { label: "Receive", full: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
+      { label: "Check-in", full: "Receiving dock", href: "/app/receive/dar", icon: "PackageCheck", permissions: ["receiving.dar"] },
+      { label: "Stock", full: "Warehouse floor", href: "/app/inventory", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["FINANCE"] },
       /* Finance reaches cargo through its containers and its bills, and asked
          for the flat list to come out of its menu. */
-      { label: "All cargo", href: "/app/cargo", icon: "Package", permissions: ["cargo.viewAll"], hiddenFor: ["FINANCE"] },
+      { label: "All", full: "All cargo", href: "/app/cargo", icon: "Package", permissions: ["cargo.viewAll"], hiddenFor: ["FINANCE"] },
     ],
   },
   {
@@ -113,8 +117,8 @@ const SECTIONS: NavSection[] = [
     label: "Release",
     icon: "DoorOpen",
     items: [
-      { label: "Pickup list", href: "/app/release", icon: "Truck", permissions: ["release.execute"] },
-      { label: "Collected cargo", href: "/app/release/collected", icon: "History", permissions: ["release.execute"] },
+      { label: "Pickup", full: "Pickup list", href: "/app/release", icon: "Truck", permissions: ["release.execute"] },
+      { label: "Collected", full: "Collected cargo", href: "/app/release/collected", icon: "History", permissions: ["release.execute"] },
       { label: "Deliveries", href: "/app/deliveries", icon: "Truck", permissions: ["delivery.manage"] },
     ],
   },
@@ -138,16 +142,16 @@ const SECTIONS: NavSection[] = [
       { label: "Expenses", href: "/app/finance/expenses", icon: "Banknote", permissions: ["expense.view"] },
       { label: "Income", href: "/app/finance/income", icon: "HandCoins", permissions: ["accounting.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
-      { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
-      { label: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
+      { label: "Pickup", full: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      { label: "Prices", full: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
 
-      { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
-      { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
-      { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
-      { label: "Merge Payment", href: "/app/finance/payments/new", icon: "Layers", permissions: ["payment.submit"] },
-      { label: "Record payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
-      { label: "Verify payments", href: "/app/finance/collections/verify", icon: "ShieldCheck", permissions: ["payment.verify"] },
-      { label: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
+      { label: "Profit", full: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
+      { label: "Ledger", full: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
+      { label: "Reconcile", full: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
+      { label: "Merge", full: "Merge Payment", href: "/app/finance/payments/new", icon: "Layers", permissions: ["payment.submit"] },
+      { label: "Record", full: "Record payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
+      { label: "Verify", full: "Verify payments", href: "/app/finance/collections/verify", icon: "ShieldCheck", permissions: ["payment.verify"] },
+      { label: "Rates", full: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
     ],
   },
   {
@@ -161,13 +165,13 @@ const SECTIONS: NavSection[] = [
     label: "Containers",
     icon: "Container",
     items: [
-      { label: "Container finances", href: "/app/finance/containers", icon: "Container", permissions: ["finance.view"] },
-      { label: "Closed containers", href: "/app/containers/closed", icon: "ClipboardCheck", permissions: ["accounting.view"] },
-      { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
-      { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "Finances", full: "Container finances", href: "/app/finance/containers", icon: "Container", permissions: ["finance.view"] },
+      { label: "Closed", full: "Closed containers", href: "/app/containers/closed", icon: "ClipboardCheck", permissions: ["accounting.view"] },
+      { label: "Arrived", full: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
+      { label: "Loading", full: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
       /* Cargo still in China belongs beside the boxes that will carry it, not
          in a section of its own: Foshan's own floor screen already is this. */
-      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["CHINA_WAREHOUSE"] },
+      { label: "China", full: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"], hiddenFor: ["CHINA_WAREHOUSE"] },
     ],
   },
   {
@@ -177,7 +181,7 @@ const SECTIONS: NavSection[] = [
       { label: "Customers", href: "/app/customers", icon: "Users", permissions: ["customer.view"] },
       { label: "Inbox", href: "/app/support", icon: "MessagesSquare", permissions: ["conversation.view"] },
       { label: "Requests", href: "/app/support/requests", icon: "Inbox", permissions: ["request.view"] },
-      { label: "Issues & claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
+      { label: "Issues", full: "Issues & claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
     ],
   },
   {
@@ -185,19 +189,19 @@ const SECTIONS: NavSection[] = [
     icon: "Gauge",
     items: [
       { label: "Manager", href: "/app/manager", icon: "Gauge", permissions: ["record.review"] },
-      { label: "Warehouse reports", href: "/app/reports", icon: "ChartColumn", permissions: ["warehouse.reports"] },
+      { label: "Reports", full: "Warehouse reports", href: "/app/reports", icon: "ChartColumn", permissions: ["warehouse.reports"] },
     ],
   },
   {
     label: "Admin",
     icon: "Settings",
     items: [
-      { label: "Users", href: "/app/admin/users", icon: "UserCog", permissions: ["user.manage"] },
+      { label: "Staff", full: "Users", href: "/app/admin/users", icon: "UserCog", permissions: ["user.manage"] },
       { label: "Warehouses", href: "/app/admin/warehouses", icon: "Building2", permissions: ["warehouse.manage"] },
-      { label: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
-      { label: "China markets", href: "/app/admin/markets", icon: "Store", permissions: ["content.manage"] },
-      { label: "China guide", href: "/app/admin/explore", icon: "Map", permissions: ["content.manage"] },
-      { label: "Audit log", href: "/app/admin/audit", icon: "ScrollText", permissions: ["audit.view"] },
+      { label: "Website", full: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
+      { label: "Markets", full: "China markets", href: "/app/admin/markets", icon: "Store", permissions: ["content.manage"] },
+      { label: "Guide", full: "China guide", href: "/app/admin/explore", icon: "Map", permissions: ["content.manage"] },
+      { label: "Audit", full: "Audit log", href: "/app/admin/audit", icon: "ScrollText", permissions: ["audit.view"] },
       { label: "Settings", href: "/app/admin/settings", icon: "Settings", permissions: ["settings.manage"] },
     ],
   },
@@ -240,9 +244,9 @@ const SUPPORT_SECTIONS: NavSection[] = [
     label: "Containers",
     icon: "Container",
     items: [
-      { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
-      { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
+      { label: "Loading", full: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "China", full: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Arrived", full: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
   {
@@ -251,14 +255,14 @@ const SUPPORT_SECTIONS: NavSection[] = [
     items: [
       { label: "Credit", href: "/app/finance/credit", icon: "CalendarClock", permissions: ["finance.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
-      { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      { label: "Pickup", full: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
       /* The counter holds invoice.priceConfirm and had nowhere to press it:
          a desk that can turn a price into a bill and cannot reach the list
          sends the customer away to wait for somebody else. */
-      { label: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
-      { label: "Merge Payment", href: "/app/finance/payments/new", icon: "Layers", permissions: ["payment.submit"] },
-      { label: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
-      { label: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
+      { label: "Prices", full: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
+      { label: "Merge", full: "Merge Payment", href: "/app/finance/payments/new", icon: "Layers", permissions: ["payment.submit"] },
+      { label: "Record", full: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
+      { label: "Rates", full: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
     ],
   },
   {
@@ -267,16 +271,16 @@ const SUPPORT_SECTIONS: NavSection[] = [
     items: [
       { label: "Tickets", href: "/app/support/tickets", icon: "MessageSquare", permissions: ["conversation.view"] },
       { label: "Requests", href: "/app/support/requests", icon: "Inbox", permissions: ["request.view"] },
-      { label: "Issues & claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
+      { label: "Issues", full: "Issues & claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
     ],
   },
   {
     label: "China",
     icon: "Store",
     items: [
-      { label: "China markets", href: "/app/support/markets", icon: "Store", permissions: ["conversation.view"] },
-      { label: "Sourcing requests", href: "/app/support/sourcing", icon: "ShoppingBag", permissions: ["conversation.view"] },
-      { label: "Business visits", href: "/app/support/visits", icon: "Plane", permissions: ["request.view"] },
+      { label: "Markets", full: "China markets", href: "/app/support/markets", icon: "Store", permissions: ["conversation.view"] },
+      { label: "Sourcing", full: "Sourcing requests", href: "/app/support/sourcing", icon: "ShoppingBag", permissions: ["conversation.view"] },
+      { label: "Visits", full: "Business visits", href: "/app/support/visits", icon: "Plane", permissions: ["request.view"] },
     ],
   },
 ];
@@ -297,11 +301,11 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { label: "Search", href: "/app/search", icon: "Search", permissions: ["search.global"] },
       { label: "Customers", href: "/app/customers", icon: "Users", permissions: ["customer.view"] },
-      { label: "Container finances", href: "/app/finance/containers", icon: "Container", permissions: ["finance.view"] },
-      { label: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
-      { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
-      { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Finances", full: "Container finances", href: "/app/finance/containers", icon: "Container", permissions: ["finance.view"] },
+      { label: "Closed", full: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
+      { label: "Arrived", full: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
+      { label: "Loading", full: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "China", full: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
     ],
   },
   {
@@ -310,11 +314,11 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { label: "Overview", href: "/app/finance", icon: "LayoutGrid", permissions: ["accounting.view"], pinned: true },
       { label: "Collections", href: "/app/finance/collections", icon: "HandCoins", permissions: ["finance.view"] },
-      { label: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
-      { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
-      { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
-      { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
-      { label: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
+      { label: "Prices", full: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
+      { label: "Profit", full: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
+      { label: "Reconcile", full: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
+      { label: "Ledger", full: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
+      { label: "Record", full: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
     ],
   },
   {
@@ -333,7 +337,7 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { label: "Payroll", href: "/app/manager/payroll", icon: "Wallet", permissions: ["payroll.approve"] },
       { label: "Approvals", href: "/app/manager/approvals", icon: "ClipboardCheck", permissions: ["record.review"] },
-      { label: "Control room", href: "/app/manager/control", icon: "Gauge", permissions: ["record.review"] },
+      { label: "Control", full: "Control room", href: "/app/manager/control", icon: "Gauge", permissions: ["record.review"] },
     ],
   },
   {
@@ -342,16 +346,16 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { label: "Staff", href: "/app/admin/users", icon: "UserCog", permissions: ["user.manage"] },
       { label: "Tickets", href: "/app/support/tickets", icon: "MessageSquare", permissions: ["conversation.view"] },
-      { label: "Issues & Claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
+      { label: "Issues", full: "Issues & Claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
     ],
   },
   {
     label: "Oversight",
     icon: "Eye",
     items: [
-      { label: "Money audit", href: "/app/finance/audit", icon: "ShieldCheck", permissions: ["accounting.view"] },
-      { label: "Deleted records", href: "/app/admin/deleted", icon: "Trash2", permissions: ["records.viewDeleted"] },
-      { label: "Management report", href: "/app/manager/reports", icon: "FileText", permissions: ["record.review"] },
+      { label: "Audit", full: "Money audit", href: "/app/finance/audit", icon: "ShieldCheck", permissions: ["accounting.view"] },
+      { label: "Deleted", full: "Deleted records", href: "/app/admin/deleted", icon: "Trash2", permissions: ["records.viewDeleted"] },
+      { label: "Report", full: "Management report", href: "/app/manager/reports", icon: "FileText", permissions: ["record.review"] },
     ],
   },
 ];
@@ -377,18 +381,18 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { label: "Search", href: "/app/search", icon: "Search", permissions: ["search.global"] },
       { label: "Requests", href: "/app/support/requests", icon: "Inbox", permissions: ["request.view"] },
-      { label: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
-      { label: "Receiving dock", href: "/app/receive/dar", icon: "ClipboardCheck", permissions: ["receiving.dar"] },
+      { label: "Receive", full: "Receive cargo", href: "/app/receive/new", icon: "PackagePlus", permissions: ["receiving.china"] },
+      { label: "Check-in", full: "Receiving dock", href: "/app/receive/dar", icon: "ClipboardCheck", permissions: ["receiving.dar"] },
     ],
   },
   {
     label: "Containers",
     icon: "Ship",
     items: [
-      { label: "Scan & release", href: "/app/scan", icon: "ScanLine", permissions: ["cargo.scan"] },
-      { label: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
-      { label: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
-      { label: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
+      { label: "Scan", full: "Scan & release", href: "/app/scan", icon: "ScanLine", permissions: ["cargo.scan"] },
+      { label: "Loading", full: "Loading containers", href: "/app/containers/loading", icon: "Boxes", permissions: ["container.view"] },
+      { label: "China", full: "Cargo in China", href: "/app/inventory/china", icon: "Warehouse", permissions: ["inventory.view"] },
+      { label: "Arrived", full: "Arrived containers", href: "/app/containers/arrived", icon: "Ship", permissions: ["container.view"] },
     ],
   },
   {
@@ -396,21 +400,21 @@ const ADMIN_SECTIONS: NavSection[] = [
     icon: "ReceiptText",
     items: [
       { label: "Overview", href: "/app/finance", icon: "Wallet", permissions: ["accounting.view"], pinned: true },
-      { label: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
+      { label: "Record", full: "Record Payment", href: "#record-payment", icon: "Banknote", permissions: ["payment.submit"] },
       { label: "Credit", href: "/app/finance/credit", icon: "CalendarClock", permissions: ["finance.view"] },
-      { label: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
-      { label: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
-      { label: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
+      { label: "Rates", full: "Rate book", href: "/app/finance/rates", icon: "Tags", permissions: ["rate.view"] },
+      { label: "Pickup", full: "Pickup notes", href: "/app/finance/pickup-notes", icon: "QrCode", permissions: ["finance.view"] },
+      { label: "Prices", full: "Confirm prices", href: "/app/finance/prices", icon: "ClipboardCheck", permissions: ["invoice.priceConfirm"] },
       { label: "Accounts", href: "/app/finance/accounts", icon: "Landmark", permissions: ["accounting.view"] },
-      { label: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
-      { label: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
+      { label: "Ledger", full: "General ledger", href: "/app/finance/ledger", icon: "ArrowLeftRight", permissions: ["accounting.view"] },
+      { label: "Reconcile", full: "Reconciliation", href: "/app/manager/reconciliation", icon: "Scale", permissions: ["record.reconcile"] },
       { label: "Expenses", href: "/app/finance/expenses", icon: "Receipt", permissions: ["expense.view"] },
       { label: "Income", href: "/app/finance/income", icon: "HandCoins", permissions: ["accounting.view"] },
       /* The owner signs the month off; Finance prepares it on its own page. */
       { label: "Payroll", href: "/app/manager/payroll", icon: "Wallet", permissions: ["payroll.approve"] },
       { label: "Approvals", href: "/app/manager/approvals", icon: "ClipboardCheck", permissions: ["record.review"] },
-      { label: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
-      { label: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
+      { label: "Closed", full: "Closed containers", href: "/app/containers/closed", icon: "PackageCheck", permissions: ["accounting.view"] },
+      { label: "Profit", full: "Profit & loss", href: "/app/finance/reports", icon: "TrendingUp", permissions: ["profit.view"] },
       { label: "Collections", href: "/app/finance/collections", icon: "PhoneCall", permissions: ["finance.view"] },
     ],
   },
@@ -422,8 +426,8 @@ const ADMIN_SECTIONS: NavSection[] = [
       { label: "Tickets", href: "/app/support/tickets", icon: "MessageSquare", permissions: ["conversation.view"] },
       /* "Support home", not "Home" — this menu already has one, and a bare Home
          here would read as the owner's own dashboard. */
-      { label: "Support home", href: "/app/support", icon: "Headset", permissions: ["conversation.view"] },
-      { label: "Issues & Claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
+      { label: "Inbox", full: "Support home", href: "/app/support", icon: "Headset", permissions: ["conversation.view"] },
+      { label: "Issues", full: "Issues & Claims", href: "/app/exceptions", icon: "TriangleAlert", permissions: ["exception.view"] },
     ],
   },
   {
@@ -432,10 +436,10 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       /* The editor, not the support desk's read view: this is the menu of the
          person who changes what customers are told. */
-      { label: "China markets", href: "/app/admin/markets", icon: "Store", permissions: ["content.manage"] },
-      { label: "China guide", href: "/app/admin/explore", icon: "Map", permissions: ["content.manage"] },
-      { label: "Sourcing requests", href: "/app/support/sourcing", icon: "ShoppingBag", permissions: ["conversation.view"] },
-      { label: "Business visits", href: "/app/support/visits", icon: "Plane", permissions: ["request.view"] },
+      { label: "Markets", full: "China markets", href: "/app/admin/markets", icon: "Store", permissions: ["content.manage"] },
+      { label: "Guide", full: "China guide", href: "/app/admin/explore", icon: "Map", permissions: ["content.manage"] },
+      { label: "Sourcing", full: "Sourcing requests", href: "/app/support/sourcing", icon: "ShoppingBag", permissions: ["conversation.view"] },
+      { label: "Visits", full: "Business visits", href: "/app/support/visits", icon: "Plane", permissions: ["request.view"] },
     ],
   },
   {
@@ -443,9 +447,9 @@ const ADMIN_SECTIONS: NavSection[] = [
     icon: "SlidersHorizontal",
     items: [
       { label: "Staff", href: "/app/admin/users", icon: "UserCog", permissions: ["user.manage"] },
-      { label: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
-      { label: "Deleted records", href: "/app/admin/deleted", icon: "Trash2", permissions: ["records.viewDeleted"] },
-      { label: "Company settings", href: "/app/admin/settings", icon: "SlidersHorizontal", permissions: ["settings.manage"] },
+      { label: "Website", full: "Website content", href: "/app/admin/content", icon: "Globe", permissions: ["content.manage"] },
+      { label: "Deleted", full: "Deleted records", href: "/app/admin/deleted", icon: "Trash2", permissions: ["records.viewDeleted"] },
+      { label: "Settings", full: "Company settings", href: "/app/admin/settings", icon: "SlidersHorizontal", permissions: ["settings.manage"] },
       /* Both ends of the route, and the address a customer forwards to their
          supplier. Sea freight has two warehouses the owner configures; the air
          desk had none to set. */
@@ -459,8 +463,8 @@ const ADMIN_SECTIONS: NavSection[] = [
     label: "Audit",
     icon: "History",
     items: [
-      { label: "Money audit", href: "/app/finance/audit", icon: "History", permissions: ["accounting.view"] },
-      { label: "Audit log", href: "/app/admin/audit", icon: "History", permissions: ["audit.view"] },
+      { label: "Money", full: "Money audit", href: "/app/finance/audit", icon: "History", permissions: ["accounting.view"] },
+      { label: "Log", full: "Audit log", href: "/app/admin/audit", icon: "History", permissions: ["audit.view"] },
     ],
   },
 ];

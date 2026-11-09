@@ -168,12 +168,16 @@ export function AppShell({
   const [q, setQ] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const every = [
-    { item: home as { href: string; icon: string; label: string }, where: "" },
+    { item: home as { href: string; icon: string; label: string; full?: string }, where: "" },
     ...sections.flatMap((s) => s.items.map((item) => ({ item, where: s.label }))),
   ];
   const needle = q.trim().toLowerCase();
   const hits = needle
-    ? every.filter(({ item }) => tr(item.label).toLowerCase().includes(needle) || item.label.toLowerCase().includes(needle))
+    ? every.filter(({ item }) =>
+        [item.label, item.full].some(
+          (name) => name && (tr(name).toLowerCase().includes(needle) || name.toLowerCase().includes(needle))
+        )
+      )
     : [];
   const focusSearch = () => {
     if (collapsed) setRail(false);
@@ -332,15 +336,15 @@ export function AppShell({
       href={home.href}
       onClick={() => setOpen(false)}
       title="BlueWave Cargo"
-      className="flex min-w-0 items-center gap-3 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60"
+      className="flex min-w-0 items-center gap-2.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45 max-lg:size-9">
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white ring-2 ring-[#fdc400]/45 max-lg:size-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/bluewave-mark.png" alt="" className="h-[18px] w-auto" />
+        <img src="/brand/bluewave-mark.png" alt="" className="h-[17px] w-auto max-lg:h-[15px]" />
       </span>
       {compact ? null : (
         <span className="min-w-0 leading-tight">
-          <span className="g-strong block truncate text-sm font-semibold tracking-tight max-lg:text-[13px]">BlueWave Cargo</span>
+          <span className="g-strong block truncate text-sm font-semibold tracking-tight max-lg:text-[12.5px]">BlueWave Cargo</span>
           <span className="g-soft mt-0.5 block truncate text-xs">{tr("Sea Cargo")}</span>
         </span>
       )}
@@ -349,14 +353,14 @@ export function AppShell({
 
   /* The narrow rail: only icons, a thin line between the sets, and the person.
      Every page is its own icon, a plain link; its name shows on hover. */
-  const railRow = (item: { href: string; icon: string; label: string }) => {
+  const railRow = (item: { href: string; icon: string; label: string; full?: string }) => {
     const active = isActive(item.href);
     return (
       <Link
         key={item.href}
         href={item.href}
-        title={tr(item.label)}
-        aria-label={tr(item.label)}
+        title={tr(item.full ?? item.label)}
+        aria-label={tr(item.full ?? item.label)}
         aria-current={active ? "page" : undefined}
         className={cn(
           "relative mb-0.5 grid size-10 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60",
@@ -405,7 +409,7 @@ export function AppShell({
       <aside
         className={cn(
           "sticky top-0 z-40 hidden h-dvh shrink-0 p-3 transition-[width] duration-300 ease-out lg:block print:!hidden",
-          collapsed ? "w-[5.9rem]" : "w-[15.5rem]"
+          collapsed ? "w-[5.9rem]" : "w-[14.5rem]"
         )}
       >
         <div className={cn("glass-panel flex flex-col", collapsed ? "max-h-[calc(100dvh-1.5rem)]" : "h-full")}>
@@ -442,17 +446,19 @@ export function AppShell({
               which on this element would undo the absolute top and bottom that
               hold the drawer to the screen's height — the menu then grew past
               the bottom of the phone and its list could not scroll. */}
-          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] w-[14.75rem] max-w-[78vw]">
+          {/* Slim: every row is one word now (owner, 9 Nov 2026), so the width is
+              set by the company's name in the header, with a little to spare. */}
+          <aside className="drawer-in absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 top-[max(0.75rem,env(safe-area-inset-top))] w-[13.25rem] max-w-[78vw]">
             <div className="glass-panel glass-drawer flex h-full min-h-0 flex-col">
-            <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3.5">
+            <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3.5">
               {brand(false)}
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={tr("Close menu")}
-                className="glass-row g-text grid size-9 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60"
+                className="glass-row g-text grid size-8 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#fdc400]/60"
               >
-                <X className="size-[17px]" />
+                <X className="size-4" />
               </button>
             </div>
             {searchBox()}
