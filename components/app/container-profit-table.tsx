@@ -93,7 +93,7 @@ export function ContainerProfitTable({
             <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
               {[
                 { label: "Expected revenue", value: money(c.revenueTzs), cls: "" },
-                { label: "Collected", value: money(c.collectedTzs), cls: "text-success" },
+                { label: "Collected|money", value: money(c.collectedTzs), cls: "text-success" },
                 {
                   label: "Outstanding",
                   value: money(c.outstandingTzs),
@@ -127,7 +127,7 @@ export function ContainerProfitTable({
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-5 py-2 font-medium">{t(locale, "Container")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected revenue")}</th>
-              <th className="px-3 py-2 text-right font-medium">{t(locale, "Collected")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t(locale, "Collected|money")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Outstanding")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Expenses")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected profit")}</th>

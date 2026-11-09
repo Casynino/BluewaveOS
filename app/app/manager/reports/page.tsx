@@ -124,7 +124,7 @@ export default async function ManagerReport({
       tone: now.creditRevenue.tzs > now.cashRevenue.tzs ? "bad" : undefined,
     },
     {
-      label: "Collected",
+      label: "Collected|money",
       value: money(now.collected),
       sub: t(locale, "Verified payments that arrived, write-offs excluded"),
       delta: delta(now.collected.tzs, before.collected.tzs),

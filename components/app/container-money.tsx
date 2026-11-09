@@ -613,7 +613,7 @@ export async function ContainerMoney({
               tone: "",
             },
             {
-              label: "Collected",
+              label: "Collected|money",
               value: tzs(collected) ?? formatMoney(collected, currency),
               sub: rate ? formatMoney(collected, currency) : null,
               tone: "text-success",

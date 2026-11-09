@@ -133,7 +133,7 @@ export default async function ClosedContainersPage() {
             tone: "",
           },
           {
-            label: "Collected",
+            label: "Collected|money",
             value: formatMoney(total((r) => r.collected), "USD"),
             tone: "text-success",
           },
@@ -176,7 +176,7 @@ export default async function ClosedContainersPage() {
                 <TableHead className="text-right">{T("Cargo")}</TableHead>
                 <TableHead className="text-right">{T("Volume")}</TableHead>
                 <TableHead className="text-right">{T("Billed")}</TableHead>
-                <TableHead className="text-right">{T("Collected")}</TableHead>
+                <TableHead className="text-right">{T("Collected|money")}</TableHead>
                 <TableHead className="text-right">{T("Still owed")}</TableHead>
                 <TableHead className="text-right">{T("Spent")}</TableHead>
                 <TableHead className="text-right">{T("Made")}</TableHead>

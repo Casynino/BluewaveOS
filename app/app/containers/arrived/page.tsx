@@ -444,7 +444,7 @@ export default async function ArrivedContainersPage({
         sub: formatMoney(totals.billed, "USD"),
       },
       {
-        k: t(locale, "Collected"),
+        k: t(locale, "Collected|money"),
         main: headline(totals.collectedTzs, totals.collected),
         sub: formatMoney(totals.collected, "USD"),
         tone: "text-success",
@@ -800,7 +800,7 @@ export default async function ArrivedContainersPage({
                       {t(locale, "Expected")}
                     </TableHead>
                     <TableHead className="text-right">
-                      {t(locale, "Collected")}
+                      {t(locale, "Collected|money")}
                     </TableHead>
                     <TableHead className="text-right">
                       {t(locale, "Outstanding")}

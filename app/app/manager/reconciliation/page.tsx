@@ -1015,7 +1015,7 @@ export default async function ManagerReconciliation({
           <div className="hidden border-b bg-muted/20 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem_8rem] sm:gap-3">
             <span>{t(locale, "Container")}</span>
             <span className="text-right">{t(locale, "Billed")}</span>
-            <span className="text-right">{t(locale, "Collected")}</span>
+            <span className="text-right">{t(locale, "Collected|money")}</span>
             <span className="text-right">{t(locale, "Still owed")}</span>
             <span className="text-right">{t(locale, "Costs")}</span>
           </div>
@@ -1048,7 +1048,7 @@ export default async function ManagerReconciliation({
                         </span>
                         {[
                           { label: "Billed", value: box.billed.tzs, tone: "" },
-                          { label: "Collected", value: box.collected.tzs, tone: "text-success" },
+                          { label: "Collected|money", value: box.collected.tzs, tone: "text-success" },
                           { label: "Still owed", value: box.owed.tzs, tone: box.owed.tzs > 0 ? "text-destructive" : "text-muted-foreground" },
                           { label: "Costs", value: box.spent.tzs, tone: "" },
                         ].map((cell) => (

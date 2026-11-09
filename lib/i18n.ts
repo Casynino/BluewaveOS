@@ -707,7 +707,8 @@ const ZH: Record<string, string> = {
      manager's books and every batch statement — "cargo picked up" was
      printed over shillings on all of them. The five screens that did mean
      a collected BOX now say "Picked up". */
-  "Collected": "已收款",
+  "Collected": "已提货",
+  "Collected|money": "已收款",
   "Picked up": "已提货",
   "collected": "已提走",
   "Collected all time": "累计收款",
@@ -8658,7 +8659,18 @@ const DICTIONARIES: Record<Locale, Record<string, string>> = {
   zh: ZH,
 };
 
+/*
+  A WORD WITH TWO MEANINGS. "Collected" is money received on a finance screen
+  and cargo picked up at the counter; English says both with one word, Chinese
+  needs two. Such a key carries its sense after a bar — "Collected|money" —
+  and only ever inside the translation call itself: English shows the word
+  before the bar, and the dictionary keeps one line per sense. Only these
+  exact endings count, so no ordinary text with a bar in it is touched.
+*/
+const SENSE = /\|(?:money|cargo)$/;
+
 export function t(locale: Locale | undefined | null, english: string): string {
-  if (!locale || locale === "en") return english;
-  return DICTIONARIES[locale]?.[english] ?? english;
+  const word = SENSE.test(english) ? english.replace(SENSE, "") : english;
+  if (!locale || locale === "en") return word;
+  return DICTIONARIES[locale]?.[english] ?? DICTIONARIES[locale]?.[word] ?? word;
 }

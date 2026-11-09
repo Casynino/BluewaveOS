@@ -168,7 +168,7 @@ export default async function ContainerFinancePage({
 
   const totals = [
     { label: "Revenue", tzs: revenueTzs, usd: revenueUsd, tone: "" },
-    { label: "Collected", tzs: collectedTzs, usd: collectedUsd, tone: "text-success" },
+    { label: "Collected|money", tzs: collectedTzs, usd: collectedUsd, tone: "text-success" },
     { label: "Outstanding", tzs: outstandingTzs, usd: outstandingUsd, tone: "text-warning" },
     { label: "Costs", tzs: costTzs, usd: costUsd, tone: "text-destructive" },
     {

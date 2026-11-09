@@ -63,7 +63,7 @@ export default async function ContainerFinancesPage() {
               <tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3 font-medium">{T("Container")}</th>
                 <th className="px-4 py-3 text-right font-medium">{T("Revenue")}</th>
-                <th className="px-4 py-3 text-right font-medium">{T("Collected")}</th>
+                <th className="px-4 py-3 text-right font-medium">{T("Collected|money")}</th>
                 <th className="px-4 py-3 text-right font-medium">{T("Outstanding")}</th>
                 <th className="px-4 py-3 text-right font-medium">{T("Costs")}</th>
                 <th className="px-4 py-3 text-right font-medium">{T("Profit / loss")}</th>

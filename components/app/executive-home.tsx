@@ -520,7 +520,7 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
         </SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <KpiCard index={0} label={tr("Billed")} value={money(now.billed.tzs)} delta={change(now.billed, before.billed)} hint={lastMonth(before.billed)} icon={Receipt} tone="brand" href="/app/finance/reports" />
-          <KpiCard index={1} label={tr("Collected")} value={money(now.collected.tzs)} delta={change(now.collected, before.collected)} hint={lastMonth(before.collected)} icon={HandCoins} tone="success" href="/app/finance/income" />
+          <KpiCard index={1} label={tr("Collected|money")} value={money(now.collected.tzs)} delta={change(now.collected, before.collected)} hint={lastMonth(before.collected)} icon={HandCoins} tone="success" href="/app/finance/income" />
           <KpiCard index={2} label={tr("Costs")} value={money(now.expenses.tzs)} delta={change(now.expenses, before.expenses)} deltaGood={false} hint={lastMonth(before.expenses)} icon={Banknote} tone="warning" href="/app/finance/expenses" />
           <KpiCard
             index={3}

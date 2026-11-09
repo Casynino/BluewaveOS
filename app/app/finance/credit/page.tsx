@@ -236,7 +236,7 @@ export default async function CreditPage({
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
         {[
           { k: "Sold on credit", v: overview.sold, tone: "" },
-          { k: "Collected", v: overview.collected, tone: "text-success" },
+          { k: "Collected|money", v: overview.collected, tone: "text-success" },
           { k: "Still owed", v: overview.owed, tone: "text-brand" },
           { k: "Overdue", v: overview.overdue, tone: "text-destructive" },
           { k: "Due today", v: overview.dueToday, tone: "text-warning" },
