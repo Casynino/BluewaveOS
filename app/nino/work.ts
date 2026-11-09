@@ -1,11 +1,11 @@
 /**
  * Nino's work, as shown on /nino (linked from the sign-in page: "Developed by Nino"). Every line comes from the
  * project's own live site (its title and description), its own README, or from Nino — nothing invented. Screenshots in
- * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil, Hao Labs and
- * BlueWave Cargo: their live sign-in pages, retaken 2026-11-09). Kept in step with the same list on the Hao Labs system
+ * /public/nino are the live home pages, taken 2026-10-05 (Super Drive Oil, ZELab and
+ * BlueWave Cargo: their live sign-in pages, retaken 2026-11-09). Kept in step with the same list on the ZELab system
  * (Hao-Stock/client/src/pages/nino.work.js), which has the latest wording. The other companies named here are Nino's clients, listed by the owner's
  * decision (2026-11-09); tests/identity.test.ts allows their names in this file only.
- * The other live sites' pictures were retaken from their live home pages on the evening of 2026-11-09.
+ * The other live sites' pictures were retaken from their live home pages on 2026-11-10; ZELab shows its sign-in page.
  */
 
 export type Project = {
@@ -45,9 +45,9 @@ export const LIVE: Project[] = [
     tags: ["Point of sale", "Warehouse pickups", "Daily closing", "Credit & Winga"], code: `${GH}/Super-Drive-OS`,
   },
   {
-    name: "Hao Labs", kind: "Stock, settlement & commission system",
-    line: "Every box that leaves the Lab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
-    url: "https://hao-stock.vercel.app", domain: "hao-stock.vercel.app", shot: "/nino/haolabs-signin.webp",
+    name: "ZELab", kind: "Stock, settlement & commission system",
+    line: "Every box that leaves ZELab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
+    url: "https://www.zelab.site", domain: "zelab.site", shot: "/nino/haolabs-signin.webp",
     tags: ["Stock control", "Settlements", "Commission", "Reports"], code: `${GH}/The-Lab`,
   },
   {

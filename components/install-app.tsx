@@ -224,7 +224,7 @@ function stepsFor(browser: Browser, ios: boolean, t: (s: string) => string) {
 }
 
 /*
-  A quiet card that belongs to the page (owner, 9 Nov 2026, as on Hao Labs): it
+  A quiet card that belongs to the page (owner, 9 Nov 2026, as on ZELab): it
   sits low, in the dark sea above the phone's toolbar, and leaves the logo, the
   Sign in button and the scene alone; the dim behind it is barely there; the
   card is see-through navy, blurring what is under it rather than covering it.
