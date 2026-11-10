@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact, ReqLayout, ReqSteps } from "@/components/bw/req-layout";
+import { RATIBA, SW_ARRIVAL_CAVEAT, swFull } from "@/components/bw/ratiba";
 import { PageBanner } from "@/components/bw/ui";
 import { BookingForm } from "@/components/site/request-forms";
-import { formatDate } from "@/lib/format";
 import { publicRateBook } from "@/lib/public-estimate";
-import { ARRIVAL_CAVEAT, publicSailings } from "@/lib/sailing-schedule";
+import { publicSailings } from "@/lib/sailing-schedule";
 
 export const metadata: Metadata = {
   title: "Book a shipment — China to Dar es Salaam",
@@ -27,9 +27,6 @@ export const revalidate = 300;
 /* How many weeks a customer may pick from. Beyond a couple of months the
    readiness date is a guess and Support would rather be told the month. */
 const WEEKS_OFFERED = 8;
-
-const utc = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { ...o, timeZone: "UTC" });
-const DAY_MONTH = utc({ weekday: "short", day: "2-digit", month: "short" });
 
 /**
  * One form for the four services.
@@ -62,7 +59,7 @@ export default async function Page({
      customer means when they say "put me on the boat on the third". */
   const options = open.map((sailing) => ({
     departure: sailing.departureDate.toISOString().slice(0, 10),
-    label: `Sails ${formatDate(sailing.departureDate)} — cargo in by ${formatDate(sailing.cargoDeadline)}`,
+    label: `${RATIBA.depart} ${swFull(sailing.departureDate)} — ${RATIBA.load.toLowerCase()} ${swFull(sailing.cargoDeadline)}`,
   }));
 
   return (
@@ -98,30 +95,34 @@ export default async function Page({
             <section aria-labelledby="book-sailings" className="overflow-hidden rounded-[2px] bg-bw-night text-white">
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
                 <h3 id="book-sailings" className="bw-label text-white/70">
-                  Next open sailings
+                  Meli zinazofuata
                 </h3>
                 <Link
                   href="/schedule"
                   className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-cyan underline-offset-4 transition-colors hover:text-white hover:underline"
                 >
-                  All
+                  Ratiba kamili
                 </Link>
               </div>
               {open.length ? (
                 <ol>
                   {open.slice(0, 4).map((sailing) => (
-                    <li key={sailing.key} className="grid grid-cols-2 gap-3 border-b border-white/10 px-5 py-4 last:border-b-0">
-                      <div>
-                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50">Receiving closes</p>
-                        <p className="bw-mono mt-1 text-sm text-bw-coral-bright">{DAY_MONTH.format(sailing.cargoDeadline)}</p>
-                      </div>
-                      <div>
-                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50">Departs</p>
-                        <p className="bw-mono mt-1 text-sm">{DAY_MONTH.format(sailing.departureDate)}</p>
-                      </div>
-                      <p className="bw-mono col-span-2 text-[0.7rem] text-white/55">
-                        ETA Dar ≈ {DAY_MONTH.format(sailing.estimatedArrival)}
-                      </p>
+                    <li key={sailing.key} className="border-b border-white/10 px-5 py-3.5 last:border-b-0">
+                      {/* The poster's three lines and words (components/bw/ratiba.ts). */}
+                      <dl className="grid gap-1.5 text-sm">
+                        {(
+                          [
+                            [RATIBA.load, swFull(sailing.cargoDeadline), "text-white"],
+                            [RATIBA.depart, swFull(sailing.departureDate), "text-white"],
+                            [RATIBA.arrive, `≈ ${swFull(sailing.estimatedArrival)}`, "text-white/70"],
+                          ] as const
+                        ).map(([term, value, tone]) => (
+                          <div key={term} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                            <dt className="text-white/55">{term}</dt>
+                            <dd className={`tabular-nums ${tone}`}>{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     </li>
                   ))}
                 </ol>
@@ -131,7 +132,7 @@ export default async function Page({
                   container opens.
                 </p>
               )}
-              <p className="border-t border-white/10 px-5 py-3 text-xs text-white/50">{ARRIVAL_CAVEAT}</p>
+              <p className="border-t border-white/10 px-5 py-3 text-xs text-white/50">{SW_ARRIVAL_CAVEAT}</p>
             </section>
 
             <ReqBlock label="After you send it" title="What happens next">

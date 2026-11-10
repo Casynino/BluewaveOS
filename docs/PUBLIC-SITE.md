@@ -71,6 +71,9 @@ stops under `prefers-reduced-motion`.
 
 ## Rules
 
+- Schedules speak the office's "Ratiba ya meli" poster (owner, 10 Nov 2026): Kupakia, Kuondoka,
+  Kufika (makadirio), dates as "Ijumaa, 13 Novemba", and every way to book says "Book now".
+  The words and dates live in `components/bw/ratiba.ts` only.
 - Every figure comes from the existing backend: `publicRateBook`,
   `estimateFreight`, `publicSailings`, `trackByReference`,
   `currentExchangeRate`, `supplierAddress`, the request server actions. No

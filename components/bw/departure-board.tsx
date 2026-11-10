@@ -1,22 +1,15 @@
 import Link from "next/link";
 
-import { SAILING_STATUS_LABEL } from "@/lib/constants";
-import { ARRIVAL_CAVEAT, type Sailing } from "@/lib/sailing-schedule";
+import { RATIBA, SW_ARRIVAL_CAVEAT, SW_STATUS, swDaysLeft, swFull } from "@/components/bw/ratiba";
+import type { Sailing } from "@/lib/sailing-schedule";
 import { cn } from "@/lib/utils";
 
-const utc = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" });
-const DAY = utc({ weekday: "short" });
-const DATE = utc({ day: "2-digit", month: "short" });
-
-const STATUS_TONE: Record<Sailing["status"], string> = {
-  OPEN_FOR_BOOKING: "text-emerald-300",
-  CUTOFF_APPROACHING: "text-amber-300",
-  CLOSED: "text-white/45",
-  DEPARTED: "text-bw-cyan",
-  IN_TRANSIT: "text-bw-cyan",
-  ARRIVED: "text-white/45",
+/* Only a state worth noticing gets a colour; the rest read as quiet text. */
+const STATUS_TONE: Partial<Record<Sailing["status"], string>> = {
   DELAYED: "text-amber-300",
   CANCELLED: "text-bw-coral-bright",
+  DEPARTED: "text-bw-cyan",
+  IN_TRANSIT: "text-bw-cyan",
 };
 
 export function bookHref(sailing: Sailing) {
@@ -24,82 +17,91 @@ export function bookHref(sailing: Sailing) {
 }
 
 /**
- * THE DEPARTURES BOARD.
+ * THE TIMETABLE, IN THE POSTER'S WORDS.
  *
- * A port's timetable, not a set of cards: one row per sailing, the columns a
- * shipper plans by — the day the warehouse stops receiving, the day the box
- * leaves, the day it should reach Dar — and whether there is still room.
- * Read straight from lib/sailing-schedule.ts, the schedule the office keeps.
+ * One row per sailing with the three dates the office's "Ratiba ya meli"
+ * poster gives — Kupakia, Kuondoka, Kufika (makadirio) — and one way on:
+ * "Book now" while there is room, otherwise a few words saying why not. The
+ * next sailing's button is the solid one; the rest are outlined, so twelve
+ * rows do not shout twelve times. On a phone each row reads like the poster:
+ * the word on the left, the date on the right. Read straight from
+ * lib/sailing-schedule.ts, the schedule the office keeps.
  */
-export function DepartureBoard({ sailings, compact = false }: { sailings: Sailing[]; compact?: boolean }) {
+export function DepartureBoard({
+  sailings,
+  compact = false,
+  now = new Date(),
+}: {
+  sailings: Sailing[];
+  compact?: boolean;
+  now?: Date;
+}) {
+  const firstOpen = sailings.find((s) => s.bookingOpen)?.key;
+
   return (
     <div className="overflow-hidden rounded-[3px] bg-bw-night text-white ring-1 ring-white/10">
-      <div className="bw-mono hidden grid-cols-12 gap-4 border-b border-white/10 px-6 py-3 text-[0.66rem] uppercase tracking-[0.06em] text-white/45 md:grid">
-        <span className="col-span-3">Sailing</span>
-        <span className="col-span-2">Receiving closes</span>
-        <span className="col-span-2">Departs</span>
-        <span className="col-span-2">ETA Dar es Salaam</span>
-        <span className="col-span-3">Status</span>
+      <div aria-hidden className="hidden grid-cols-12 gap-4 border-b border-white/10 px-6 py-3 text-sm text-white/55 md:grid">
+        <span className="col-span-3">{RATIBA.load}</span>
+        <span className="col-span-3">{RATIBA.depart}</span>
+        <span className="col-span-3">{RATIBA.arrive}</span>
       </div>
       <ol>
-        {sailings.map((sailing) => (
-          <li
-            key={sailing.key}
-            className="grid grid-cols-2 gap-x-4 gap-y-4 border-b border-white/10 px-5 py-5 last:border-b-0 md:grid-cols-12 md:items-center md:px-6"
-          >
-            <div className="col-span-2 md:col-span-3">
-              <p className="font-bw-display text-2xl font-semibold uppercase leading-none">
-                {sailing.vessel ?? `Week of ${DATE.format(sailing.departureDate)}`}
-              </p>
-              <p className="bw-mono mt-1.5 text-[0.7rem] uppercase tracking-[0.06em] text-white/50">
-                {sailing.reference ?? `${sailing.origin} → ${sailing.destination}`}
-              </p>
-            </div>
-            <BoardDate label="Receiving closes" date={sailing.cargoDeadline} accent />
-            <BoardDate label="Departs" date={sailing.departureDate} />
-            <BoardDate label="ETA Dar" date={sailing.estimatedArrival} approx />
-            <div className="col-span-2 flex items-center justify-between gap-3 md:col-span-3">
-              <span
-                className={cn(
-                  "bw-mono inline-flex min-w-0 items-center gap-2 text-xs uppercase leading-tight tracking-[0.06em]",
-                  STATUS_TONE[sailing.status]
-                )}
-              >
-                <span className="size-2 shrink-0 bg-current" aria-hidden />
-                {SAILING_STATUS_LABEL[sailing.status] ?? sailing.status}
-              </span>
-              {sailing.bookingOpen ? (
-                <Link
-                  href={bookHref(sailing)}
-                  className="inline-flex h-10 shrink-0 items-center rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-bw-coral-dark"
-                >
-                  Book
-                </Link>
+        {sailings.map((sailing) => {
+          const hurry = sailing.status === "CUTOFF_APPROACHING" ? swDaysLeft(sailing.cargoDeadline, now) : null;
+          return (
+            <li
+              key={sailing.key}
+              className="border-b border-white/10 px-5 py-4 last:border-b-0 md:grid md:grid-cols-12 md:items-center md:gap-4 md:px-6"
+            >
+              {sailing.vessel ? (
+                <p className="mb-2 text-sm font-medium text-white md:col-span-12 md:mb-0">
+                  {sailing.vessel}
+                  {sailing.reference ? <span className="font-normal text-white/50"> · {sailing.reference}</span> : null}
+                </p>
               ) : null}
-            </div>
-          </li>
-        ))}
+              <dl className="grid gap-2 md:col-span-9 md:grid-cols-3 md:gap-4">
+                <Cell term={RATIBA.load} value={swFull(sailing.cargoDeadline)} note={hurry} />
+                <Cell term={RATIBA.depart} value={swFull(sailing.departureDate)} />
+                <Cell term={RATIBA.arrive} value={`≈ ${swFull(sailing.estimatedArrival)}`} quiet />
+              </dl>
+              <div className="mt-4 flex justify-end md:col-span-3 md:mt-0">
+                {sailing.bookingOpen ? (
+                  <Link
+                    href={bookHref(sailing)}
+                    className={cn(
+                      "inline-flex h-10 shrink-0 items-center rounded-[2px] px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.06em] transition-colors",
+                      sailing.key === firstOpen
+                        ? "bg-bw-coral text-white hover:bg-bw-coral-dark"
+                        : "border border-white/25 text-white hover:border-white/60"
+                    )}
+                  >
+                    Book now
+                  </Link>
+                ) : (
+                  <span className={cn("text-sm", STATUS_TONE[sailing.status] ?? "text-white/55")}>
+                    {SW_STATUS[sailing.status]}
+                  </span>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ol>
       {!compact ? (
-        <p className="border-t border-white/10 px-6 py-3 text-xs text-white/50">{ARRIVAL_CAVEAT}</p>
+        <p className="border-t border-white/10 px-5 py-3 text-xs text-white/50 md:px-6">{SW_ARRIVAL_CAVEAT}</p>
       ) : null}
     </div>
   );
 }
 
-function BoardDate({ label, date, accent = false, approx = false }: { label: string; date: Date; accent?: boolean; approx?: boolean }) {
-  /* Weekday over the date, not beside it: in a two-column share of the board
-     the two on one line ran into the next column. */
+function Cell({ term, value, note, quiet = false }: { term: string; value: string; note?: string | null; quiet?: boolean }) {
   return (
-    <div className="min-w-0 md:col-span-2">
-      <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50 md:hidden">{label}</p>
-      <p className={cn("bw-mono mt-1 text-[0.68rem] uppercase tracking-[0.06em] md:mt-0", accent ? "text-bw-coral-bright" : "text-white/50")}>
-        {DAY.format(date)}
-      </p>
-      <p className="bw-mono whitespace-nowrap text-base md:text-lg">
-        {approx ? "≈ " : ""}
-        {DATE.format(date).toUpperCase()}
-      </p>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 md:block">
+      <dt className="text-sm text-white/55 md:sr-only">{term}</dt>
+      <dd className="text-right md:text-left">
+        <span className={cn("text-[15px] tabular-nums", quiet ? "text-white/75" : "text-white")}>{value}</span>
+        {note ? <span className="block text-xs text-bw-coral-bright">{note}</span> : null}
+      </dd>
     </div>
   );
 }
