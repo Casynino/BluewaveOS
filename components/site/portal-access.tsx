@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { FormMessage } from "@/components/app/form-message";
 import { SubmitButton } from "@/components/app/submit-button";
+import { AuthSwitch } from "@/components/site/auth-switch";
 import { RegisterForm } from "@/components/site/register-form";
 import { TzPhoneInput } from "@/components/tz-phone-input";
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,7 @@ export function PortalAccess({ mode, title, intro }: { mode: "register" | "reset
         body="You already have an account."
         action={
           <span className="flex flex-wrap gap-x-5 gap-y-1.5">
-            <Link href="/login" className={link}>Sign in</Link>
+            <AuthSwitch to="signin" href="/login" className={link}>Sign in</AuthSwitch>
             <Link href="/register?mode=reset" className="text-white/60 underline-offset-4 hover:text-white hover:underline">Forgot password?</Link>
           </span>
         }
@@ -92,8 +93,8 @@ export function PortalAccess({ mode, title, intro }: { mode: "register" | "reset
 function Greeting({ title, body }: { title: string; body?: string }) {
   return (
     <div className="mb-1">
-      <h1 className="text-[19px] font-semibold tracking-tight text-white">{title}</h1>
-      {body ? <p className="mt-1 text-[12.5px] text-white/60">{body}</p> : null}
+      <h1 className="text-[17px] font-semibold tracking-tight text-white">{title}</h1>
+      {body ? <p className="mt-1 text-[12.5px] leading-relaxed text-white/55">{body}</p> : null}
     </div>
   );
 }
@@ -131,7 +132,7 @@ function ActivateForm({ phone, hello }: { phone: string; hello: string }) {
       </SubmitButton>
       <p className="text-[12.5px] text-white/60">
         Not you?{" "}
-        <Link href="/register" className={link}>Start again</Link>
+        <AuthSwitch to="create" href="/register" className={link}>Start again</AuthSwitch>
       </p>
     </form>
   );

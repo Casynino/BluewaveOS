@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import { AlertTriangle, ArrowLeft, ArrowUpRight, PackageCheck, ReceiptText, Ship } from "lucide-react";
 
 import { LoginForm } from "@/components/login-form";
+import { AuthSwitch } from "@/components/site/auth-switch";
 import { LoginGate } from "./login-gate";
 import { LoginScene } from "./login-scene";
 import "./login.css";
@@ -114,8 +115,8 @@ export default async function LoginPage({
           </p>
           <LoginGate defaultOpen={revoked}>
             <div className="ls-card ls-up dark w-full p-7 text-left text-foreground max-md:p-5 sm:p-8" style={delay(0.2)}>
-              <h1 className="ls-title text-2xl font-semibold tracking-tight max-md:text-[19px]">Sign in</h1>
-              <p className="mt-1.5 text-sm text-white/65 max-md:hidden">Staff and customers use the same door.</p>
+              <h1 className="text-xl font-semibold tracking-tight text-white max-md:text-[17px]">Sign in</h1>
+              <p className="mt-1 text-[13px] text-white/55 max-md:hidden">Staff and customers use the same door.</p>
 
               {revoked ? (
                 <div
@@ -138,21 +139,21 @@ export default async function LoginPage({
                 <Link href="/register?mode=reset" className="text-white/60 underline-offset-4 hover:text-white hover:underline">
                   Forgot password?
                 </Link>
-                <Link href="/register" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
-                  Open an account
-                </Link>
+                <AuthSwitch to="create" href="/register" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
+                  Create account
+                </AuthSwitch>
               </div>
 
-              <p className="mt-4 text-sm max-md:hidden">
-                <Link href="/register?mode=reset" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
+              <p className="mt-4 text-[13px] max-md:hidden">
+                <Link href="/register?mode=reset" className="text-white/60 underline-offset-4 hover:text-white hover:underline">
                   Forgot your password?
                 </Link>
               </p>
 
-              <p className="mt-4 border-t border-white/10 pt-4 text-sm text-white/65 max-md:hidden">
+              <p className="mt-4 border-t border-white/[0.08] pt-4 text-[13px] text-white/55 max-md:hidden">
                 New customer, or shipped with us before?{" "}
-                <Link href="/register" className="font-semibold text-[#7fd8f5] underline-offset-4 hover:underline">
-                  Open an account
+                <Link href="/register" className="whitespace-nowrap font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
+                  Create account
                 </Link>
               </p>
             </div>

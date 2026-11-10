@@ -308,95 +308,46 @@
   }
 }
 
-/* the sign-in card floats over the scene: dark glass, the sea showing through */
-@property --ls-a {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
+/* The sign-in and create-account cards (owner, 10 Nov 2026: clean, like ZELab's
+   — no travelling light, no shine, no glinting title). Frosted navy with the sea
+   showing through, a hairline edge, and quiet fields: a faint white fill, a thin
+   border that brightens on focus. The tokens below apply inside the card only. */
 .ls-card {
   position: relative;
-  border-radius: 1.25rem;
-  background: rgba(6, 20, 43, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 0 60px -10px rgba(47, 111, 208, 0.3);
+  border-radius: 1rem;
+  background: rgba(6, 20, 43, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.75);
+  --radius: 0.85rem;
+  --background: 0 0% 100% / 0.06;
+  --input: 0 0% 100% / 0.1;
+  --border: 0 0% 100% / 0.1;
+  --ring: 0 0% 100% / 0.1;
+  /* buttons take the cyan of the scene's Sign in pill, with navy lettering */
+  --brand: 194 78% 58%;
+  --brand-foreground: 217 76% 10%;
 }
-/* a thin light (cyan into coral) travelling round the edge of the card */
-.ls-card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(from var(--ls-a), transparent 0 62%, rgba(64, 192, 232, 0.95) 78%, rgba(214, 60, 80, 0.95) 90%, transparent 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  animation: ls-edge 7s linear infinite;
-  pointer-events: none;
+.ls-card label {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
 }
-@keyframes ls-edge {
-  to {
-    --ls-a: 360deg;
-  }
+.ls-card input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
 }
-/* On a phone the card is a quiet pop-up, like the install card: see-through
-   navy and a hairline edge, without the travelling light. */
-@media (max-width: 767px) {
-  .ls-card {
-    background: rgba(6, 20, 43, 0.55);
-    border-color: rgba(255, 255, 255, 0.09);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
-    backdrop-filter: blur(24px) saturate(1.5);
-    box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.75);
-  }
-  .ls-card::before {
-    display: none;
-  }
+/* focus: the soft ring hugs the field instead of standing off it */
+.ls-card input:focus-visible,
+.ls-card div:focus-within {
+  --tw-ring-offset-width: 0px;
 }
-/* the Sign in button catches the light every few seconds */
+.ls-card input:focus-visible,
+.ls-card div:focus-within:has(> input) {
+  border-color: rgba(255, 255, 255, 0.3);
+}
 .ls-card button[type="submit"] {
-  position: relative;
-  overflow: hidden;
-}
-.ls-card button[type="submit"]::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 -60%;
-  width: 40%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  animation: ls-shine-btn 4.5s ease-in-out infinite 1.2s;
-  pointer-events: none;
-}
-@keyframes ls-shine-btn {
-  0% {
-    left: -60%;
-  }
-  35%,
-  100% {
-    left: 130%;
-  }
-}
-/* the title glints */
-.ls-title {
-  background: linear-gradient(90deg, #fff 0%, #fff 38%, #7fd8f5 50%, #fff 62%, #fff 100%);
-  background-size: 250% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: ls-title 6s ease-in-out infinite;
-}
-@keyframes ls-title {
-  0% {
-    background-position: 100% 0;
-  }
-  45%,
-  100% {
-    background-position: 0 0;
-  }
+  font-weight: 600;
 }
 
 /* content entrance */
@@ -472,9 +423,6 @@
   .ls *,
   .ls-up,
   .ls-pop,
-  .ls-card::before,
-  .ls-card button[type="submit"]::after,
-  .ls-title,
   .ls-brand img,
   .ls-brand::after,
   .ls-sky-logo::before {

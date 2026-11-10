@@ -189,9 +189,12 @@ deleted.
   only the phone's setting: `components/theme-color.tsx`. The sign-in scene,
   the website (`data-site`) and the check page set their own navy. Colours
   there, in each route's `viewport` and in `globals.css` move together.
-- Sign-in on a phone: the scene with the logo and one Sign in button that opens
-  the card as a pop-up (`app/login/login-gate.tsx`); from `md` up the card sits
-  on the page. "Get the full-screen app" (`components/install-app.tsx`) shows
+- Sign-in on a phone: the scene with the logo and two buttons, Sign in and
+  Create account, each opening its own plain card as a pop-up
+  (`app/login/login-gate.tsx`); Create account is the phone-first register flow
+  (`PortalAccess`). From `md` up the sign-in card sits on the page and Create
+  account is `/register`. The cards stay clean, like ZELab's: no edge light,
+  shine or glint (owner, 10 Nov 2026). "Get the full-screen app" (`components/install-app.tsx`) shows
   how to add it to the home screen in the words of the browser in use (Safari,
   Chrome, Samsung, Huawei, WeChat/WhatsApp). On Android it is one tap ("Install
   the app"): a small script in `app/layout.tsx`'s head keeps Chrome's install
