@@ -7399,7 +7399,7 @@ const ZH: Record<string, string> = {
   "The payment stays on the record as reversed. The receipt already issued would otherwise point at nothing.": "付款以已冲销状态保留在记录中。否则已开具的收据将失去对应。",
   "The phone number is how everybody finds them again, so get that one right.": "电话号码是大家找到客户的方式，请务必填对。",
   "The public schedule is running on the weekly rule, which is usually what you want.": "公开船期按每周规则运行，通常就是您需要的。",
-  "The public schedule runs itself: cargo in by Friday, packed that Friday, sails Monday, thirty-five days at sea. Publish a row here only for the week that is different.": "公开船期自动运行：周五前收货，当周五装柜，周一开船，海运三十五天。只有某周不同时才在这里发布一行。",
+  "The public schedule runs itself: cargo in by Friday, packed that Friday, sails Monday, thirty days at sea. Publish a row here only for the week that is different.": "公开船期自动运行：周五前收货，当周五装柜，周一开船，海运三十天。只有某周不同时才在这里发布一行。",
   "The rate book prices cargo by type, so these cannot be priced until one is chosen.": "价格表按类型定价，因此选择类型前无法定价。",
   "The reason": "原因",
   "The register says": "账簿显示",
@@ -8380,7 +8380,7 @@ const ZH: Record<string, string> = {
   "The sailing is Foshan's to correct — the desk that books the space.":
     "航次由佛山修改——订舱的岗位。",
   "Expected in Dar": "预计到达达城",
-  "thirty-five days after it left": "开航后三十五天",
+  "thirty days after it left": "开航后三十天",
   "Left blank, this sailing is due {date} — 35 days at sea.":
     "不填则本航次预计 {date} 到港——海上35天。",
   "Thirty-five days after departure, once there is a departure to count from.":

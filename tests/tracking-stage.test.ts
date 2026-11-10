@@ -178,24 +178,24 @@ describe("public journey", () => {
     assert.equal(j.lateBy, "2 days late");
   });
 
-  test("no ETA from the line means thirty-five days from departure, and late after them", () => {
+  test("no ETA from the line means thirty days from departure, and late after them", () => {
     const onTime = publicJourney(
-      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-35), eta: null }) })
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-30), eta: null }) })
     );
-    assert.equal(onTime.etaPassed, false, "day thirty-five is still the crossing");
-    assert.ok(onTime.eta, "the lane's thirty-five days stand in for a promise nobody made");
+    assert.equal(onTime.etaPassed, false, "day thirty is still the crossing");
+    assert.ok(onTime.eta, "the lane's thirty days stand in for a promise nobody made");
 
     const late = publicJourney(
-      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-36), eta: null }) })
+      input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-31), eta: null }) })
     );
-    assert.equal(late.etaPassed, true, "day thirty-six is late");
-    assert.equal(late.lateBy, "1 day late", "day thirty-six is one day late");
+    assert.equal(late.etaPassed, true, "day thirty-one is late");
+    assert.equal(late.lateBy, "1 day late", "day thirty-one is one day late");
   });
 
   test("how late is said in days, then weeks, then months", () => {
     const at = (daysOut: number) =>
       publicJourney(
-        input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-35 - daysOut), eta: null }) })
+        input({ status: "IN_TRANSIT", container: box({ status: "IN_TRANSIT", departedAt: day(-30 - daysOut), eta: null }) })
       ).lateBy;
     assert.equal(at(3), "3 days late");
     assert.equal(at(7), "1 week late");

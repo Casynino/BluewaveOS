@@ -560,7 +560,7 @@ export function publicJourney(input: JourneyInput): Journey {
     COLLECTED: handedOver,
   };
 
-  /* The line's date when it gave one, otherwise thirty-five days from
+  /* The line's date when it gave one, otherwise thirty days from
      departure — the lane's habit, and what the office tells customers. */
   const promised = expectedArrival(departedAt, container?.eta ?? null);
   const etaOpen = promised && !reached.ARRIVED_IN_DAR ? promised : null;

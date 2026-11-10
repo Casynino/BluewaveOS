@@ -328,7 +328,7 @@ describe("the BlueWave journey, driven through the real actions", () => {
     }
   });
 
-  test("2. loaded, sealed and sailed: the ETA is thirty-five days out and day thirty-six is late", async () => {
+  test("2. loaded, sealed and sailed: the ETA is thirty days out and day thirty-one is late", async () => {
     as("china");
     const opened = await containerActions.createContainer({}, form({ type: "HQ_40" }));
     assert.ok(opened.ok, opened.error);
@@ -362,8 +362,8 @@ describe("the BlueWave journey, driven through the real actions", () => {
     const departure = shipment.departureDate!;
     assert.equal(
       shipment.eta!.getTime(),
-      departure.getTime() + 35 * DAY_MS,
-      "thirty-five days from the day it left"
+      departure.getTime() + 30 * DAY_MS,
+      "thirty days from the day it left"
     );
     assert.equal(
       schedule.expectedArrival(departure, null)!.getTime(),
@@ -371,9 +371,9 @@ describe("the BlueWave journey, driven through the real actions", () => {
       "the rule and the stored date are the same date"
     );
 
-    /* Day 35 is still the crossing; day 36 is the first that is late. */
-    assert.equal(schedule.delayFor(shipment.eta, new Date(departure.getTime() + 35 * DAY_MS)), null);
-    const late = schedule.delayFor(shipment.eta, new Date(departure.getTime() + 36 * DAY_MS));
+    /* Day 30 is still the crossing; day 31 is the first that is late. */
+    assert.equal(schedule.delayFor(shipment.eta, new Date(departure.getTime() + 30 * DAY_MS)), null);
+    const late = schedule.delayFor(shipment.eta, new Date(departure.getTime() + 31 * DAY_MS));
     assert.equal(late?.days, 1);
     assert.equal(late?.label, "1 day late");
 

@@ -892,7 +892,7 @@ export async function updateVoyage(
     billOfLading: data.billOfLading || null,
     departureDate: departure,
     /* A departure moved with the ETA box left empty takes the lane's own
-       thirty-five days from the new day: the date the customer reads should
+       thirty days from the new day: the date the customer reads should
        never be the old one counted from a day the box did not leave. */
     eta: arrival ?? expectedArrival(departure),
     notes: data.notes || null,

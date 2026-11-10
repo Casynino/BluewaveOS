@@ -29,16 +29,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const FRIDAY = 5;
 const MONDAY = 1;
 
-/** Days at sea when nobody has said otherwise. This lane's habit, not a law. */
-export const DEFAULT_TRANSIT_DAYS = 35;
+/**
+ * Days at sea when nobody has said otherwise. Thirty, as the office's "Ratiba
+ * ya meli" poster counts them (16 November out, 16 December in) — the owner's
+ * decision, 10 Nov 2026; it was thirty-five, inherited. The lane's habit, not a
+ * law: a week the line says otherwise is published with its own figure.
+ */
+export const DEFAULT_TRANSIT_DAYS = 30;
 
 /**
  * WHEN A SAILING IS EXPECTED IN DAR.
  *
- * The line's own ETA when it has given one; otherwise thirty-five days from
- * the day the box left China, which is what this lane takes and what the
- * office tells customers: day one to day thirty-five is the crossing, and day
- * thirty-six is late. Null before there is a departure to count from — a date
+ * The line's own ETA when it has given one; otherwise thirty days from the
+ * day the box left China, which is what this lane takes and what the office
+ * tells customers: day one to day thirty is the crossing, and day thirty-one
+ * is late. Null before there is a departure to count from — a date
  * nobody can stand behind is worse than no date.
  */
 export function expectedArrival(

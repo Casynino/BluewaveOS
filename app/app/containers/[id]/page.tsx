@@ -1107,7 +1107,7 @@ export default async function ContainerPage({
                       false,
                     ],
                     [
-                      /* The line's date, or the lane's thirty-five days from
+                      /* The line's date, or the lane's thirty days from
                          the day it left — and it says so when that day has
                          gone by, because that is what the customer is told. */
                       "ETA",

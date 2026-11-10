@@ -248,7 +248,7 @@ export default async function EditContainerPage({
   /*
     WHEN THIS BOX IS DUE, AND WHETHER THAT DAY HAS GONE.
 
-    The line's own ETA when it gave one, otherwise thirty-five days from the
+    The line's own ETA when it gave one, otherwise thirty days from the
     day it left — the lane's habit, and what the office tells customers. Past
     that day and still not in Dar, the desk should read "Delayed" here rather
     than learn it from a customer on the telephone.
@@ -311,7 +311,7 @@ export default async function EditContainerPage({
                       {formatDate(dueBy)}
                       {container.shipment?.eta ? null : (
                         <span className="text-xs font-normal text-muted-foreground">
-                          {T("thirty-five days after it left")}
+                          {T("thirty days after it left")}
                         </span>
                       )}
                       {late ? <Badge tone="bad">{T("Delayed")}</Badge> : null}

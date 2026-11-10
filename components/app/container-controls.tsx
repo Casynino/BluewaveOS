@@ -623,7 +623,7 @@ export function VoyageForm({
   sailed?: boolean;
   /**
    * The day this lane is due in Dar when the line has promised nothing —
-   * thirty-five days after departure, worked out by `expectedArrival()`.
+   * thirty days after departure, worked out by `expectedArrival()`.
    * Shown, not pre-filled: a date nobody has stood behind must not look like
    * one the shipping line gave us.
    */
