@@ -6,13 +6,13 @@ import { RATIBA, SW_STATUS, swDate, swDaysLeft, swFull } from "@/components/bw/r
 import type { Sailing } from "@/lib/sailing-schedule";
 
 /**
- * THE NEXT SHIP, AS THE OFFICE'S POSTER.
+ * THE NEXT SHIP.
  *
  * Small and white on the dark opening picture, so it is read straight after
- * the headline without competing with it. The same three lines and words as
- * the "Ratiba ya meli" poster the office sends (owner, 10 Nov 2026): Kupakia —
- * the date a customer actually has to meet, counted down — Kuondoka and Kufika
- * (makadirio). The sailings after it are one line. Every date is the office's
+ * the headline without competing with it. The schedule's three dates in its
+ * own words (components/bw/ratiba.ts): the deadline — the date a customer
+ * actually has to meet, counted down — the departure and the estimated
+ * arrival. The sailings after it are one line. Every date is the office's
  * schedule (lib/sailing-schedule.ts), never typed here.
  */
 export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing[]; now?: Date }) {

@@ -1,13 +1,14 @@
 import type { Sailing } from "@/lib/sailing-schedule";
 
 /**
- * RATIBA YA MELI — THE SCHEDULE IN THE COMPANY'S OWN WORDS.
+ * RATIBA YA MELI — THE SCHEDULE'S WORDS, IN ONE PLACE.
  *
- * The office sends customers a "Ratiba ya meli" poster every week with three
- * lines: Kupakia, Kuondoka, Kufika (makadirio). By the owner's decision
- * (10 Nov 2026) every schedule on the website speaks the same Swahili, so a
- * customer reads the same words on the poster and on the page. The month
- * names follow the poster ("Disemba").
+ * By the owner's decision (10 Nov 2026) the schedule is copied word for word
+ * from the live schedule of his other sea-cargo system: "Meli ya Novemba 16",
+ * "Mwisho kupokea mzigo", "Meli inaondoka", "Meli kufika (makadirio)", dates
+ * written "Novemba 13" with "Ijumaa · 2026" beside them, "Siku 30 baharini",
+ * "Nafasi zipo". Every schedule on the site takes its words from here, so they
+ * never drift apart. The booking button says "Book now" (owner, same day).
  *
  * Dates are stored at UTC midnight, so they are read in UTC like every other
  * schedule date (lib/sailing-schedule.ts).
@@ -15,11 +16,11 @@ import type { Sailing } from "@/lib/sailing-schedule";
 
 export const RATIBA = {
   /** The last day the Foshan warehouse takes cargo for this sailing. */
-  load: "Kupakia",
+  load: "Mwisho kupokea mzigo",
   /** The day the container leaves China. */
-  depart: "Kuondoka",
+  depart: "Meli inaondoka",
   /** The estimated day it reaches Dar es Salaam. */
-  arrive: "Kufika (makadirio)",
+  arrive: "Meli kufika (makadirio)",
 } as const;
 
 const SIKU = ["Jumapili", "Jumatatu", "Jumanne", "Jumatano", "Alhamisi", "Ijumaa", "Jumamosi"];
@@ -38,12 +39,20 @@ const MIEZI = [
   "Disemba",
 ];
 
-/** "13 Novemba" */
-export const swDate = (date: Date) => `${date.getUTCDate()} ${MIEZI[date.getUTCMonth()]}`;
+/** "Novemba 13" */
+export const swDate = (date: Date) => `${MIEZI[date.getUTCMonth()]} ${date.getUTCDate()}`;
 /** "Ijumaa" */
 export const swDay = (date: Date) => SIKU[date.getUTCDay()];
-/** "Ijumaa, 13 Novemba" — the poster's order, without the year. */
+/** "Ijumaa, Novemba 13" — for a date on one line. */
 export const swFull = (date: Date) => `${swDay(date)}, ${swDate(date)}`;
+/** 2026 */
+export const swYear = (date: Date) => date.getUTCFullYear();
+
+/** "Meli ya Novemba 16" — or the ship's name once the line has given it. */
+export const sailingTitle = (sailing: Sailing) => sailing.vessel ?? `Meli ya ${swDate(sailing.departureDate)}`;
+
+/** "Siku 30 baharini" */
+export const swAtSea = (days: number) => `Siku ${days} baharini`;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -59,11 +68,11 @@ export function swDaysLeft(deadline: Date, now: Date): string | null {
   return `Zimebaki siku ${left}`;
 }
 
-/** A sailing that can no longer be booked says why, in a few words. */
+/** What a sailing's state says to a customer. Room on it reads "Nafasi zipo". */
 export const SW_STATUS: Record<Sailing["status"], string> = {
-  OPEN_FOR_BOOKING: "Nafasi ipo",
-  CUTOFF_APPROACHING: "Inakaribia kufungwa",
-  CLOSED: "Kupakia kumefungwa",
+  OPEN_FOR_BOOKING: "Nafasi zipo",
+  CUTOFF_APPROACHING: "Nafasi zipo",
+  CLOSED: "Mzigo haupokelewi tena",
   DEPARTED: "Imeondoka",
   IN_TRANSIT: "Iko baharini",
   ARRIVED: "Imefika Dar",
@@ -76,4 +85,8 @@ export const SW_STATUS: Record<Sailing["status"], string> = {
  * every arrival date on a public screen.
  */
 export const SW_ARRIVAL_CAVEAT =
-  "Tarehe ya kufika ni makadirio — inaweza kubadilika kutokana na hali ya usafiri na bandari.";
+  "Tarehe ya kufika ni makadirio — inategemea hali ya usafirishaji, bandari, forodha na ukaguzi.";
+
+/** The second line under the schedule. */
+export const SW_DELAY_NOTE =
+  "Meli huchelewa kwa sababu ya hali ya hewa, msongamano bandarini na forodha, na tutakujulisha inapotokea.";

@@ -71,9 +71,11 @@ stops under `prefers-reduced-motion`.
 
 ## Rules
 
-- Schedules speak the office's "Ratiba ya meli" poster (owner, 10 Nov 2026): Kupakia, Kuondoka,
-  Kufika (makadirio), dates as "Ijumaa, 13 Novemba", and every way to book says "Book now".
-  The words and dates live in `components/bw/ratiba.ts` only.
+- The schedule is copied word for word from the owner's other sea-cargo system (owner, 10 Nov
+  2026): "Meli kila Jumatatu. Mzigo mwisho Ijumaa.", a card per sailing ("Meli ya Novemba 16",
+  Mwisho kupokea mzigo / Meli inaondoka / Meli kufika (makadirio), "Siku 30 baharini", "Nafasi
+  zipo") in `components/bw/sailing-card.tsx`. Every booking button says "Book now". The words and
+  dates live in `components/bw/ratiba.ts` only.
 - Every figure comes from the existing backend: `publicRateBook`,
   `estimateFreight`, `publicSailings`, `trackByReference`,
   `currentExchangeRate`, `supplierAddress`, the request server actions. No

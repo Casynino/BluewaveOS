@@ -17,14 +17,14 @@ export function bookHref(sailing: Sailing) {
 }
 
 /**
- * THE TIMETABLE, IN THE POSTER'S WORDS.
+ * THE TIMETABLE, IN THE SCHEDULE'S WORDS.
  *
- * One row per sailing with the three dates the office's "Ratiba ya meli"
- * poster gives — Kupakia, Kuondoka, Kufika (makadirio) — and one way on:
+ * One row per sailing with the schedule's three dates (components/bw/ratiba.ts:
+ * Mwisho kupokea mzigo, Meli inaondoka, Meli kufika (makadirio)) and one way on:
  * "Book now" while there is room, otherwise a few words saying why not. The
  * next sailing's button is the solid one; the rest are outlined, so twelve
- * rows do not shout twelve times. On a phone each row reads like the poster:
- * the word on the left, the date on the right. Read straight from
+ * rows do not shout twelve times. On a phone each row reads the word on the
+ * left and the date on the right. Read straight from
  * lib/sailing-schedule.ts, the schedule the office keeps.
  */
 export function DepartureBoard({
