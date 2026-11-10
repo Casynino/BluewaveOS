@@ -17,7 +17,7 @@ export function RegisterForm({ initialPhone }: { initialPhone?: string }) {
   );
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-3">
       <div className="space-y-2">
         <Label htmlFor="fullName">Full name</Label>
         <Input id="fullName" name="fullName" required autoComplete="name" defaultValue={state.values?.fullName} key={state.values?.fullName} />
@@ -33,7 +33,7 @@ export function RegisterForm({ initialPhone }: { initialPhone?: string }) {
 
       <div className="space-y-2">
         <Label htmlFor="phone">Phone number</Label>
-        <TzPhoneInput key={state.values?.phone ?? initialPhone} id="phone" name="phone" required defaultValue={state.values?.phone ?? initialPhone} />
+        <TzPhoneInput key={state.values?.phone ?? initialPhone} id="phone" name="phone" required quiet defaultValue={state.values?.phone ?? initialPhone} />
       </div>
 
       <div className="space-y-2">
@@ -49,7 +49,7 @@ export function RegisterForm({ initialPhone }: { initialPhone?: string }) {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <PasswordInput
@@ -73,7 +73,7 @@ export function RegisterForm({ initialPhone }: { initialPhone?: string }) {
       </div>
 
       <FormMessage error={state.error} />
-      <SubmitButton className="w-full" size="lg" pendingLabel="Creating…">
+      <SubmitButton className="w-full" pendingLabel="Creating…">
         Create my account
       </SubmitButton>
     </form>

@@ -34,6 +34,7 @@ export function TzPhoneInput({
   required,
   autoFocus,
   className,
+  quiet = false,
 }: {
   name: string;
   id?: string;
@@ -41,6 +42,8 @@ export function TzPhoneInput({
   required?: boolean;
   autoFocus?: boolean;
   className?: string;
+  /** No standing hint under the field; only a mistyped number says anything. */
+  quiet?: boolean;
 }) {
   const [national, setNational] = useState(() => nationalDigits(defaultValue ?? ""));
   const [touched, setTouched] = useState(false);
@@ -77,6 +80,7 @@ export function TzPhoneInput({
         />
       </div>
       <input type="hidden" name={name} value={full} />
+      {quiet && !showProblem ? null : (
       <p
         id={id ? `${id}-hint` : undefined}
         className={cn("mt-1.5 text-xs", showProblem ? "text-destructive" : "text-muted-foreground")}
@@ -85,6 +89,7 @@ export function TzPhoneInput({
           ? "A Tanzanian mobile number has nine digits after +255 and starts with 6 or 7."
           : "Tanzanian numbers only, for now."}
       </p>
+      )}
     </div>
   );
 }

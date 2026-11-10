@@ -51,19 +51,25 @@ export async function issueCustomerCode(_prev: CodeState, formData: FormData): P
   return { ok: "Code ready.", code, purpose, expiresAt: expiresAt.toISOString() };
 }
 
-export type PhoneStep = { error?: string; step?: "activate" | "login" | "new"; phone?: string };
+export type PhoneStep = { error?: string; step?: "activate" | "login" | "new"; phone?: string; firstName?: string };
 
-/** Public, step one: what is this number? Says nothing about the customer beyond that. */
+/**
+ * Public, step one: what is this number? Says nothing about the customer beyond
+ * that and, by the owner's decision (10 Nov 2026), their first name, so the right
+ * person is greeted by it ("Welcome back, Nino"). Never the surname, the business,
+ * the email or anything on the account.
+ */
 export async function checkPhone(_prev: PhoneStep, formData: FormData): Promise<PhoneStep> {
   const raw = String(formData.get("phone") ?? "");
   const phone = normaliseTzPhone(raw);
   if (!phone) return { error: tzPhoneProblem(raw) ?? "Check the phone number." };
   const customer = await prisma.customer.findFirst({
     where: { phone, deletedAt: null },
-    select: { login: { select: { id: true } } },
+    select: { fullName: true, login: { select: { id: true } } },
   });
   if (!customer) return { step: "new", phone };
-  return { step: customer.login ? "login" : "activate", phone };
+  const firstName = customer.fullName.trim().split(/\s+/)[0] || undefined;
+  return { step: customer.login ? "login" : "activate", phone, firstName };
 }
 
 const passwordRules = z

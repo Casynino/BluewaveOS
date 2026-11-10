@@ -94,4 +94,16 @@ describe("activating a portal login", () => {
   test("a number not on the books goes to plain registration", async () => {
     assert.equal((await access.checkPhone({}, form({ phone: `+2557${digits()}` }))).step, "new");
   });
+
+  /* The number check is public: it may greet a customer by their first name
+     (owner, 10 Nov 2026) and must say nothing more about them. */
+  test("the number check greets by first name only, and tells a stranger nothing", async () => {
+    const phone = `+2557${digits()}`;
+    await onBooks("three", phone);
+    const known = await access.checkPhone({}, form({ phone }));
+    assert.equal(known.firstName, "Activate");
+    assert.deepEqual(Object.keys(known).sort(), ["firstName", "phone", "step"]);
+    const stranger = await access.checkPhone({}, form({ phone: `+2557${digits()}` }));
+    assert.equal(stranger.firstName, undefined);
+  });
 });

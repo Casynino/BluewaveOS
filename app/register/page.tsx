@@ -1,8 +1,12 @@
+import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
+import { ArrowLeft } from "lucide-react";
 
-import { AuthPanel } from "@/components/bw/auth-panel";
 import { PortalAccess } from "@/components/site/portal-access";
+import { LoginScene } from "../login/login-scene";
+import "../login/login.css";
 
 /* The register page is always the dark port scene, so the phone's bar is navy too. */
 export const viewport: Viewport = { themeColor: "#06131f" };
@@ -20,41 +24,46 @@ export const metadata: Metadata = {
   },
 };
 
+/*
+  OPEN AN ACCOUNT, CLEAN (owner, 10 Nov 2026: "too much info… make this page
+  clean"). The same night sea as the sign-in page and one small card: a title,
+  the phone number, Continue. What comes next depends on the number (see
+  PortalAccess): somebody we know is greeted by their first name. "Back to site"
+  is always at the top, so nobody is stuck here.
+*/
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const reset = (await searchParams).mode === "reset";
   return (
-    <AuthPanel
-      photo="portYard"
-      label="New customer · Karibu BlueWave"
-      title={
-        <>
-          Ship from China <span className="text-bw-coral-bright">under your own mark.</span>
-        </>
-      }
-      points={[
-        "Your shipping mark, straight away",
-        "Our Foshan address for suppliers",
-        "Cargo, invoices and pickup notes",
-        "Updates as your goods move",
-      ]}
-    >
-      <h1 className="bw-display text-4xl uppercase text-white">{reset ? "Forgot your password?" : "Open an account"}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-white/70">
-        {reset
-          ? "Enter your phone number, then the 6-digit code our office gives you, and choose a new password."
-          : "Shipped with us before? We will find your profile. New? You get your shipping mark and our Foshan address straight away."}
-      </p>
-
-      <div className="mt-7">
-        <PortalAccess mode={reset ? "reset" : "register"} />
-      </div>
-
-      <p className="mt-7 border-t border-white/10 pt-5 text-sm text-white/70">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-bw-coral-bright underline-offset-4 hover:underline">
-          Sign in
+    <div data-auth-scene className="relative isolate min-h-dvh overflow-hidden bg-[#06142b]">
+      <LoginScene />
+      <div className="relative z-10 flex min-h-dvh flex-col items-center px-5 pb-12 pt-[calc(env(safe-area-inset-top)+4.25rem)] md:justify-center md:pt-12">
+        <Link
+          href="/"
+          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.07] px-3 py-1.5 text-[12px] text-white/75 backdrop-blur transition-colors hover:border-white/40 hover:text-white md:text-[13px]"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden />
+          Back to site
         </Link>
-      </p>
-    </AuthPanel>
+
+        <Link href="/" aria-label="BlueWave Cargo — home" className="ls-up ls-brand mb-5">
+          <Image src="/brand/bluewave-logo-light.png" alt="BlueWave Cargo" width={630} height={400} priority className="h-20 w-auto md:h-24" />
+        </Link>
+
+        <div className="ls-card ls-up dark w-full max-w-[22rem] p-5 text-left text-foreground sm:p-6" style={{ "--rd": "0.15s" } as CSSProperties}>
+          <PortalAccess
+            mode={reset ? "reset" : "register"}
+            title={reset ? "Forgot your password?" : "Open an account"}
+            intro={reset ? "Your phone number, then the code from our office." : "Start with your phone number."}
+          />
+
+          <p className="mt-4 text-[12.5px] text-white/60">
+            Have an account?{" "}
+            <Link href="/login" className="font-medium text-[#7fd8f5] underline-offset-4 hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
