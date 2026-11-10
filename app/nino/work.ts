@@ -20,6 +20,8 @@ export type Project = {
   tags: string[];
   code?: string;
   status?: "soon";
+  /** The project's official logo for a dark page (678 x 264), drawn as the card's title in place of the name. */
+  logo?: string;
 };
 
 const GH = "https://github.com/Casynino";
@@ -48,6 +50,7 @@ export const LIVE: Project[] = [
     name: "ZELab", kind: "Stock, settlement & commission system",
     line: "Every box that leaves ZELab is on the system — who took it, what came back, what is still owed, and what each rep has earned. We keep Tanzania stocked.",
     url: "https://www.zelab.site", domain: "zelab.site", shot: "/nino/haolabs-signin.webp",
+    logo: "/nino/zelab-dark.svg", // the official ZELab logo (dark-page version), shown as the card's title
     tags: ["Stock control", "Settlements", "Commission", "Reports"], code: `${GH}/The-Lab`,
   },
   {
