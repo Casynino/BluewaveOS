@@ -54,21 +54,30 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
 
   return (
     <AuthSwitchContext.Provider value={show}>
-      <div className="ls-up flex flex-wrap items-center justify-center gap-2.5 md:hidden" style={{ "--rd": "0.5s" } as React.CSSProperties}>
+      {/* No pills, no shapes (owner, 10 Nov 2026, like ZELab): the words alone.
+          Sign in and its arrow are one pair with one thin cyan line under the
+          pair; Create account sits beside it, plain, its line showing on hover. */}
+      <div className="ls-up flex flex-wrap items-center justify-center gap-x-7 gap-y-1 md:hidden" style={{ "--rd": "0.5s" } as React.CSSProperties}>
         <button
           type="button"
           onClick={() => show("signin")}
-          className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#40c0e8] px-5 text-[14.5px] font-semibold text-[#06142b] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] transition hover:brightness-105 active:scale-[0.98]"
+          className="group inline-flex h-10 items-center rounded px-1 text-[15px] font-semibold tracking-[0.02em] text-white outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/60"
         >
-          Sign in
-          <ArrowRight className="size-4" />
+          <span className="relative inline-flex items-center gap-2 pb-1.5">
+            Sign in
+            <ArrowRight className="size-3.5 text-white/80 transition-transform duration-200 group-hover:translate-x-0.5" />
+            <span aria-hidden className="absolute inset-x-0 bottom-0 h-[1.5px] rounded-full bg-[#40c0e8] transition-colors duration-200 group-hover:bg-white" />
+          </span>
         </button>
         <button
           type="button"
           onClick={() => show("create")}
-          className="inline-flex h-11 items-center rounded-full border border-white/20 bg-white/[0.06] px-5 text-[14.5px] font-medium text-white backdrop-blur transition hover:bg-white/10 active:scale-[0.98]"
+          className="group inline-flex h-10 items-center rounded px-1 text-[15px] font-medium tracking-[0.02em] text-white/75 outline-none transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/60"
         >
-          Create account
+          <span className="relative inline-flex items-center pb-1.5">
+            Create account
+            <span aria-hidden className="absolute inset-x-0 bottom-0 h-[1.5px] rounded-full bg-white/0 transition-colors duration-200 group-hover:bg-white/40" />
+          </span>
         </button>
       </div>
       {/* On a phone that has not installed BlueWave, the install card opens by itself a moment after the page does. */}
