@@ -1,14 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, ArrowDown } from "lucide-react";
 
 import { CategoryTile, CityCard, FactoryCard, MarketCard } from "@/components/bw/ex-cards";
 import { BlockTitle, FactoriesEmpty, FALLBACK, LogisticsBand, VisitBand, photoOr } from "@/components/bw/ex-kit";
 import { Action, Frame, Label, SectionIntro } from "@/components/bw/ui";
 import { PHOTOS } from "@/components/site/photos";
 import { chinaSettings, discover, listCategories, listCities, listFactories, listMarkets } from "@/lib/explore";
-import { cn } from "@/lib/utils";
 
 export const revalidate = 300;
 
@@ -181,13 +179,13 @@ export default async function ExplorePage({ searchParams }: Props) {
             <li className="min-w-0">
               <Link
                 href="/sourcing"
-                className="group flex h-full min-h-[11rem] flex-col justify-between rounded-[3px] border border-dashed border-bw-fg/30 p-4 transition-colors hover:border-bw-coral sm:min-h-[13rem] sm:p-5"
+                className="group flex h-full min-h-[11rem] flex-col justify-between rounded-[3px] border border-bw-fg/30 p-4 transition-colors hover:border-bw-coral sm:min-h-[13rem] sm:p-5"
               >
-                <span className="bw-mono text-[0.66rem] uppercase tracking-[0.14em] text-bw-muted">Not listed?</span>
+                <span className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">Not listed?</span>
                 <span>
                   <span className="bw-display block text-2xl uppercase text-bw-fg sm:text-[1.75rem]">Something else</span>
-                  <span className="bw-mono mt-3 inline-flex items-center gap-1.5 text-[0.64rem] uppercase tracking-[0.14em] text-bw-coral">
-                    Ask us to find it <ArrowRight className="size-3 transition-transform group-hover:translate-x-1" aria-hidden />
+                  <span className="bw-mono mt-3 block text-[0.64rem] uppercase tracking-[0.06em] text-bw-coral underline-offset-4 group-hover:underline">
+                    Ask us to find it
                   </span>
                 </span>
               </Link>
@@ -287,7 +285,7 @@ function Discovery({ found, visitsEnabled, factoryService }: { found: Found; vis
               {name}
             </h2>
             {category.summary ? <p className="mt-4 max-w-xl text-lg text-white/75">{category.summary}</p> : null}
-            <p className="bw-mono mt-5 text-xs uppercase tracking-[0.14em] text-white/55">
+            <p className="bw-mono mt-5 text-xs uppercase tracking-[0.06em] text-white/55">
               {cities.length} {cities.length === 1 ? "city" : "cities"} · {markets.length}{" "}
               {markets.length === 1 ? "market" : "markets"} · {factories.length}{" "}
               {factories.length === 1 ? "factory" : "factories"} in the guide
@@ -344,10 +342,9 @@ function Discovery({ found, visitsEnabled, factoryService }: { found: Found; vis
                     >
                       <Image src={photoOr(m.imageUrl, FALLBACK.market)} alt="" fill sizes="(min-width: 1024px) 25vw, 100vw" className="bw-photo -z-20 object-cover" />
                       <span aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/70 to-bw-night/20" />
-                      <span className="bw-mono text-[0.64rem] uppercase tracking-[0.14em] text-white/65">{m.cityRef?.name ?? m.city}</span>
-                      <span className="mt-1 flex items-end justify-between gap-2 font-bw-display text-2xl font-semibold uppercase leading-none">
-                        <span className="min-w-0 break-words">{m.name}</span>
-                        <ArrowRight className="size-4 shrink-0 text-bw-coral-bright transition-transform group-hover:translate-x-1" aria-hidden />
+                      <span className="bw-mono text-[0.64rem] uppercase tracking-[0.06em] text-white/65">{m.cityRef?.name ?? m.city}</span>
+                      <span className="mt-1 break-words font-bw-display text-2xl font-semibold uppercase leading-none transition-colors group-hover:text-bw-coral-bright">
+                        {m.name}
                       </span>
                     </Link>
                   </li>
@@ -365,15 +362,12 @@ function Discovery({ found, visitsEnabled, factoryService }: { found: Found; vis
                   <li key={f.id} className="min-w-0">
                     <Link
                       href={`/factories/${f.slug}`}
-                      className="group flex items-center justify-between gap-3 rounded-[2px] border border-white/15 p-4 hover:border-white/50"
+                      className="group block rounded-[2px] border border-white/15 p-4 hover:border-white/50"
                     >
-                      <span className="min-w-0">
-                        <span className="block break-words font-bw-display text-2xl font-semibold uppercase leading-none">{f.name}</span>
-                        <span className="bw-mono mt-1 block text-[0.64rem] uppercase tracking-[0.12em] text-white/55">
-                          {f.city?.name ?? "China"}
-                        </span>
+                      <span className="block break-words font-bw-display text-2xl font-semibold uppercase leading-none">{f.name}</span>
+                      <span className="bw-mono mt-1 block text-[0.64rem] uppercase tracking-[0.06em] text-white/55">
+                        {f.city?.name ?? "China"}
                       </span>
-                      <ArrowRight className="size-4 shrink-0 text-bw-coral-bright" aria-hidden />
                     </Link>
                   </li>
                 ))}
@@ -386,15 +380,15 @@ function Discovery({ found, visitsEnabled, factoryService }: { found: Found; vis
                 </p>
                 <Link
                   href={factoryService ? `/sourcing?service=FACTORY&category=${category.slug}` : `/sourcing?category=${category.slug}`}
-                  className="bw-mono mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral-bright hover:text-white"
+                  className="bw-mono mt-4 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral-bright underline-offset-4 hover:text-white hover:underline"
                 >
-                  Ask us to find a factory <ArrowRight className="size-3.5" aria-hidden />
+                  Ask us to find a factory
                 </Link>
               </div>
             )}
           </Step>
 
-          <Step n="04" title="Next step" hint="Go yourself, or send us" last>
+          <Step n="04" title="Next step" hint="Go yourself, or send us">
             <div className="flex flex-wrap gap-3">
               {visitsEnabled ? <Action href={`/visit?category=${category.slug}`}>Plan a visit</Action> : null}
               <Action href={`/sourcing?category=${category.slug}`} tone={visitsEnabled ? "ghost-light" : "coral"}>
@@ -416,32 +410,18 @@ function Step({
   title,
   hint,
   children,
-  last = false,
 }: {
   n: string;
   title: string;
   hint: string;
   children: React.ReactNode;
-  last?: boolean;
 }) {
   return (
-    <li className="relative grid gap-5 border-b border-white/15 py-8 pl-12 sm:pl-16 lg:grid-cols-12 lg:gap-8 lg:py-10">
-      {/* The route line and its station */}
-      <span aria-hidden className={cn("absolute left-[0.9rem] top-0 w-px bg-white/15 sm:left-[1.4rem]", last ? "h-12" : "h-full")} />
-      <span
-        aria-hidden
-        className={cn(
-          "absolute left-[0.4rem] top-9 grid size-[1.05rem] place-items-center sm:left-[0.9rem] lg:top-11",
-          last ? "bg-bw-coral" : "border-2 border-bw-cyan bg-bw-ink"
-        )}
-      />
+    <li className="grid gap-5 border-b border-white/15 py-8 lg:grid-cols-12 lg:gap-8 lg:py-10">
       <div className="min-w-0 lg:col-span-3">
         <p className="bw-mono text-xs text-bw-cyan">{n}</p>
         <h3 className="mt-1 font-bw-display text-3xl font-semibold uppercase leading-none">{title}</h3>
-        <p className="mt-2 flex items-center gap-2 text-sm text-white/55">
-          {hint}
-          {!last ? <ArrowDown className="size-3.5 lg:hidden" aria-hidden /> : null}
-        </p>
+        <p className="mt-2 text-sm text-white/55">{hint}</p>
       </div>
       <div className="min-w-0 lg:col-span-9">{children}</div>
     </li>

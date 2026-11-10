@@ -108,8 +108,8 @@ export default async function SourcingStatusPage({
           <span
             className={
               cancelled || waiting
-                ? "bw-mono inline-flex h-9 items-center gap-2 rounded-[2px] border border-bw-coral-bright/60 px-3 text-xs uppercase tracking-[0.16em] text-bw-coral-bright"
-                : "bw-mono inline-flex h-9 items-center gap-2 rounded-[2px] bg-white/10 px-3 text-xs uppercase tracking-[0.16em] text-white"
+                ? "bw-mono inline-flex h-9 items-center gap-2 rounded-[2px] border border-bw-coral-bright/60 px-3 text-xs uppercase tracking-[0.06em] text-bw-coral-bright"
+                : "bw-mono inline-flex h-9 items-center gap-2 rounded-[2px] bg-white/10 px-3 text-xs uppercase tracking-[0.06em] text-white"
             }
           >
             <span aria-hidden className={cancelled || waiting ? "size-2 bg-bw-coral-bright" : "size-2 bg-bw-cyan"} />

@@ -23,7 +23,7 @@ no drones, no "platform" talk — the site sells sea cargo, not software.
 | `bw-deep` `#0C3350` | Hover on ink |
 | `bw-harbour` `#0B5E8E` | Brand blue, index numbers on light |
 | `bw-cyan` `#40C0E8` | Index numbers and accents on dark |
-| `bw-coral` `#D63C50` | Primary action, flow lines, label squares |
+| `bw-coral` `#D63C50` | Primary action, flow lines |
 | `bw-coral-bright` | Coral on dark backgrounds |
 | `bw-concrete` `#EDF1F4` | Page ground |
 | `bw-slab` | Secondary light surface |
@@ -31,7 +31,9 @@ no drones, no "platform" talk — the site sells sea cargo, not software.
 | `bw-rule` `#C9D3DC` | Hairlines |
 
 Corners are square (`rounded-[2px]`–`[4px]`), never pills. Borders are
-hairlines. No drop-shadow cards on light surfaces.
+hairlines. No drop-shadow cards on light surfaces. A plain link ("Back to
+site", "All markets") is text that changes colour on hover — no box or pill
+around it.
 
 ## Type
 
@@ -40,16 +42,19 @@ hairlines. No drop-shadow cards on light surfaces.
 - `font-bw-sans` — Barlow, body copy (the default inside `.bw`).
 - `.bw-mono` / `font-bw-mono` — JetBrains Mono for references, dates, CBM,
   money, and small uppercase labels.
-- `.bw-label` / `<Label>` — mono uppercase with a coral square: the manifest
-  line that opens every section.
+- `.bw-label` / `<Label>` — mono uppercase, tracking 0.06em, nothing in front
+  of it: the manifest line that opens every section.
 
 ## Building blocks (`components/bw/`)
 
 - `ui.tsx` — `Frame` (page column), `Label`, `Action` (slab button: tones
-  `coral`, `ink`, `line`, `light`, `ghost-light`), `Headline`, `SectionIntro`
+  `coral`, `ink`, `line`, `light`, `ghost-light`; only `coral` carries an
+  arrow, an `external` link the up-right one, `arrow` overrides; `actionClass`
+  gives a real `<button>` the same look), `Headline`, `SectionIntro`
   (index / label / headline + lead, asymmetric), `PageBanner` (the opening band
   of every inner page), `Figure`.
-- `header.tsx`, `footer.tsx`, `lockup.tsx` — site chrome.
+- `header.tsx`, `footer.tsx`, `lockup.tsx` — site chrome. `sky.tsx` — a still
+  field of faint stars behind the translucent bands (dark theme only).
 - `track-field.tsx` — the tracking input (compact / dark / large).
 - `corridor.tsx`, `iso.tsx` — the isometric corridor and the drawing kit.
 - `world-route.tsx` — pixel world map with the real sea lane.
@@ -60,8 +65,9 @@ hairlines. No drop-shadow cards on light surfaces.
 
 Utilities: `.bw-glass` (live-data panel), `.bw-photo` + `.bw-shade`
 (photography), `.bw-ribs` (container corrugation on dark bands), `.bw-yard`
-(hairline grid), `.bw-flow` (moving dashes), `.bw-draw`, `.bw-ping`,
-`.bw-rise`. All motion stops under `prefers-reduced-motion`.
+(hairline grid), `.bw-flow` (moving dashes), `.bw-draw`, `.bw-rise` (the one
+short entrance). Motion lives inside the drawings and scenes only; all of it
+stops under `prefers-reduced-motion`.
 
 ## Rules
 
@@ -75,6 +81,9 @@ Utilities: `.bw-glass` (live-data panel), `.bw-photo` + `.bw-shade`
 - Copy is plain and concrete: what we do, where, and what the customer does
   next. No "revolutionising", "seamless", "platform".
 - Each inner page opens with `PageBanner`, then gets a layout of its own.
+- No decorative shapes, chips or icons; no pills around links; no glows or
+  looping effects on the chrome (owner, 10 Nov 2026). An icon stays only when
+  it says something the words do not.
 
 ## The China gateway (information architecture)
 

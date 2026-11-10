@@ -39,7 +39,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       <div className="relative z-10 flex min-h-dvh flex-col items-center px-5 pb-12 pt-[calc(env(safe-area-inset-top)+4.25rem)] md:justify-center md:pt-12">
         <Link
           href="/"
-          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.07] px-3 py-1.5 text-[12px] text-white/75 backdrop-blur transition-colors hover:border-white/40 hover:text-white md:text-[13px]"
+          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] -mx-2 -my-1 inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-2.5 text-[12px] text-white/75 underline-offset-4 transition-colors hover:text-white hover:underline md:text-[13px]"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
           Back to site
@@ -52,7 +52,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
         <div className="ls-card ls-up dark w-full max-w-[22rem] p-5 text-left text-foreground sm:p-6" style={{ "--rd": "0.15s" } as CSSProperties}>
           <PortalAccess
             mode={reset ? "reset" : "register"}
-            title={reset ? "Forgot your password?" : "Open an account"}
+            title={reset ? "Forgot your password?" : "Create account"}
             intro={reset ? "Your phone number, then the code from our office." : "Start with your phone number."}
           />
 

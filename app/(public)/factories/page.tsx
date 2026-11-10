@@ -75,7 +75,7 @@ export default async function FactoriesPage({ searchParams }: Props) {
               key={term}
               className={`min-w-0 border-bw-line py-7 sm:pr-6 ${i > 0 ? "border-t sm:border-t-0" : ""} ${i === 1 ? "sm:border-l sm:pl-6" : ""} ${i === 2 ? "sm:col-span-2 sm:border-t lg:col-span-1 lg:border-l lg:border-t-0 lg:pl-6" : ""}`}
             >
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.14em] text-bw-coral">{term}</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-coral">{term}</p>
               <p className="mt-2 text-sm leading-relaxed text-bw-muted">{body}</p>
             </div>
           ))}
@@ -86,7 +86,7 @@ export default async function FactoriesPage({ searchParams }: Props) {
         <section aria-label="Filter factories" className="border-b border-bw-line bg-bw-panel">
           <Frame className="grid gap-6 py-8 lg:grid-cols-12 lg:gap-10">
             <div className="min-w-0 lg:col-span-5">
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">City</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">City</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Chip href={href({ category: category?.slug })} active={!city}>
                   All cities
@@ -99,7 +99,7 @@ export default async function FactoriesPage({ searchParams }: Props) {
               </div>
             </div>
             <div className="min-w-0 lg:col-span-7">
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">Product</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">Product</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Chip href={href({ city: city?.slug })} active={!category}>
                   All products
@@ -118,13 +118,13 @@ export default async function FactoriesPage({ searchParams }: Props) {
       <section aria-labelledby="factory-results" className="bg-bw-ground">
         <Frame className="py-14 lg:py-20">
           <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-bw-line pb-5">
-            <h2 id="factory-results" className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-muted">
+            <h2 id="factory-results" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-muted">
               {factories.length} {factories.length === 1 ? "factory" : "factories"} listed
               {category ? ` · ${category.name}` : ""}
               {city ? ` · ${city.name}` : ""}
             </h2>
             {city || category ? (
-              <Link href="/factories" className="bw-mono text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark">
+              <Link href="/factories" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 hover:text-bw-coral-dark hover:underline">
                 Clear filters
               </Link>
             ) : null}

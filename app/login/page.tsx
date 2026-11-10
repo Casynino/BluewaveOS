@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
-import { AlertTriangle, ArrowLeft, ArrowUpRight, PackageCheck, ReceiptText, Ship } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 
 import { LoginForm } from "@/components/login-form";
 import { AuthSwitch } from "@/components/site/auth-switch";
@@ -28,11 +28,7 @@ export const viewport: Viewport = { themeColor: "#06142b" };
 
 const delay = (s: number) => ({ "--rd": `${s}s` }) as CSSProperties;
 
-const FEATURES = [
-  { icon: Ship, label: "Every box, Foshan to Dar" },
-  { icon: ReceiptText, label: "Invoices and receipts" },
-  { icon: PackageCheck, label: "Pickup in Dar" },
-];
+const FEATURES = ["Every box, Foshan to Dar", "Invoices and receipts", "Pickup in Dar"];
 
 /* The scene is always dark, so it always takes the logo cut with white lettering. */
 const Logo = ({ className }: { className: string }) => (
@@ -58,7 +54,7 @@ export default async function LoginPage({
             a phone, where the thumb reaches back; top right on a computer. */}
         <Link
           href="/"
-          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.07] px-3 py-1.5 text-[12px] text-white/75 backdrop-blur transition-colors hover:border-white/40 hover:text-white md:left-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:text-[13px] lg:right-8 lg:top-6"
+          className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[calc(env(safe-area-inset-top)+1rem)] -mx-2 -my-1 inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-2.5 text-[12px] text-white/75 underline-offset-4 transition-colors hover:text-white hover:underline md:left-auto md:right-[max(1.5rem,env(safe-area-inset-right))] md:text-[13px] lg:right-8 lg:top-6"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
           Back to site
@@ -70,22 +66,15 @@ export default async function LoginPage({
           </div>
 
           <div className="mb-[clamp(190px,32vh,330px)] max-w-lg min-[1360px]:max-w-sm">
-            <p className="ls-up mb-4 h-1 w-12 rounded bg-[#d63c50]" style={delay(0.15)} />
             <h2 className="ls-up text-balance text-4xl font-semibold leading-[1.1] tracking-tight" style={delay(0.25)}>
-              Your cargo from China, <span className="text-[#40c0e8]">in one place.</span>
+              Your cargo from China, in one place.
             </h2>
             <p className="ls-up mt-4 max-w-md text-[15px] leading-relaxed text-white/70" style={delay(0.4)}>
               Customers follow every box, bill and pickup note. Staff sign in here too and land on their own desk.
             </p>
-            <ul className="ls-up mt-6 flex flex-wrap gap-2" style={delay(0.55)}>
-              {FEATURES.map(({ icon: Icon, label }) => (
-                <li
-                  key={label}
-                  className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3.5 py-1.5 text-[13px] text-white/90"
-                >
-                  <Icon className="size-[15px] text-[#40c0e8]" aria-hidden />
-                  {label}
-                </li>
+            <ul className="ls-up mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-white/75" style={delay(0.55)}>
+              {FEATURES.map((label) => (
+                <li key={label}>{label}</li>
               ))}
             </ul>
           </div>
@@ -121,9 +110,8 @@ export default async function LoginPage({
               {revoked ? (
                 <div
                   role="alert"
-                  className="mt-5 flex gap-3 rounded-lg border border-amber-500/40 border-l-[3px] border-l-amber-500 bg-amber-500/15 p-3 text-sm text-amber-100"
+                  className="mt-5 rounded-lg border border-amber-500/40 bg-amber-500/15 p-3 text-sm text-amber-100"
                 >
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
                   <p>
                     {sessionEnded
                       ? "That sign-in has ended. Sign in again to continue."
@@ -171,6 +159,7 @@ export default async function LoginPage({
               className="group -my-2 inline-flex min-h-10 items-center gap-1 rounded-sm transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40c0e8]"
             >
               by <span className="font-semibold text-white/80 transition-colors group-hover:text-[#40c0e8]">Nino</span>
+              {/* kept on purpose: the same "by Nino ↗" foot as the owner's other systems (ZELab, ORA) */}
               <ArrowUpRight
                 className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
                 aria-hidden

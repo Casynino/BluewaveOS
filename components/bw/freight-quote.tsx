@@ -107,7 +107,7 @@ export function FreightQuote({
     <div className="grid overflow-hidden rounded-[4px] border border-bw-line bg-bw-panel lg:grid-cols-12">
       {/* ---------------------------------------------------- The shipment */}
       <div className="min-w-0 p-5 sm:p-8 lg:col-span-7">
-        <p className="bw-label text-bw-muted">Shipment details</p>
+        <p className="bw-label text-bw-muted" data-plain="">Shipment details</p>
 
         {containers.length > 0 && cargoTypes.length > 0 ? (
           <div role="tablist" aria-label="Service" className="mt-6 grid grid-cols-2 border border-bw-line">
@@ -161,9 +161,9 @@ export function FreightQuote({
                     value={figureTyped}
                     placeholder={counted ? "0" : "0.0"}
                     onChange={(e) => setFigureTyped(e.target.value.replace(counted ? /[^\d]/g : /[^\d.]/g, ""))}
-                    className="bw-mono h-14 min-w-0 flex-1 border border-bw-line px-4 text-center text-2xl text-bw-fg outline-none focus:border-bw-fg"
+                    className="bw-mono h-14 min-w-0 flex-1 border border-bw-line bg-transparent px-4 text-center text-2xl text-bw-fg outline-none focus:border-bw-fg"
                   />
-                  <span className="bw-mono grid place-items-center border border-l-0 border-bw-line px-3 text-xs uppercase tracking-[0.14em] text-bw-muted">
+                  <span className="bw-mono grid place-items-center border border-l-0 border-bw-line px-3 text-xs uppercase tracking-[0.06em] text-bw-muted">
                     {unit === "TONNE" ? "kg" : unit === "PIECE" ? "pieces" : "bales"}
                   </span>
                 </div>
@@ -217,9 +217,9 @@ export function FreightQuote({
                     inputMode="decimal"
                     value={cbmTyped}
                     onChange={(e) => setCbmTyped(e.target.value.replace(/[^\d.]/g, ""))}
-                    className="bw-mono h-14 min-w-0 flex-1 border border-bw-line px-4 text-center text-2xl text-bw-fg outline-none focus:border-bw-fg"
+                    className="bw-mono h-14 min-w-0 flex-1 border border-bw-line bg-transparent px-4 text-center text-2xl text-bw-fg outline-none focus:border-bw-fg"
                   />
-                  <span className="bw-mono grid place-items-center border border-l-0 border-bw-line px-3 text-xs uppercase tracking-[0.14em] text-bw-muted">
+                  <span className="bw-mono grid place-items-center border border-l-0 border-bw-line px-3 text-xs uppercase tracking-[0.06em] text-bw-muted">
                     CBM
                   </span>
                   <button
@@ -233,7 +233,7 @@ export function FreightQuote({
                 </div>
               ) : (
                 <div className="mt-4 space-y-2">
-                  <div className="bw-mono hidden grid-cols-[repeat(4,minmax(0,1fr))_2.5rem] gap-2 text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted sm:grid">
+                  <div className="bw-mono hidden grid-cols-[repeat(4,minmax(0,1fr))_2.5rem] gap-2 text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted sm:grid">
                     <span>Length cm</span>
                     <span>Width cm</span>
                     <span>Height cm</span>
@@ -253,7 +253,7 @@ export function FreightQuote({
                               all.map((l) => (l.id === line.id ? { ...l, [dim]: e.target.value.replace(/[^\d.]/g, "") } : l))
                             )
                           }
-                          className="bw-mono h-11 min-w-0 border border-bw-line px-2 text-center text-bw-fg outline-none focus:border-bw-fg"
+                          className="bw-mono h-11 min-w-0 border border-bw-line bg-transparent px-2 text-center text-bw-fg outline-none focus:border-bw-fg"
                         />
                       ))}
                       <button
@@ -272,9 +272,9 @@ export function FreightQuote({
                     onClick={() =>
                       setLines((all) => [...all, { id: nextId.current++, length: "", width: "", height: "", boxes: "1" }])
                     }
-                    className="bw-mono inline-flex h-10 items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-harbour hover:text-bw-fg"
+                    className="bw-mono inline-flex h-10 items-center text-xs uppercase tracking-[0.06em] text-bw-harbour transition-colors hover:text-bw-fg"
                   >
-                    <Plus className="size-4" /> Another box size
+                    Another box size
                   </button>
                   <p className="bw-mono border-t border-bw-line pt-3 text-sm text-bw-fg">
                     Total volume: <span className="font-semibold">{boxCbm.toFixed(3)} CBM</span>
@@ -310,7 +310,7 @@ export function FreightQuote({
         <div aria-hidden className="bw-ribs absolute inset-0" />
         <div className="relative">
           <div className="flex items-center justify-between gap-3">
-            <p className="bw-label text-white/70">Estimated quotation</p>
+            <p className="bw-label text-white/70" data-plain="">Estimated quotation</p>
             {pending ? <Loader2 className="size-4 animate-spin text-white/60" aria-label="Pricing" /> : null}
           </div>
 
@@ -337,11 +337,11 @@ export function FreightQuote({
           </dl>
 
           <div className="mt-6">
-            <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-white/55">Estimated freight</p>
+            <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-white/55">Estimated freight</p>
             <p className="bw-display mt-2 break-words text-[clamp(2.6rem,6vw,3.8rem)]">
               {priced ? priced.total : service === "FCL" ? "See prices" : "—"}
             </p>
-            <p className="bw-mono mt-3 text-[0.66rem] uppercase tracking-[0.16em] text-white/55">TZS equivalent</p>
+            <p className="bw-mono mt-3 text-[0.66rem] uppercase tracking-[0.06em] text-white/55">TZS equivalent</p>
             <p className="bw-display mt-1 break-words text-3xl text-bw-coral-bright">{priced?.totalTzs ?? "—"}</p>
           </div>
 
@@ -401,7 +401,7 @@ function Field({ n, label, htmlFor, children }: { n: string; label: string; html
 function Row({ label, value, note }: { label: string; value: string; note?: string | null }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3">
-      <dt className="shrink-0 text-[0.7rem] uppercase tracking-[0.14em] text-white/55">{label}</dt>
+      <dt className="shrink-0 text-[0.7rem] uppercase tracking-[0.06em] text-white/55">{label}</dt>
       <dd className="min-w-0 text-right">
         <span className="break-words">{value}</span>
         {note ? <span className="block text-[0.7rem] text-white/50">{note}</span> : null}

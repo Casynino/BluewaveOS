@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Smartphone, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 
 import { InstallButton, InstallPrompt } from "@/components/install-app";
 import { AuthSwitch, AuthSwitchContext, type AuthView } from "@/components/site/auth-switch";
@@ -46,7 +46,7 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
       type="button"
       onClick={() => setView(null)}
       aria-label="Close"
-      className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white/80 md:hidden"
+      className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-[4px] text-white/40 transition-colors hover:bg-white/10 hover:text-white/80 md:hidden"
     >
       <X className="size-4" />
     </button>
@@ -87,10 +87,9 @@ export function LoginGate({ children, defaultOpen = false }: { children: React.R
           <button
             type="button"
             onClick={openSheet}
-            className="ls-up mt-4 inline-flex items-center gap-1.5 text-[13px] text-white/65 underline-offset-4 transition-colors hover:text-white hover:underline md:hidden"
+            className="ls-up mt-4 text-[13px] text-white/65 underline-offset-4 transition-colors hover:text-white hover:underline md:hidden"
             style={{ "--rd": "0.7s" } as React.CSSProperties}
           >
-            <Smartphone className="size-3.5" />
             Get the full-screen app
           </button>
         )}

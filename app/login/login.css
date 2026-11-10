@@ -287,25 +287,6 @@
     height: auto !important;
     -webkit-box-reflect: below 6px linear-gradient(transparent 58%, rgba(255, 255, 255, 0.22)); /* mirror on the sea (Chrome, Safari, Edge) */
   }
-  /* light on the horizon right under the logo */
-  .ls-sky-logo::before {
-    content: "";
-    position: absolute;
-    left: -14%;
-    right: -14%;
-    bottom: -10%;
-    height: 70%;
-    background: radial-gradient(50% 55% at 50% 100%, rgba(64, 192, 232, 0.42), rgba(214, 60, 80, 0.16) 55%, transparent 75%);
-    filter: blur(14px);
-    z-index: -1;
-    animation: ls-horizon-glow 4.5s ease-in-out infinite;
-  }
-}
-@keyframes ls-horizon-glow {
-  50% {
-    opacity: 0.55;
-    transform: scaleX(1.06);
-  }
 }
 
 /* The sign-in and create-account cards (owner, 10 Nov 2026: clean, like ZELab's
@@ -325,7 +306,7 @@
   --input: 0 0% 100% / 0.1;
   --border: 0 0% 100% / 0.1;
   --ring: 0 0% 100% / 0.1;
-  /* buttons take the cyan of the scene's Sign in pill, with navy lettering */
+  /* buttons take the scene's cyan (the line under the phone's Sign in), with navy lettering */
   --brand: 194 78% 58%;
   --brand-foreground: 217 76% 10%;
 }
@@ -350,58 +331,22 @@
   font-weight: 600;
 }
 
-/* content entrance */
+/* content entrance: one short fade and rise */
 .ls-up {
-  animation: ls-up 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: ls-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--rd, 0s);
 }
 @keyframes ls-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
 }
 
-/* the logo: big, floating gently, with a glow that breathes and a light that passes over it now and then */
+/* the logo: big and still (no float, glow or passing light) */
 .ls-brand {
   position: relative;
   line-height: 0;
-}
-.ls-brand img {
-  filter: drop-shadow(0 6px 26px rgba(47, 111, 208, 0.55));
-  animation: ls-logo-float 6.5s ease-in-out infinite, ls-logo-glow 4.5s ease-in-out infinite;
-}
-.ls-brand::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  -webkit-mask: url("/brand/bluewave-logo-light.png") center / 100% 100% no-repeat;
-  mask: url("/brand/bluewave-logo-light.png") center / 100% 100% no-repeat;
-  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.85) 50%, transparent 62%);
-  background-size: 260% 100%;
-  background-position: 130% 0;
-  mix-blend-mode: overlay;
-  animation: ls-logo-sweep 5.5s ease-in-out infinite 1.5s;
-  pointer-events: none;
-}
-@keyframes ls-logo-float {
-  50% {
-    transform: translateY(-7px);
-  }
-}
-@keyframes ls-logo-glow {
-  50% {
-    filter: drop-shadow(0 8px 38px rgba(64, 192, 232, 0.55));
-  }
-}
-@keyframes ls-logo-sweep {
-  0% {
-    background-position: 130% 0;
-  }
-  40%,
-  100% {
-    background-position: -30% 0;
-  }
 }
 
 /* the phone pop-up opens with a short fade and rise */
@@ -422,10 +367,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ls *,
   .ls-up,
-  .ls-pop,
-  .ls-brand img,
-  .ls-brand::after,
-  .ls-sky-logo::before {
+  .ls-pop {
     animation: none !important;
   }
   .ls-aurora,

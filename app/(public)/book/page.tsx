@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact, ReqLayout, ReqSteps } from "@/components/bw/req-layout";
@@ -103,9 +102,9 @@ export default async function Page({
                 </h3>
                 <Link
                   href="/schedule"
-                  className="bw-mono inline-flex items-center gap-1.5 text-[0.66rem] uppercase tracking-[0.14em] text-bw-cyan hover:text-white"
+                  className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-cyan underline-offset-4 transition-colors hover:text-white hover:underline"
                 >
-                  All <ArrowRight className="size-3" aria-hidden />
+                  All
                 </Link>
               </div>
               {open.length ? (
@@ -113,11 +112,11 @@ export default async function Page({
                   {open.slice(0, 4).map((sailing) => (
                     <li key={sailing.key} className="grid grid-cols-2 gap-3 border-b border-white/10 px-5 py-4 last:border-b-0">
                       <div>
-                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/50">Receiving closes</p>
+                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50">Receiving closes</p>
                         <p className="bw-mono mt-1 text-sm text-bw-coral-bright">{DAY_MONTH.format(sailing.cargoDeadline)}</p>
                       </div>
                       <div>
-                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/50">Departs</p>
+                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50">Departs</p>
                         <p className="bw-mono mt-1 text-sm">{DAY_MONTH.format(sailing.departureDate)}</p>
                       </div>
                       <p className="bw-mono col-span-2 text-[0.7rem] text-white/55">

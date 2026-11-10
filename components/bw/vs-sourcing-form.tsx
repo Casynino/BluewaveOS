@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
 
 import {
   usePublicSubmit,
@@ -180,7 +179,6 @@ export function SourcingForm({ services, categories, cities, preset }: SourcingF
               htmlFor="s-photos"
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[2px] border border-dashed border-bw-fg/30 bg-bw-ground px-4 py-6 text-center transition-colors hover:border-bw-coral has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-bw-coral"
             >
-              <ImagePlus className="size-6 text-bw-coral" aria-hidden />
               <span className="font-bw-display text-lg font-semibold uppercase text-bw-fg">
                 {photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"} chosen` : "Add photos of the product"}
               </span>
@@ -206,9 +204,9 @@ export function SourcingForm({ services, categories, cities, preset }: SourcingF
                 <button
                   type="button"
                   onClick={clearPhotos}
-                  className="bw-mono inline-flex items-center gap-1 px-2 py-1 text-xs uppercase tracking-[0.12em] text-bw-muted hover:text-bw-coral"
+                  className="bw-mono px-2 py-1 text-xs uppercase tracking-[0.06em] text-bw-muted underline-offset-4 transition-colors hover:text-bw-coral hover:underline"
                 >
-                  <X className="size-3" aria-hidden /> Remove
+                  Remove
                 </button>
               </div>
             ) : null}

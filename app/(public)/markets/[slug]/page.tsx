@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowRight, ArrowUpRight, Clock, MapPin } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { FactoryCard, MarketCard } from "@/components/bw/ex-cards";
 import { BlockTitle, FALLBACK, Gallery, LogisticsBand, PhotoHero, Tags, mapHref, photoOr } from "@/components/bw/ex-kit";
@@ -64,12 +64,7 @@ export default async function MarketPage({ params }: Props) {
         image={photoOr(market.imageUrl, FALLBACK.market)}
         alt={`${market.name}${cityName ? `, ${cityName}` : ""}`}
         crumbs={[["Explore China", "/explore"], ["Markets", "/markets"], [market.name]]}
-        label={
-          <>
-            <MapPin className="size-3.5 text-bw-coral-bright" aria-hidden />
-            {[market.district, cityName].filter(Boolean).join(" · ") || "China"}
-          </>
-        }
+        label={[market.district, cityName].filter(Boolean).join(" · ") || "China"}
         title={market.name}
         lead={market.summary}
         tall
@@ -86,7 +81,7 @@ export default async function MarketPage({ params }: Props) {
                 key={label}
                 className={`min-w-0 border-bw-line py-6 pr-4 ${i % 2 === 1 ? "border-l pl-4" : ""} ${i >= 2 ? "border-t lg:border-t-0" : ""} ${i === 2 ? "lg:border-l lg:pl-4" : ""}`}
               >
-                <dt className="bw-mono text-[0.64rem] uppercase tracking-[0.16em] text-bw-muted">{label}</dt>
+                <dt className="bw-mono text-[0.64rem] uppercase tracking-[0.06em] text-bw-muted">{label}</dt>
                 <dd className="mt-2 break-words font-bw-display text-xl font-semibold uppercase leading-tight text-bw-fg sm:text-2xl">
                   {value ?? "—"}
                 </dd>
@@ -109,7 +104,7 @@ export default async function MarketPage({ params }: Props) {
               What it is
             </h2>
             {market.description ? (
-              <div className="mt-6 space-y-5 whitespace-pre-line text-lg leading-relaxed text-bw-fg/85 first-letter:float-left first-letter:mr-3 first-letter:font-bw-display first-letter:text-7xl first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-bw-coral">
+              <div className="mt-6 space-y-5 whitespace-pre-line text-lg leading-relaxed text-bw-fg/85">
                 {market.description}
               </div>
             ) : (
@@ -144,7 +139,7 @@ export default async function MarketPage({ params }: Props) {
                 <dl className="mt-6 space-y-4 border-t border-white/15 pt-5 text-sm">
                   {cityName ? (
                     <div>
-                      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">City</dt>
+                      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">City</dt>
                       <dd className="mt-1 text-white/90">
                         {cityLive ? (
                           <Link href={`/cities/${cityLive.slug}`} className="underline-offset-4 hover:text-bw-coral-bright hover:underline">
@@ -158,7 +153,7 @@ export default async function MarketPage({ params }: Props) {
                   ) : null}
                   {market.address ? (
                     <div>
-                      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">Address</dt>
+                      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">Address</dt>
                       <dd className="mt-1 whitespace-pre-line break-words text-white/90">{market.address}</dd>
                     </div>
                   ) : null}
@@ -170,25 +165,21 @@ export default async function MarketPage({ params }: Props) {
                   className="group mt-6 inline-flex w-full items-center justify-between gap-3 rounded-[2px] border border-white/30 px-4 py-3 font-bw-display text-base font-semibold uppercase tracking-[0.06em] hover:border-white hover:bg-white/10"
                 >
                   {pinned ? "Open on the map" : "Search on the map"}
-                  <ArrowUpRight className="size-4 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden />
+                  <ArrowUpRight className="size-4 shrink-0" aria-hidden />
                 </a>
                 <p className="bw-mono mt-2 text-[0.68rem] text-white/45">OpenStreetMap · opens in a new tab</p>
               </div>
 
               <div className="mt-3 rounded-[3px] border border-bw-line bg-bw-panel p-6 sm:p-8">
                 <Label className="text-bw-muted">Hours</Label>
-                <p className="mt-4 inline-flex items-start gap-2 text-lg text-bw-fg">
-                  <Clock className="mt-1 size-4 shrink-0 text-bw-muted" aria-hidden />
-                  <span className="break-words">{market.hours ?? "Ask us before you go"}</span>
-                </p>
+                <p className="mt-4 break-words text-lg text-bw-fg">{market.hours ?? "Ask us before you go"}</p>
                 {market.visitDuration ? (
                   <p className="mt-3 text-bw-muted">
                     Allow <span className="text-bw-fg">{market.visitDuration.toLowerCase()}</span>.
                   </p>
                 ) : null}
-                <p className="mt-5 flex gap-2 border-t border-bw-line pt-4 text-sm leading-relaxed text-bw-muted">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-bw-coral" aria-hidden />
-                  <span>{market.verify ?? "Hours can change. Confirm with your supplier, or with us, before you travel."}</span>
+                <p className="mt-5 border-t border-bw-line pt-4 text-sm leading-relaxed text-bw-muted">
+                  {market.verify ?? "Hours can change. Confirm with your supplier, or with us, before you travel."}
                 </p>
               </div>
             </div>
@@ -314,8 +305,8 @@ export default async function MarketPage({ params }: Props) {
 
       <section aria-label="More" className="border-t border-bw-line bg-bw-panel">
         <Frame className="flex flex-wrap items-center justify-between gap-4 py-6">
-          <Link href="/markets" className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-fg hover:text-bw-coral">
-            <ArrowRight className="size-3.5 rotate-180" aria-hidden /> All markets
+          <Link href="/markets" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-fg underline-offset-4 hover:text-bw-coral hover:underline">
+            All markets
           </Link>
           <p className="max-w-xl text-sm text-bw-muted">
             BlueWave doesn&apos;t run or represent this market. These are our notes for traders.

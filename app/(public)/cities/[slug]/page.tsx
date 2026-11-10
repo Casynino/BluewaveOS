@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, Check } from "lucide-react";
 
 import { FactoryCard, MarketCard } from "@/components/bw/ex-cards";
 import { BlockTitle, FactoriesEmpty, FALLBACK, Gallery, LogisticsBand, PhotoHero, photoOr } from "@/components/bw/ex-kit";
@@ -126,7 +125,7 @@ export default async function CityPage({ params }: Props) {
         <section aria-label={`Pictures of ${city.name}`} className="bg-bw-panel">
           <Frame className="py-16 lg:py-20">
             <Gallery images={city.gallery} alt={city.name} />
-            <p className="bw-mono mt-3 text-[0.66rem] uppercase tracking-[0.12em] text-bw-muted">
+            <p className="bw-mono mt-3 text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">
               Photographs illustrate the city and its trade.
             </p>
           </Frame>
@@ -210,13 +209,12 @@ export default async function CityPage({ params }: Props) {
             </div>
           </div>
           <div className="min-w-0 lg:col-span-5 lg:col-start-8">
-            <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">Available from here</p>
+            <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">Available from here</p>
             {services.length ? (
               <ul className="mt-4 border-t border-white/15">
                 {services.map((key) => (
-                  <li key={key} className="flex items-center gap-3 border-b border-white/15 py-4">
-                    <Check className="size-4 shrink-0 text-bw-coral-bright" aria-hidden />
-                    <span className="font-bw-display text-2xl font-semibold uppercase">{CITY_SERVICES[key]}</span>
+                  <li key={key} className="border-b border-white/15 py-4 font-bw-display text-2xl font-semibold uppercase">
+                    {CITY_SERVICES[key]}
                   </li>
                 ))}
               </ul>
@@ -224,16 +222,16 @@ export default async function CityPage({ params }: Props) {
               <p className="mt-4 text-white/70">Ask the office what we can arrange in {city.name}.</p>
             )}
             {city.travelNote ? (
-              <div className="mt-8 border-l-2 border-bw-coral pl-4">
-                <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-white/55">Travel note</p>
+              <div className="mt-8">
+                <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-white/55">Travel note</p>
                 <p className="mt-2 text-lg text-white/85">{city.travelNote}</p>
               </div>
             ) : null}
             <Link
               href="/explore#cities"
-              className="bw-mono mt-8 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/65 hover:text-white"
+              className="bw-mono mt-8 inline-block text-xs uppercase tracking-[0.06em] text-white/65 underline-offset-4 hover:text-white hover:underline"
             >
-              Other cities <ArrowRight className="size-3.5" aria-hidden />
+              Other cities
             </Link>
           </div>
         </Frame>
@@ -247,7 +245,7 @@ export default async function CityPage({ params }: Props) {
 function HeroFact({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
     <div className={`min-w-0 bg-bw-night/40 p-4 ${wide ? "col-span-2" : ""}`}>
-      <dt className="bw-mono text-[0.64rem] uppercase tracking-[0.14em] text-white/60">{label}</dt>
+      <dt className="bw-mono text-[0.64rem] uppercase tracking-[0.06em] text-white/60">{label}</dt>
       <dd className={wide ? "mt-1 text-base text-white/90" : "bw-display mt-1 text-4xl"}>{value}</dd>
     </div>
   );

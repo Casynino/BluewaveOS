@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 
 import { ContainerSizes, StationTile } from "@/components/bw/info-iso";
 import { Action, Frame, Label, PageBanner, SectionIntro } from "@/components/bw/ui";
@@ -55,7 +54,7 @@ export default async function ServicesPage() {
               <li key={href}>
                 <a
                   href={href}
-                  className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/75 hover:text-white"
+                  className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.06em] text-white/75 transition-colors hover:text-white"
                 >
                   <span className="text-bw-cyan">{String.fromCharCode(65 + i)}</span>
                   {label}
@@ -86,7 +85,7 @@ export default async function ServicesPage() {
                 className="bw-photo -z-20 object-cover"
               />
               <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/60 to-bw-night/10" />
-              <span className="bw-mono mb-5 self-start border sm:absolute sm:mb-0 sm:left-6 sm:top-6 border-white/40 px-2 py-1 text-xs tracking-[0.2em] sm:left-10 sm:top-10">
+              <span className="bw-mono mb-4 self-start text-xs tracking-[0.06em] text-white/75 sm:absolute sm:left-10 sm:top-10 sm:mb-0">
                 A · LCL
               </span>
               <h2 id="loose-cargo" className="bw-display text-[clamp(3rem,7vw,5.5rem)] uppercase">
@@ -119,21 +118,21 @@ export default async function ServicesPage() {
                   goods and the volume a customer gives it. */}
               {sample.length > 0 ? (
                 <>
-                  <p className="bw-mono mt-8 text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">
+                  <p className="bw-mono mt-8 text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">
                     Priced by type of goods, for example
                   </p>
-                  <ul className="mt-3 flex flex-wrap gap-2">
+                  <ul className="mt-3 space-y-1">
                     {sample.map((row) => (
-                      <li key={row.cargoType} className="border border-bw-line bg-bw-panel px-3 py-1.5 text-sm text-bw-fg">
+                      <li key={row.cargoType} className="text-bw-fg">
                         {row.cargoType}
                       </li>
                     ))}
                   </ul>
                   <Link
                     href="/calculator"
-                    className="bw-mono mt-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                    className="bw-mono mt-5 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
                   >
-                    Price your goods in the calculator <ArrowRight className="size-3.5" aria-hidden />
+                    Price your goods in the calculator
                   </Link>
                 </>
               ) : (
@@ -154,7 +153,7 @@ export default async function ServicesPage() {
       <section aria-labelledby="full-container" className="bg-bw-ground">
         <Frame className="grid gap-12 py-20 lg:grid-cols-12 lg:items-center lg:py-28">
           <div className="lg:col-span-5">
-            <p className="bw-mono inline-block border border-bw-fg/30 px-2 py-1 text-xs tracking-[0.2em] text-bw-fg">B · FCL</p>
+            <p className="bw-mono text-xs tracking-[0.06em] text-bw-muted">B · FCL</p>
             <h2 id="full-container" className="bw-display mt-6 text-[clamp(3rem,7vw,5.5rem)] uppercase text-bw-fg">
               Full container
             </h2>
@@ -162,7 +161,7 @@ export default async function ServicesPage() {
               A container to yourself — loaded with your goods only and shipped from Foshan to Dar es Salaam. The better
               choice when you are filling most of a box.
             </p>
-            <ul className="mt-8 space-y-3 border-l-2 border-bw-coral pl-5 text-bw-fg">
+            <ul className="mt-8 space-y-3 border-l border-bw-line pl-5 text-bw-fg">
               <li>Your goods only, nobody else&apos;s in the box</li>
               <li>Sealed before it leaves, seal number recorded</li>
               <li>No waiting for a shared container to fill</li>
@@ -265,7 +264,7 @@ export default async function ServicesPage() {
             aria-label="Pickup route"
           >
             <li className="rounded-[3px] border border-white/15 p-5">
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-cyan">From</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-cyan">From</p>
               <p className="mt-2 font-bw-display text-3xl font-semibold uppercase">Your supplier</p>
               <p className="mt-1 text-sm text-white/60">Factory, showroom or market</p>
             </li>
@@ -277,7 +276,7 @@ export default async function ServicesPage() {
               </svg>
             </li>
             <li className="rounded-[3px] bg-bw-panel p-5 text-bw-fg">
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-harbour">To</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-harbour">To</p>
               <p className="mt-2 font-bw-display text-3xl font-semibold uppercase">Foshan warehouse</p>
               <p className="mt-1 text-sm text-bw-muted">Received and measured like any delivery</p>
             </li>
@@ -308,20 +307,20 @@ export default async function ServicesPage() {
 
             <div className="grid gap-px self-start overflow-hidden rounded-[3px] bg-bw-line lg:col-span-7">
               <article className="bg-bw-ground p-6 sm:p-8">
-                <p className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-harbour">Shipping with us</p>
+                <p className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-harbour">Shipping with us</p>
                 <h3 className="mt-3 font-bw-display text-3xl font-semibold uppercase text-bw-fg">Clearance through arrival</h3>
                 <p className="mt-3 leading-relaxed text-bw-muted">
                   Your cargo is cleared as part of its arrival. After that it is counted again against the Foshan figures
                   and waits in our Dar es Salaam warehouse for you.
                 </p>
                 {freeDays ? (
-                  <p className="bw-mono mt-5 inline-block border border-bw-line bg-bw-panel px-3 py-2 text-xs uppercase tracking-[0.14em] text-bw-fg">
+                  <p className="bw-mono mt-5 text-xs uppercase tracking-[0.06em] text-bw-fg">
                     Free storage · {freeDays} days after arrival
                   </p>
                 ) : null}
               </article>
               <article className="bg-bw-panel p-6 sm:p-8">
-                <p className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-coral">Your own container</p>
+                <p className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral">Your own container</p>
                 <h3 className="mt-3 font-bw-display text-3xl font-semibold uppercase text-bw-fg">Clearance only</h3>
                 <p className="mt-3 leading-relaxed text-bw-muted">
                   Shipped with somebody else and need the container cleared at Dar es Salaam? Send us the details and the
@@ -376,13 +375,12 @@ export default async function ServicesPage() {
                     <Image src={item.photo.src} alt={item.alt} fill sizes="(min-width: 640px) 30vw, 100vw" className="bw-photo object-cover" />
                   </div>
                   <div className="min-w-0 sm:col-span-8 lg:col-span-6">
-                    <p className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-harbour">{item.code}</p>
+                    <p className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-harbour">{item.code}</p>
                     <h3 className="mt-2 font-bw-display text-4xl font-semibold uppercase text-bw-fg sm:text-5xl">{item.title}</h3>
                     <p className="mt-3 max-w-xl leading-relaxed text-bw-muted">{item.body}</p>
                   </div>
-                  <span className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral sm:col-span-12 lg:col-span-3 lg:justify-end">
+                  <span className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 group-hover:underline sm:col-span-12 lg:col-span-3 lg:text-right">
                     {item.action}
-                    <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
                   </span>
                 </Link>
               </li>
@@ -420,7 +418,7 @@ function Term({ value, label, accent = false }: { value: string; label: string; 
   return (
     <div className={`min-w-0 rounded-[2px] px-1 py-3 ${accent ? "bg-bw-coral text-white" : "bg-bw-panel text-bw-fg ring-1 ring-bw-line"}`}>
       <p className="bw-display text-xl sm:text-3xl">{value}</p>
-      <p className={`bw-mono mt-1 truncate text-[0.55rem] uppercase tracking-[0.1em] ${accent ? "text-white/85" : "text-bw-muted"}`}>{label}</p>
+      <p className={`bw-mono mt-1 truncate text-[0.55rem] uppercase tracking-[0.06em] ${accent ? "text-white/85" : "text-bw-muted"}`}>{label}</p>
     </div>
   );
 }

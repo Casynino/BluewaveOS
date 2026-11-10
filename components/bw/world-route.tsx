@@ -87,7 +87,7 @@ export function WorldRoute({ className }: { className?: string }) {
         className="bw-draw"
       />
 
-      <circle r={9} fill="#fff">
+      <circle r={9} fill="#fff" className="motion-reduce:hidden">
         <animateMotion dur="9s" repeatCount="indefinite" path={LANE_PATH} rotate="auto" />
       </circle>
 
@@ -96,7 +96,6 @@ export function WorldRoute({ className }: { className?: string }) {
         [dx, dy, "DAR ES SALAAM · TZ", "start"],
       ].map(([x, y, label, anchor]) => (
         <g key={label as string}>
-          <rect x={(x as number) - 11} y={(y as number) - 11} width={22} height={22} fill="#D63C50" className="bw-ping" />
           <rect x={(x as number) - 11} y={(y as number) - 11} width={22} height={22} fill="#D63C50" stroke="#fff" strokeWidth={3} />
           <text
             x={(x as number) + (anchor === "end" ? -24 : 24)}
@@ -104,7 +103,7 @@ export function WorldRoute({ className }: { className?: string }) {
             textAnchor={anchor as "start" | "end"}
             fill="#fff"
             fontSize={26}
-            letterSpacing={3}
+            letterSpacing={1.5}
             style={{ fontFamily: "var(--font-bw-mono)" }}
           >
             {label}

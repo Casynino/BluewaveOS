@@ -28,7 +28,7 @@ export function SupplierPlate({ address, dark = false, className }: { address: S
     >
       <div className="flex flex-wrap items-center justify-between gap-3 bg-bw-ink px-4 py-3 text-white sm:px-5">
         <div className="min-w-0">
-          <p className="bw-mono text-[0.68rem] uppercase tracking-[0.18em] text-white/55">For your supplier · 发给供应商</p>
+          <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">For your supplier · 发给供应商</p>
           <p className="mt-1 break-words text-base font-semibold" lang="zh-CN">
             【BlueWave Cargo 佛山仓库】
           </p>
@@ -44,7 +44,7 @@ export function SupplierPlate({ address, dark = false, className }: { address: S
                 <span className="block text-sm font-semibold text-bw-fg" lang="zh-CN">
                   {line.label}
                 </span>
-                <span className="bw-mono block text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
+                <span className="bw-mono block text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
                   {GLOSS[line.label] ?? line.label}
                 </span>
               </dt>
@@ -63,7 +63,7 @@ export function SupplierPlate({ address, dark = false, className }: { address: S
         <p className="mt-1">Mark every carton with your shipping mark, and ask the supplier to phone the warehouse before delivering.</p>
         {address.english ? (
           <p className="mt-2 break-words">
-            <span className="bw-mono mr-2 text-[0.68rem] uppercase tracking-[0.14em]">English</span>
+            <span className="bw-mono mr-2 text-[0.68rem] uppercase tracking-[0.06em]">English</span>
             {address.english}
           </p>
         ) : null}

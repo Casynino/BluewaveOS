@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Camera, Clock, Download, FileText, MessageCircle } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { JourneyGroups, RouteStage, WhatNext, phaseOf, stageCopy } from "@/components/bw/track-journey";
 import { TrackField } from "@/components/bw/track-field";
@@ -202,7 +202,7 @@ export default async function TrackResultPage({
   const burst = hit(`track-burst:${address}`, BURST, BURST_MS);
   if (!steady.ok || !burst.ok) {
     return (
-      <Notice reference={reference} title="Too many lookups" icon={<Clock className="size-7 text-bw-cyan" />}>
+      <Notice reference={reference} title="Too many lookups">
         <p>Please wait a few minutes and try again, or sign in to see all of your cargo at once.</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Action href="/login?callbackUrl=%2Fportal">Sign in</Action>
@@ -299,7 +299,6 @@ function Result({
       {/* ------------------------------------------------ WHERE IT IS NOW */}
       <section aria-labelledby="ref" className="bw-top relative isolate overflow-hidden bg-bw-night text-white">
         <div aria-hidden className="bw-ribs absolute inset-0 -z-10" />
-        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_80%_0%,rgb(42_154_212/0.25),transparent_55%)]" />
         <Frame className="py-8 sm:py-12">
           <div className="max-w-xl">
             <TrackField dark value={result.reference} />
@@ -307,16 +306,15 @@ function Result({
 
           <div className="mt-10 grid gap-10 lg:grid-cols-12 lg:items-end">
             <div className="min-w-0 lg:col-span-7">
-              <p className="bw-mono text-sm tracking-[0.12em] text-white/60">
+              <p className="bw-mono text-sm tracking-[0.06em] text-white/60">
                 <span id="ref">{result.reference}</span>
               </p>
               <h1 className="bw-display mt-3 break-words text-[clamp(2.6rem,8vw,5.5rem)] uppercase">{copy.title}</h1>
               <p className="mt-4 max-w-xl text-lg text-white/80">{copy.line}</p>
               <p className="mt-1 max-w-xl text-white/55">{copy.sw}</p>
               {journey.headline !== copy.title ? (
-                <p className="mt-5 inline-flex max-w-full items-start gap-2 rounded-[2px] bg-white/10 px-3 py-2 text-sm">
-                  <span className="mt-1.5 size-2 shrink-0 bg-bw-coral-bright" aria-hidden />
-                  <span className="min-w-0 break-words">{journey.headline}</span>
+                <p className="mt-5 inline-block max-w-full break-words rounded-[2px] bg-white/10 px-3 py-2 text-sm">
+                  {journey.headline}
                 </p>
               ) : null}
               {journey.notice ? <p className="mt-3 max-w-xl text-sm text-amber-300">{journey.notice}</p> : null}
@@ -415,7 +413,7 @@ function Result({
             )}
 
             {full && result.photos.length > 0 ? (
-              <Panel title="Pictures of your cargo" icon={<Camera className="size-4" />}>
+              <Panel title="Pictures of your cargo">
                 <div className="bg-bw-panel p-4">
                   <CargoPhotos
                     reference={result.reference}
@@ -464,7 +462,7 @@ function Result({
             ) : null}
 
             <div className={cn("rounded-[3px] p-5", phase === "READY" ? "bg-emerald-700 text-white" : "bg-bw-ink text-white")}>
-              <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/60">Pickup</p>
+              <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/60">Pickup</p>
               <p className="mt-2">
                 {phase === "READY"
                   ? "Everything is settled. Bring your ID and your pickup note to our Dar es Salaam warehouse."
@@ -484,12 +482,9 @@ function Result({
                 href={wa}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between gap-3 rounded-[3px] border border-bw-line bg-bw-panel px-5 py-4 text-bw-fg hover:border-bw-fg"
+                className="flex items-center justify-between gap-3 rounded-[3px] border border-bw-line bg-bw-panel px-5 py-4 text-bw-fg transition-colors hover:border-bw-fg"
               >
-                <span className="inline-flex items-center gap-3">
-                  <MessageCircle className="size-5 text-bw-coral" />
-                  Ask about this cargo
-                </span>
+                <span>Ask about this cargo</span>
                 <span className="bw-mono text-xs text-bw-muted">{result.whatsappLabel}</span>
               </a>
             ) : null}
@@ -563,7 +558,7 @@ function MergedCharge({
   return (
     <div className="overflow-hidden rounded-[3px] border border-bw-line bg-bw-panel">
       <div className="border-b border-bw-line p-6">
-        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">
+        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
           {settled ? "Settled in full" : "Amount due"} · {merged.count} consignments
         </p>
         <p className="bw-mono mt-2 text-[clamp(2rem,5vw,3rem)] font-semibold leading-none text-bw-fg">
@@ -588,7 +583,6 @@ function MergedCharge({
           has to be the document behind the figure above it. */}
       <div className="border-b border-bw-line bg-bw-ground">
         <a href={merged.invoiceHref} download rel="nofollow" className="group flex items-center gap-4 px-6 py-4">
-          <FileText className="size-6 shrink-0 text-bw-harbour" />
           <span className="min-w-0 flex-1">
             <span className="block font-semibold text-bw-fg">Pakua invoice ya pamoja hapa</span>
             <span className="block text-sm text-bw-muted">
@@ -632,7 +626,7 @@ function MergedCharge({
       {/* Each transfer as it arrived, in the currency it arrived in. */}
       {merged.payments.length > 0 ? (
         <dl className="space-y-2 border-t border-bw-line px-6 py-5 text-sm">
-          <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">Malipo yaliyopokelewa</dt>
+          <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">Malipo yaliyopokelewa</dt>
           {merged.payments.map((payment) => (
             <dd key={payment.reference} className="flex justify-between gap-4">
               <span className="bw-mono text-bw-muted">
@@ -650,7 +644,7 @@ function MergedCharge({
           <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2 [&>li:last-child:nth-child(odd)]:sm:col-span-2">
             {merged.accounts.map((account) => (
               <li key={`${account.bankName}-${account.accountNumber}`} className="bg-bw-panel p-4">
-                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
+                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
                   {account.bankName}
                   {account.kind === "MOBILE_MONEY" ? " — Lipa number" : ` — ${account.currency}`}
                 </p>
@@ -684,7 +678,7 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
   return (
     <div className="overflow-hidden rounded-[3px] border border-bw-line bg-bw-panel">
       <div className="border-b border-bw-line p-6">
-        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">{settled ? "Settled in full" : "Amount due"}</p>
+        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">{settled ? "Settled in full" : "Amount due"}</p>
         {(settled ? charge.totalTzs : charge.outstandingTzs) !== null ? (
           <>
             <p className="bw-mono mt-2 text-[clamp(2rem,5vw,3rem)] font-semibold leading-none text-bw-fg">
@@ -714,7 +708,6 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
       {invoiceHref ? (
         <div className="border-b border-bw-line bg-bw-ground">
           <a href={invoiceHref} download rel="nofollow" className="group flex items-center gap-4 px-6 py-4">
-            <FileText className="size-6 shrink-0 text-bw-harbour" />
             <span className="min-w-0 flex-1">
               <span className="block font-semibold text-bw-fg">Pakua invoice hapa</span>
               <span className="block text-sm text-bw-muted">Download your invoice · PDF</span>
@@ -759,7 +752,7 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
           <ul className="mt-4 grid gap-px overflow-hidden rounded-[2px] bg-bw-line sm:grid-cols-2 [&>li:last-child:nth-child(odd)]:sm:col-span-2">
             {result.accounts.map((account) => (
               <li key={`${account.bankName}-${account.accountNumber}`} className="bg-bw-panel p-4">
-                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">
+                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
                   {account.bankName}
                   {account.kind === "MOBILE_MONEY" ? " — Lipa number" : ` — ${account.currency}`}
                 </p>
@@ -788,18 +781,17 @@ function FullCharge({ result, invoiceHref, wa }: { result: PublicTracking; invoi
 function Stat({ label, value, sub, mono = false }: { label: string; value: string; sub?: string | null; mono?: boolean }) {
   return (
     <div className="min-w-0 bg-bw-night/70 p-4">
-      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-white/50">{label}</dt>
+      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50">{label}</dt>
       <dd className={cn("mt-1 break-words text-white", mono ? "bw-mono" : "font-medium")}>{value}</dd>
       {sub ? <dd className="bw-mono mt-0.5 text-[0.72rem] text-white/50">{sub}</dd> : null}
     </div>
   );
 }
 
-function Panel({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="overflow-hidden rounded-[3px] border border-bw-line">
-      <h3 className="flex items-center gap-2 border-b border-bw-line bg-bw-panel px-4 py-3 font-bw-display text-lg font-semibold uppercase tracking-[0.04em] text-bw-fg">
-        {icon}
+      <h3 className="border-b border-bw-line bg-bw-panel px-4 py-3 font-bw-display text-lg font-semibold uppercase tracking-[0.04em] text-bw-fg">
         {title}
       </h3>
       {children}
@@ -822,7 +814,7 @@ function Cell({
 }) {
   return (
     <div className={cn("min-w-0 bg-bw-panel p-4", wide && "col-span-2")}>
-      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">{label}</dt>
+      <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">{label}</dt>
       <dd className={cn("mt-1 font-semibold text-bw-fg", tone)}>{value}</dd>
     </div>
   );
@@ -832,12 +824,10 @@ function Cell({
 function Notice({
   title,
   reference,
-  icon,
   children,
 }: {
   title: string;
   reference?: string;
-  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -847,9 +837,8 @@ function Notice({
         <div className="max-w-xl">
           <TrackField dark value={reference} />
         </div>
-        <div className="mt-12 max-w-2xl">
-          {icon}
-          <h1 className="bw-display mt-4 break-words text-[clamp(2.4rem,6vw,4.4rem)] uppercase">{title}</h1>
+        <div className="mt-16 max-w-2xl">
+          <h1 className="bw-display break-words text-[clamp(2.4rem,6vw,4.4rem)] uppercase">{title}</h1>
           <div className="mt-4 text-lg text-white/70">{children}</div>
           <p className="mt-10 text-sm text-white/50">
             <Link href="/track" className="underline-offset-4 hover:text-white hover:underline">

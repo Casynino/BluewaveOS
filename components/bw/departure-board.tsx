@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 
 import { SAILING_STATUS_LABEL } from "@/lib/constants";
 import { ARRIVAL_CAVEAT, type Sailing } from "@/lib/sailing-schedule";
@@ -35,7 +34,7 @@ export function bookHref(sailing: Sailing) {
 export function DepartureBoard({ sailings, compact = false }: { sailings: Sailing[]; compact?: boolean }) {
   return (
     <div className="overflow-hidden rounded-[3px] bg-bw-night text-white ring-1 ring-white/10">
-      <div className="bw-mono hidden grid-cols-12 gap-4 border-b border-white/10 px-6 py-3 text-[0.66rem] uppercase tracking-[0.18em] text-white/45 md:grid">
+      <div className="bw-mono hidden grid-cols-12 gap-4 border-b border-white/10 px-6 py-3 text-[0.66rem] uppercase tracking-[0.06em] text-white/45 md:grid">
         <span className="col-span-3">Sailing</span>
         <span className="col-span-2">Receiving closes</span>
         <span className="col-span-2">Departs</span>
@@ -52,7 +51,7 @@ export function DepartureBoard({ sailings, compact = false }: { sailings: Sailin
               <p className="font-bw-display text-2xl font-semibold uppercase leading-none">
                 {sailing.vessel ?? `Week of ${DATE.format(sailing.departureDate)}`}
               </p>
-              <p className="bw-mono mt-1.5 text-[0.7rem] uppercase tracking-[0.14em] text-white/50">
+              <p className="bw-mono mt-1.5 text-[0.7rem] uppercase tracking-[0.06em] text-white/50">
                 {sailing.reference ?? `${sailing.origin} → ${sailing.destination}`}
               </p>
             </div>
@@ -62,7 +61,7 @@ export function DepartureBoard({ sailings, compact = false }: { sailings: Sailin
             <div className="col-span-2 flex items-center justify-between gap-3 md:col-span-3">
               <span
                 className={cn(
-                  "bw-mono inline-flex min-w-0 items-center gap-2 text-xs uppercase leading-tight tracking-[0.14em]",
+                  "bw-mono inline-flex min-w-0 items-center gap-2 text-xs uppercase leading-tight tracking-[0.06em]",
                   STATUS_TONE[sailing.status]
                 )}
               >
@@ -72,9 +71,9 @@ export function DepartureBoard({ sailings, compact = false }: { sailings: Sailin
               {sailing.bookingOpen ? (
                 <Link
                   href={bookHref(sailing)}
-                  className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] hover:bg-bw-coral-dark"
+                  className="inline-flex h-10 shrink-0 items-center rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] transition-colors hover:bg-bw-coral-dark"
                 >
-                  Book <ArrowRight className="size-3.5" aria-hidden />
+                  Book
                 </Link>
               ) : null}
             </div>
@@ -93,8 +92,8 @@ function BoardDate({ label, date, accent = false, approx = false }: { label: str
      the two on one line ran into the next column. */
   return (
     <div className="min-w-0 md:col-span-2">
-      <p className="bw-mono text-[0.68rem] uppercase tracking-[0.12em] text-white/50 md:hidden">{label}</p>
-      <p className={cn("bw-mono mt-1 text-[0.68rem] uppercase tracking-[0.12em] md:mt-0", accent ? "text-bw-coral-bright" : "text-white/50")}>
+      <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/50 md:hidden">{label}</p>
+      <p className={cn("bw-mono mt-1 text-[0.68rem] uppercase tracking-[0.06em] md:mt-0", accent ? "text-bw-coral-bright" : "text-white/50")}>
         {DAY.format(date)}
       </p>
       <p className="bw-mono whitespace-nowrap text-base md:text-lg">

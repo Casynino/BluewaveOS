@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, MapPin, Scale, Search, Ship, ShoppingBag, Warehouse } from "lucide-react";
 
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact, ReqLayout, ReqSteps } from "@/components/bw/req-layout";
@@ -31,21 +30,18 @@ const FLOW: FlowStep[] = [
     code: "01 · Find",
     title: "Find",
     body: "You tell us what you want — a name, a photo, a price to hit. We look for where it is made and sold.",
-    icon: Search,
     ours: true,
   },
   {
     code: "02 · Source",
     title: "Source",
     body: "We compare suppliers and prices and bring you the options, so you choose with the facts in front of you.",
-    icon: Scale,
     ours: true,
   },
   {
     code: "03 · Visit",
     title: "Visit",
     body: "Want to see it with your own eyes? Visit the market or factory with our help — or skip this and decide from here.",
-    icon: MapPin,
     href: "/visit",
     action: "Business visits",
   },
@@ -53,13 +49,11 @@ const FLOW: FlowStep[] = [
     code: "04 · Buy",
     title: "Buy",
     body: "You choose the supplier and agree the order. Nothing is bought without your say.",
-    icon: ShoppingBag,
   },
   {
     code: "05 · Receive",
     title: "Receive",
     body: "Delivered by the supplier, or collected by us, to our Foshan warehouse — counted and photographed.",
-    icon: Warehouse,
     ours: true,
     href: "/pickup",
     action: "China pickup",
@@ -68,7 +62,6 @@ const FLOW: FlowStep[] = [
     code: "06 · Ship",
     title: "Ship",
     body: "Loaded on the next container to Dar es Salaam and tracked until you collect in Tanzania.",
-    icon: Ship,
     ours: true,
     href: "/schedule",
     action: "Sailings",
@@ -145,7 +138,7 @@ export default async function SourcingPage({ searchParams }: { searchParams: Pro
             title={<span id="flow">Find · Source · Visit · Buy · Receive · Ship</span>}
             lead="One team from the first question to the goods landing in Tanzania. You decide what to buy; we do the looking, the receiving and the shipping."
           />
-          <div className="mt-14 rounded-[2px] border border-bw-line bg-bw-panel/80 p-6 backdrop-blur-[1px] sm:p-10">
+          <div className="mt-14 rounded-[2px] border border-bw-line bg-bw-panel/80 p-6 sm:p-10">
             <VsFlow steps={FLOW} />
             <div className="mt-10 border-t border-bw-line pt-6">
               <VsFlowKey />
@@ -174,10 +167,9 @@ export default async function SourcingPage({ searchParams }: { searchParams: Pro
                   <p className="mt-3 leading-relaxed text-white/70">{service.blurb}</p>
                   <Link
                     href={`/sourcing?service=${service.key}#sourcing-form`}
-                    className="bw-mono group mt-auto inline-flex items-center gap-2 pt-6 text-[0.72rem] uppercase tracking-[0.14em] text-white hover:text-bw-coral-bright"
+                    className="bw-mono mt-auto self-start pt-6 text-[0.72rem] uppercase tracking-[0.06em] text-white underline-offset-4 transition-colors hover:text-bw-coral-bright hover:underline"
                   >
                     Ask for this
-                    <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -232,9 +224,9 @@ export default async function SourcingPage({ searchParams }: { searchParams: Pro
                 </p>
                 <Link
                   href="/visit#visit-form"
-                  className="bw-mono mt-4 inline-flex text-[0.7rem] uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                  className="bw-mono mt-4 inline-flex text-[0.7rem] uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
                 >
-                  Request a business visit →
+                  Request a business visit
                 </Link>
               </ReqBlock>
               <ReqContact company={company} china />

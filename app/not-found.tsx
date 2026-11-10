@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 
 import { bwCompany } from "@/components/bw/data";
 import { bwFontVars } from "@/components/bw/fonts";
@@ -78,10 +77,9 @@ export default async function NotFound() {
                 <li key={href}>
                   <Link
                     href={href}
-                    className="group flex items-center justify-between gap-3 py-5 font-bw-display text-xl font-semibold uppercase text-bw-fg hover:text-bw-coral sm:pr-8"
+                    className="block py-5 font-bw-display text-xl font-semibold uppercase text-bw-fg transition-colors hover:text-bw-coral sm:pr-8"
                   >
                     {label}
-                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
                   </Link>
                 </li>
               ))}

@@ -1,5 +1,3 @@
-import { MessageCircle, Phone } from "lucide-react";
-
 import type { BwCompany } from "@/components/bw/data";
 import { Frame, Label } from "@/components/bw/ui";
 import { cn } from "@/lib/utils";
@@ -35,7 +33,7 @@ export function ReqLayout({
           <div className="rounded-[2px] border border-bw-line bg-bw-panel">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bw-line px-5 py-3 sm:px-8">
               <Label className="text-bw-muted">{docket}</Label>
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">Foshan → Dar es Salaam</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">Foshan → Dar es Salaam</p>
             </div>
             <div className="px-5 pb-6 pt-6 sm:px-8 sm:pb-8 sm:pt-8">
               <h2 id="req-form-title" className="bw-display text-4xl uppercase text-bw-fg sm:text-5xl">
@@ -163,17 +161,13 @@ export function ReqContact({
         <ul className="space-y-3">
           {lines.map((line) => (
             <li key={line.number}>
-              <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">{line.where}</p>
+              <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">{line.where}</p>
               {line.href ? (
-                <a href={line.href} className="bw-mono mt-1 inline-flex items-center gap-2 text-lg text-white hover:text-bw-coral-bright">
-                  <Phone className="size-4 text-bw-coral-bright" aria-hidden />
+                <a href={line.href} className="bw-mono mt-1 inline-block text-lg text-white transition-colors hover:text-bw-coral-bright">
                   {line.number}
                 </a>
               ) : (
-                <p className="bw-mono mt-1 inline-flex items-center gap-2 text-lg text-white">
-                  <Phone className="size-4 text-bw-cyan" aria-hidden />
-                  {line.number}
-                </p>
+                <p className="bw-mono mt-1 text-lg text-white">{line.number}</p>
               )}
             </li>
           ))}
@@ -186,9 +180,8 @@ export function ReqContact({
           href={company.whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[2px] border border-white/30 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-white hover:border-white hover:bg-white/10"
+          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[2px] border border-white/30 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-white transition-colors hover:border-white hover:bg-white/10"
         >
-          <MessageCircle className="size-4 text-bw-coral-bright" aria-hidden />
           Message us on WhatsApp
         </a>
       ) : null}

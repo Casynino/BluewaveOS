@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, Download, EllipsisVertical, Menu, Share, SquarePlus, X } from "lucide-react";
+import { ArrowDown, EllipsisVertical, Menu, Share, SquarePlus, X } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
@@ -264,14 +264,14 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
         className="w-full max-w-[17.5rem] rounded-2xl border border-white/[0.09] bg-[#06142b]/55 px-4 pb-1.5 pt-3.5 text-white shadow-[0_18px_44px_-22px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150"
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 id={labelId} className="text-[14px] font-medium tracking-tight">
+          <h2 id={labelId} className="text-[14px] font-medium">
             {t("Use it like an app")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("Close")}
-            className="-mr-1.5 grid size-7 shrink-0 place-items-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white/80"
+            className="-mr-1.5 grid size-7 shrink-0 place-items-center rounded-[4px] text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
           >
             <X className="size-3.5" />
           </button>
@@ -284,15 +284,14 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
           <div className="mb-1.5 mt-3 flex flex-col items-stretch">
             <button
               type="button"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white/10 text-[13px] font-medium ring-1 ring-inset ring-white/15 transition hover:bg-white/15"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-white/10 text-[13px] font-medium ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/15"
               onClick={async () => {
                 if (await install()) onClose();
               }}
             >
-              <Download className="size-3.5" />
               {t("Install the app")}
             </button>
-            <button type="button" className="h-8 text-[12px] text-white/45 transition hover:text-white/75" onClick={onClose}>
+            <button type="button" className="h-8 text-[12px] text-white/45 transition-colors hover:text-white/75" onClick={onClose}>
               {t("Not now")}
             </button>
           </div>
@@ -301,14 +300,14 @@ export function InstallSheet({ open, onClose }: { open: boolean; onClose: () => 
         )}
       </div>
 
-      {/* An iPhone has no one-tap install, so the next best thing: a small arrow
-          bounces over the toolbar where Share actually is. */}
+      {/* An iPhone has no one-tap install, so the next best thing: a small, still
+          arrow over the toolbar where Share actually is. */}
       {hint ? (
         <div
           aria-hidden
           className="pointer-events-none fixed inset-x-0 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+2.4rem)] z-[61] flex justify-center"
         >
-          <span className="flex animate-bounce flex-col items-center gap-0.5 text-[10px] font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] motion-reduce:animate-none">
+          <span className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             {t("Share")}
             <ArrowDown className="size-3.5 text-[#40c0e8]" />
           </span>

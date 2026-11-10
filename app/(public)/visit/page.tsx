@@ -1,19 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  ClipboardCheck,
-  Factory,
-  Handshake,
-  MapPin,
-  MessageCircle,
-  Phone,
-  PhoneCall,
-  Search,
-  Send,
-  Ship,
-  ShoppingBag,
-  Store,
-} from "lucide-react";
+import { Phone } from "lucide-react";
 
 import { bwCompany } from "@/components/bw/data";
 import { ReqBlock, ReqContact, ReqLayout, ReqSteps } from "@/components/bw/req-layout";
@@ -41,44 +28,38 @@ const one = (value: string | string[] | undefined) => (Array.isArray(value) ? va
 
 const COVERS = [
   {
-    icon: Store,
     title: "Explore markets",
     body: "Which halls sell what you sell, how long each takes, and which to see first.",
   },
   {
-    icon: Handshake,
     title: "Meet suppliers",
     body: "Sit down with sellers, compare quality and prices face to face, and agree terms.",
   },
   {
-    icon: Factory,
     title: "Visit factories",
     body: "See where it is made, for larger orders or your own specification.",
   },
   {
-    icon: Search,
     title: "Find products",
     body: "Know only what you want to sell? We point you to where it is made and sold.",
   },
 ];
 
 const HOW: FlowStep[] = [
-  { code: "01 · You", title: "Request", body: "Your dates, the cities and markets, and what you want to buy.", icon: Send },
-  { code: "02 · Us", title: "We call you", body: "Somebody from the team calls or WhatsApps you to talk the trip through.", icon: PhoneCall, ours: true },
+  { code: "01 · You", title: "Request", body: "Your dates, the cities and markets, and what you want to buy." },
+  { code: "02 · Us", title: "We call you", body: "Somebody from the team calls or WhatsApps you to talk the trip through.", ours: true },
   {
     code: "03 · Us",
     title: "Plan confirmed",
     body: "The team writes down what has been arranged. Only then does your status page say Confirmed.",
-    icon: ClipboardCheck,
     ours: true,
   },
-  { code: "04 · You", title: "Visit", body: "Walk the markets, meet suppliers, see factories — with the plan in hand.", icon: MapPin },
-  { code: "05 · You", title: "Buy", body: "Choose, agree and pay your suppliers. Keep their names and numbers.", icon: ShoppingBag },
+  { code: "04 · You", title: "Visit", body: "Walk the markets, meet suppliers, see factories — with the plan in hand." },
+  { code: "05 · You", title: "Buy", body: "Choose, agree and pay your suppliers. Keep their names and numbers." },
   {
     code: "06 · Us",
     title: "We collect and ship",
     body: "We collect from your suppliers or receive at our Foshan warehouse, and ship to Dar es Salaam.",
-    icon: Ship,
     ours: true,
     href: "/pickup",
     action: "China pickup",
@@ -164,13 +145,10 @@ export default async function VisitPage({ searchParams }: { searchParams: Promis
             lead="The markets are vast and the days are short. Tell us what you are buying and we help you spend the trip where the goods are."
           />
           <ul className="mt-12 grid border-l border-t border-bw-line sm:grid-cols-2 lg:grid-cols-4">
-            {COVERS.map(({ icon: Icon, title, body }, i) => (
+            {COVERS.map(({ title, body }, i) => (
               <li key={title} className="border-b border-r border-bw-line bg-bw-panel p-6">
-                <div className="flex items-center justify-between">
-                  <Icon className="size-6 text-bw-coral" aria-hidden />
-                  <span className="bw-mono text-xs text-bw-muted">{String(i + 1).padStart(2, "0")}</span>
-                </div>
-                <p className="bw-display mt-8 text-3xl uppercase text-bw-fg">{title}</p>
+                <span className="bw-mono text-xs text-bw-muted">{String(i + 1).padStart(2, "0")}</span>
+                <p className="bw-display mt-6 text-3xl uppercase text-bw-fg">{title}</p>
                 <p className="mt-2 text-sm leading-relaxed text-bw-muted">{body}</p>
               </li>
             ))}
@@ -219,7 +197,7 @@ export default async function VisitPage({ searchParams }: { searchParams: Promis
             <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {cities.map((city) => (
                 <li key={city.id} className="flex flex-col rounded-[2px] border border-bw-line bg-bw-panel p-5">
-                  <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">
+                  <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
                     {[city.province, city.nameZh].filter(Boolean).join(" · ") || "China"}
                   </p>
                   <p className="bw-display mt-2 text-4xl uppercase text-bw-fg">{city.name}</p>
@@ -231,16 +209,16 @@ export default async function VisitPage({ searchParams }: { searchParams: Promis
                   <div className="mt-auto flex flex-wrap gap-x-5 gap-y-2 pt-5">
                     <Link
                       href={`/cities/${city.slug}`}
-                      className="bw-mono text-[0.7rem] uppercase tracking-[0.14em] text-bw-fg hover:text-bw-coral"
+                      className="bw-mono text-[0.7rem] uppercase tracking-[0.06em] text-bw-fg underline-offset-4 transition-colors hover:text-bw-coral hover:underline"
                     >
-                      City guide →
+                      City guide
                     </Link>
                     {settings.visitsEnabled ? (
                       <Link
                         href={`/visit?city=${encodeURIComponent(city.slug)}#visit-form`}
-                        className="bw-mono text-[0.7rem] uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                        className="bw-mono text-[0.7rem] uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
                       >
-                        Add to my visit +
+                        Add to my visit
                       </Link>
                     ) : null}
                   </div>
@@ -295,9 +273,9 @@ export default async function VisitPage({ searchParams }: { searchParams: Promis
                       href={company.whatsapp}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-12 items-center gap-2 rounded-[2px] border border-bw-fg/25 px-5 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-bw-fg hover:border-bw-fg"
+                      className="inline-flex h-12 items-center rounded-[2px] border border-bw-fg/25 px-5 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-bw-fg hover:border-bw-fg"
                     >
-                      <MessageCircle className="size-4 text-bw-coral" aria-hidden /> WhatsApp us
+                      WhatsApp us
                     </a>
                   ) : null}
                   {!company.phone && !company.whatsapp ? (
@@ -327,9 +305,9 @@ export default async function VisitPage({ searchParams }: { searchParams: Promis
                 </p>
                 <Link
                   href="/sourcing#sourcing-form"
-                  className="bw-mono mt-4 inline-flex text-[0.7rem] uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                  className="bw-mono mt-4 inline-flex text-[0.7rem] uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
                 >
-                  Send a sourcing request →
+                  Send a sourcing request
                 </Link>
               </ReqBlock>
               <ReqContact company={company} china />

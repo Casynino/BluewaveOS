@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Instagram, MessageCircle } from "lucide-react";
+import { Instagram } from "lucide-react";
 
 import type { BwCompany } from "@/components/bw/data";
 import { Lockup } from "@/components/bw/lockup";
@@ -56,13 +56,11 @@ export function BwFooter({ company }: { company: BwCompany }) {
           label="Dar es Salaam · Office"
           title="Kariakoo"
           lines={[company.darAddress, company.phone, company.altPhone]}
-          accent="bg-bw-coral"
         />
         <Office
           label="Foshan · China warehouse"
           title="Nanhai, Foshan"
           lines={[company.chinaAddress, company.chinaAddressEnglish, company.chinaPhone]}
-          accent="bg-bw-cyan"
         />
       </div>
 
@@ -73,15 +71,16 @@ export function BwFooter({ company }: { company: BwCompany }) {
             Your China to Tanzania business journey — markets, factories, sourcing and business visits, then sea
             cargo from our Foshan warehouse to Dar es Salaam.
           </p>
-          <div className="mt-6 flex flex-wrap gap-2">
+          {/* Plain links, no boxes. The Instagram mark stays because the
+              handle alone does not say which network it is on. */}
+          <div className="mt-4 flex flex-wrap gap-x-6">
             {company.whatsapp ? (
               <a
                 href={company.whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center gap-2 rounded-[2px] border border-white/20 px-3.5 text-sm hover:border-white hover:text-white"
+                className="inline-flex h-10 items-center text-sm underline-offset-4 transition-colors hover:text-white hover:underline"
               >
-                <MessageCircle className="size-4 text-bw-coral-bright" />
                 WhatsApp
               </a>
             ) : null}
@@ -90,9 +89,9 @@ export function BwFooter({ company }: { company: BwCompany }) {
                 href={`https://www.instagram.com/${company.instagram}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center gap-2 rounded-[2px] border border-white/20 px-3.5 text-sm hover:border-white hover:text-white"
+                className="inline-flex h-10 items-center gap-2 text-sm underline-offset-4 transition-colors hover:text-white hover:underline"
               >
-                <Instagram className="size-4 text-bw-cyan" />@{company.instagram}
+                <Instagram className="size-4" aria-hidden />@{company.instagram}
               </a>
             ) : null}
           </div>
@@ -114,7 +113,7 @@ export function BwFooter({ company }: { company: BwCompany }) {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="bw-mono mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem] py-5 text-[0.7rem] uppercase tracking-[0.12em] text-white/45">
+        <div className="bw-mono mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem] py-5 text-[0.7rem] uppercase tracking-[0.06em] text-white/45">
           <p>
             {/* The year Dar is in, not the year the server's own clock is in:
                 for three hours every New Year's Eve those are different. */}
@@ -128,24 +127,11 @@ export function BwFooter({ company }: { company: BwCompany }) {
   );
 }
 
-function Office({
-  label,
-  title,
-  lines,
-  accent,
-}: {
-  label: string;
-  title: string;
-  lines: (string | null)[];
-  accent: string;
-}) {
+function Office({ label, title, lines }: { label: string; title: string; lines: (string | null)[] }) {
   const shown = lines.filter(Boolean) as string[];
   return (
     <div className="bg-bw-night px-4 py-10 sm:px-6 lg:px-10">
-      <p className="bw-mono inline-flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.16em] text-white/55">
-        <span className={`size-2 ${accent}`} aria-hidden />
-        {label}
-      </p>
+      <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">{label}</p>
       <p className="bw-display mt-3 text-4xl uppercase text-white">{title}</p>
       <address className="mt-4 space-y-1 not-italic text-white/70">
         {shown.map((line) => (

@@ -1,7 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin } from "lucide-react";
-
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { PHOTOS } from "@/components/site/photos";
 import { cn } from "@/lib/utils";
@@ -51,7 +49,7 @@ export function mapHref({
 export function Crumbs({ items }: { items: [label: string, href?: string][] }) {
   return (
     <nav aria-label="Breadcrumb">
-      <ol className="bw-mono flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/60">
+      <ol className="bw-mono flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.68rem] uppercase tracking-[0.06em] text-white/60">
         {items.map(([label, href], i) => (
           <li key={`${label}-${i}`} className="flex min-w-0 items-center gap-2">
             {i > 0 ? <span aria-hidden>/</span> : null}
@@ -131,7 +129,7 @@ export function IllustrativeNote({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "bw-mono inline-block bg-bw-night/80 px-2 py-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/85",
+        "bw-mono inline-block bg-bw-night/80 px-2 py-1 text-[0.68rem] uppercase tracking-[0.06em] text-white/85",
         className
       )}
     >
@@ -148,7 +146,7 @@ export function Chip({ href, active = false, children, dark = false }: { href: s
       scroll={false}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "bw-mono inline-flex min-h-9 items-center rounded-[2px] border px-3 py-1.5 text-xs uppercase tracking-[0.12em] transition-colors",
+        "bw-mono inline-flex min-h-9 items-center rounded-[2px] border px-3 py-1.5 text-xs uppercase tracking-[0.06em] transition-colors",
         active
           ? "border-bw-coral bg-bw-coral text-white"
           : dark
@@ -161,19 +159,20 @@ export function Chip({ href, active = false, children, dark = false }: { href: s
   );
 }
 
-/** A plain list of words, set as hairline tags. */
+/** A plain list of words, set as one mono line with dot separators. */
 export function Tags({ items, dark = false, className }: { items: string[]; dark?: boolean; className?: string }) {
   if (!items.length) return null;
   return (
-    <ul className={cn("flex flex-wrap gap-1.5", className)}>
-      {items.map((item) => (
-        <li
-          key={item}
-          className={cn(
-            "bw-mono border px-2 py-1 text-[0.66rem] uppercase tracking-[0.1em]",
-            dark ? "border-white/25 text-white/80" : "border-bw-line text-bw-muted"
-          )}
-        >
+    <ul
+      className={cn(
+        "bw-mono flex flex-wrap gap-x-2 gap-y-1 text-[0.68rem] uppercase tracking-[0.06em]",
+        dark ? "text-white/75" : "text-bw-muted",
+        className
+      )}
+    >
+      {items.map((item, i) => (
+        <li key={`${item}-${i}`} className="flex items-center gap-2">
+          {i > 0 ? <span aria-hidden>·</span> : null}
           {item}
         </li>
       ))}
@@ -216,10 +215,9 @@ export function BlockTitle({
       {action ? (
         <Link
           href={action.href}
-          className="bw-mono group inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+          className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 hover:text-bw-coral-dark hover:underline"
         >
           {action.label}
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
         </Link>
       ) : null}
     </div>
@@ -297,19 +295,8 @@ export function JourneyStrip({ dark = false, current, className }: { dark?: bool
                 on ? "bg-bw-coral text-white" : dark ? "hover:bg-white/5" : "hover:bg-bw-panel"
               )}
             >
-              <span
-                className={cn(
-                  "bw-mono flex items-center justify-between text-xs",
-                  on ? "text-white/80" : dark ? "text-bw-cyan" : "text-bw-harbour"
-                )}
-              >
+              <span className={cn("bw-mono text-xs", on ? "text-white/80" : dark ? "text-bw-cyan" : "text-bw-harbour")}>
                 {String(i + 1).padStart(2, "0")}
-                {i < JOURNEY.length - 1 ? (
-                  <ArrowRight
-                    className={cn("size-3.5", on ? "text-white/70" : dark ? "text-white/30" : "text-bw-muted/60")}
-                    aria-hidden
-                  />
-                ) : null}
               </span>
               <span
                 className={cn(
@@ -346,9 +333,7 @@ export function LogisticsBand({ current }: { current?: string }) {
       <Frame className="py-20 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
           <div className="min-w-0 lg:col-span-7">
-            <Label className="text-white/70">
-              <MapPin className="size-3.5 text-bw-coral-bright" aria-hidden /> Nanhai, Foshan
-            </Label>
+            <Label className="text-white/70">Nanhai, Foshan</Label>
             <h2 id="send-it" className="bw-display mt-5 text-[clamp(2.4rem,5.4vw,4.8rem)] uppercase">
               Bought it? Send it to our Foshan warehouse
             </h2>
@@ -440,7 +425,7 @@ export function FactoriesEmpty({
             className="bw-photo object-cover grayscale-[35%]"
           />
           <div aria-hidden className="absolute inset-0 bg-bw-night/35" />
-          <span className="bw-mono absolute left-4 top-4 border border-white/40 bg-bw-night/50 px-2 py-1 text-[0.66rem] uppercase tracking-[0.16em] text-white">
+          <span className="bw-mono absolute left-4 top-4 bg-bw-night/80 px-2 py-1 text-[0.66rem] uppercase tracking-[0.06em] text-white">
             Directory · 0 listed{where ? ` · ${where}` : ""}
           </span>
         </div>

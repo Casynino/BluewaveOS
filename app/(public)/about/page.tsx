@@ -101,16 +101,15 @@ export default async function AboutPage() {
           {/* The company's particulars, read from its settings. */}
           <aside aria-labelledby="register" className="min-w-0 lg:col-span-5">
             <div className="overflow-hidden rounded-[3px] bg-bw-night text-white">
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
-                <p id="register" className="bw-mono text-[0.66rem] uppercase tracking-[0.18em] text-white/60">
+              <div className="border-b border-white/10 px-5 py-3">
+                <p id="register" className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-white/60">
                   Company particulars
                 </p>
-                <span aria-hidden className="size-2 bg-bw-coral" />
               </div>
               <dl className="divide-y divide-white/10">
                 {register.map(([term, value]) => (
                   <div key={term} className="grid gap-1 px-5 py-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4">
-                    <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.14em] text-white/50">{term}</dt>
+                    <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-white/50">{term}</dt>
                     <dd className="min-w-0 break-words leading-snug">{value}</dd>
                   </div>
                 ))}
@@ -143,7 +142,7 @@ export default async function AboutPage() {
             />
             <div className="flex min-w-0 flex-col justify-center rounded-[3px] border border-white/10 p-4 sm:p-6 lg:col-span-4">
               <WorldRoute className="h-auto w-full" />
-              <p className="bw-mono mt-4 text-center text-[0.66rem] uppercase tracking-[0.16em] text-white/55">
+              <p className="bw-mono mt-4 text-center text-[0.66rem] uppercase tracking-[0.06em] text-white/55">
                 Through the Malacca Strait and across the Indian Ocean
               </p>
             </div>
@@ -245,14 +244,11 @@ function End({
     <article className={`relative isolate flex min-h-[22rem] flex-col justify-end overflow-hidden rounded-[3px] p-6 ${className ?? ""}`}>
       <Image src={photo} alt={alt} fill sizes="(min-width: 1024px) 33vw, 100vw" className="bw-photo -z-20 object-cover" />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/70 to-bw-night/10" />
-      <p className="bw-mono mb-5 self-start border sm:absolute sm:mb-0 sm:left-6 sm:top-6 border-white/40 px-2 py-1 text-xs tracking-[0.2em]">{code.toUpperCase()}</p>
+      <p className="bw-mono mb-4 self-start text-xs tracking-[0.06em] text-white/75 sm:absolute sm:left-6 sm:top-6 sm:mb-0">{code.toUpperCase()}</p>
       <h3 className="bw-display text-4xl uppercase">{title}</h3>
       <ul className="mt-4 space-y-1.5 text-sm text-white/80">
         {lines.map((line) => (
-          <li key={line} className="flex gap-3">
-            <span aria-hidden className="mt-2 h-px w-3 shrink-0 bg-bw-coral-bright" />
-            {line}
-          </li>
+          <li key={line}>{line}</li>
         ))}
       </ul>
     </article>

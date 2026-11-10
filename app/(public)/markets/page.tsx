@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Clock, MapPin } from "lucide-react";
 
 import { MarketCard } from "@/components/bw/ex-cards";
 import { Chip, FALLBACK, LogisticsBand, PhotoHero, photoOr } from "@/components/bw/ex-kit";
@@ -98,13 +97,13 @@ export default async function MarketsPage({ searchParams }: Props) {
       <section aria-labelledby="market-results" className="bg-bw-ground">
         <Frame className="py-14 lg:py-20">
           <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-bw-line pb-5">
-            <h2 id="market-results" className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-muted">
+            <h2 id="market-results" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-muted">
               {markets.length} {markets.length === 1 ? "market" : "markets"}
               {category ? ` · ${category.name}` : ""}
               {city ? ` · ${city.name}` : ""}
             </h2>
             {filtered ? (
-              <Link href="/markets" className="bw-mono text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark">
+              <Link href="/markets" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 hover:text-bw-coral-dark hover:underline">
                 Clear filters
               </Link>
             ) : null}
@@ -124,12 +123,11 @@ export default async function MarketsPage({ searchParams }: Props) {
                     fill
                     priority
                     sizes="(min-width: 1024px) 58vw, 100vw"
-                    className="bw-photo object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    className="bw-photo object-cover"
                   />
                 </div>
                 <div className="flex min-w-0 flex-col p-6 sm:p-10 lg:col-span-5">
-                  <p className="bw-mono inline-flex items-center gap-1.5 text-[0.68rem] uppercase tracking-[0.14em] text-bw-harbour">
-                    <MapPin className="size-3.5" aria-hidden />
+                  <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-harbour">
                     {[lead.district, lead.cityRef?.name ?? lead.city].filter(Boolean).join(" · ")}
                   </p>
                   <h3 className="bw-display mt-4 break-words text-[clamp(2.6rem,5vw,4.4rem)] uppercase text-bw-fg group-hover:text-bw-coral">
@@ -139,19 +137,16 @@ export default async function MarketsPage({ searchParams }: Props) {
                   <div className="mt-auto pt-8">
                     <dl className="grid grid-cols-2 border-t border-bw-line pt-4">
                       <div className="min-w-0">
-                        <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">Allow</dt>
-                        <dd className="mt-1 inline-flex items-center gap-1.5 text-bw-fg">
-                          <Clock className="size-3.5 text-bw-muted" aria-hidden />
-                          {lead.visitDuration ?? "Ask us"}
-                        </dd>
+                        <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">Allow</dt>
+                        <dd className="mt-1 text-bw-fg">{lead.visitDuration ?? "Ask us"}</dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">Sells</dt>
+                        <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">Sells</dt>
                         <dd className="mt-1 break-words text-bw-fg">{lead.categories.map((c) => c.name).join(", ") || "—"}</dd>
                       </div>
                     </dl>
-                    <span className="bw-mono mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral">
-                      Read the guide <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
+                    <span className="bw-mono mt-6 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 group-hover:underline">
+                      Read the guide
                     </span>
                   </div>
                 </div>
@@ -201,7 +196,7 @@ export default async function MarketsPage({ searchParams }: Props) {
 function FilterRow({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
     <div className={`min-w-0 ${className ?? ""}`}>
-      <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">{label}</p>
+      <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">{label}</p>
       <div className="mt-3 flex flex-wrap gap-2">{children}</div>
     </div>
   );

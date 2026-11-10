@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { ArrowRight, Check, CheckCircle2, Copy, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -118,7 +118,7 @@ export function VsField({
 /** A heading over a run of chips, when a group needs one. */
 export function VsGroupTitle({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
-    <p className="bw-mono flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">
+    <p className="bw-mono flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">
       {children}
       {count !== undefined ? <span className="text-bw-muted/70">· {count}</span> : null}
     </p>
@@ -197,7 +197,7 @@ export function VsError({ message }: { message?: string }) {
   if (!message) return null;
   return (
     <p role="alert" className="rounded-[2px] border border-bw-coral/40 bg-bw-coral/[0.07] px-4 py-3 text-sm text-bw-fg">
-      <span className="bw-mono mr-2 text-[0.68rem] uppercase tracking-[0.16em] text-bw-coral">Check</span>
+      <span className="bw-mono mr-2 text-[0.68rem] uppercase tracking-[0.06em] text-bw-coral">Check</span>
       {message}
     </p>
   );
@@ -251,18 +251,15 @@ export function VsSent({
   return (
     <div role="status" className="rounded-[2px] border border-bw-line bg-bw-panel p-6 sm:p-8">
       <p className="bw-label text-bw-muted">{kind === "visit" ? "Visit request received" : "Sourcing request received"}</p>
-      <div className="mt-5 flex items-start gap-4">
-        <CheckCircle2 className="mt-1 size-7 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-        <div className="min-w-0">
-          {state.reference ? (
-            <>
-              <p className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">Your reference</p>
-              <p className="bw-display mt-1 break-all text-5xl uppercase text-bw-fg sm:text-6xl">{state.reference}</p>
-            </>
-          ) : (
-            <p className="text-lg font-medium text-bw-fg">{state.ok}</p>
-          )}
-        </div>
+      <div className="mt-5 min-w-0">
+        {state.reference ? (
+          <>
+            <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">Your reference</p>
+            <p className="bw-display mt-1 break-all text-5xl uppercase text-bw-fg sm:text-6xl">{state.reference}</p>
+          </>
+        ) : (
+          <p className="text-lg font-medium text-bw-fg">{state.ok}</p>
+        )}
       </div>
 
       <div className="mt-6 border-l-2 border-bw-coral pl-4">
@@ -293,9 +290,8 @@ export function VsSent({
             <button
               type="button"
               onClick={copy}
-              className="inline-flex h-12 items-center gap-2 rounded-[2px] border border-bw-fg/25 px-5 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-bw-fg hover:border-bw-fg hover:bg-bw-panel"
+              className="inline-flex h-12 items-center rounded-[2px] border border-bw-fg/25 px-5 font-bw-display text-base font-semibold uppercase tracking-[0.06em] text-bw-fg transition-colors hover:border-bw-fg hover:bg-bw-panel"
             >
-              {copied ? <Check className="size-4 text-emerald-600" aria-hidden /> : <Copy className="size-4" aria-hidden />}
               {copied ? "Link copied" : "Copy the link"}
             </button>
           </div>

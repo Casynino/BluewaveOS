@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { Corridor, corridorStations } from "@/components/bw/corridor";
 import { bwCompany, bwExchangeRate, bwSailings } from "@/components/bw/data";
@@ -85,7 +85,7 @@ export default async function HomePage() {
             </div>
             {/* Tracking, in the opening picture — it is what most visitors came for. */}
             <div className="mt-8 max-w-xl">
-              <p className="bw-mono mb-2.5 text-[0.7rem] uppercase tracking-[0.18em] text-bw-cyan">Track your cargo</p>
+              <p className="bw-mono mb-3 text-[0.7rem] uppercase tracking-[0.06em] text-bw-cyan">Track your cargo</p>
               <TrackField dark id="bw-track-hero" />
             </div>
           </div>
@@ -131,19 +131,19 @@ export default async function HomePage() {
                       alt={`${city.name}, ${city.province ?? "China"}`}
                       fill
                       sizes={i === 0 ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 25vw, 50vw"}
-                      className="bw-photo -z-20 object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                      className="bw-photo -z-20 object-cover"
                     />
                     <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/40 to-transparent" />
                     {/* Both halves are optional on the row, so the separator is
                         built from whichever survive — a province nobody filled
                         in must not leave a Chinese name trailing a dot. */}
-                    <p className="bw-mono text-xs uppercase tracking-[0.16em] text-white/70">
+                    <p className="bw-mono text-xs uppercase tracking-[0.06em] text-white/70">
                       {[city.nameZh, city.province].filter(Boolean).join(" · ")}
                     </p>
                     <p className={cn("bw-display mt-1 uppercase", i === 0 ? "text-6xl sm:text-7xl" : "text-4xl")}>{city.name}</p>
                     {city.tagline ? <p className="mt-2 text-white/80">{city.tagline}</p> : null}
-                    <span className="bw-mono mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-bw-coral-bright">
-                      Explore city <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
+                    <span className="bw-mono mt-4 text-xs uppercase tracking-[0.06em] text-bw-coral-bright underline-offset-4 group-hover:underline">
+                      Explore city
                     </span>
                   </Link>
                 </li>
@@ -154,12 +154,14 @@ export default async function HomePage() {
           {categories.length > 0 ? (
             <div className="mt-14">
               <p className="bw-label text-bw-muted">What are you sourcing?</p>
-              <ul className="mt-5 flex flex-wrap gap-2">
+              {/* An index, not a row of chips: each category a plain link on a
+                  hairline, its market count as quiet mono beside it. */}
+              <ul className="mt-5 grid grid-cols-2 gap-x-6 lg:grid-cols-4 lg:gap-x-8">
                 {categories.map((category) => (
-                  <li key={category.slug}>
+                  <li key={category.slug} className="border-t border-bw-line">
                     <Link
                       href={`/explore?category=${category.slug}`}
-                      className="inline-flex h-11 items-center gap-2 rounded-[2px] border border-bw-line bg-bw-panel px-4 text-bw-fg transition-colors hover:border-bw-coral hover:text-bw-coral"
+                      className="flex min-h-12 items-center justify-between gap-3 py-2 text-bw-fg transition-colors hover:text-bw-coral"
                     >
                       {category.name}
                       {category._count.markets > 0 ? (
@@ -176,8 +178,8 @@ export default async function HomePage() {
             <div className="mt-14">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <p className="bw-label text-bw-muted">Markets worth the trip</p>
-                <Link href="/markets" className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark">
-                  All markets <ArrowRight className="size-3.5" />
+                <Link href="/markets" className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline">
+                  All markets
                 </Link>
               </div>
               <ul className="mt-5 grid gap-px overflow-hidden rounded-[3px] bg-bw-line sm:grid-cols-2 lg:grid-cols-4">
@@ -190,14 +192,14 @@ export default async function HomePage() {
                           alt={market.name}
                           fill
                           sizes="(min-width: 1024px) 25vw, 50vw"
-                          className="bw-photo object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                          className="bw-photo object-cover"
                         />
                       </div>
                       <div className="p-5">
-                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-harbour">
+                        <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-harbour">
                           {market.cityRef?.name ?? market.city}
                         </p>
-                        <p className="mt-1 font-bw-display text-2xl font-semibold uppercase leading-tight text-bw-fg">{market.name}</p>
+                        <p className="mt-1 font-bw-display text-2xl font-semibold uppercase leading-tight text-bw-fg transition-colors group-hover:text-bw-coral">{market.name}</p>
                         {market.summary ? <p className="mt-2 text-sm text-bw-muted">{market.summary}</p> : null}
                       </div>
                     </Link>
@@ -237,22 +239,21 @@ export default async function HomePage() {
               <ul className="grid gap-px overflow-hidden rounded-[3px] bg-white/10">
                 {factories.slice(0, 3).map((factory) => (
                   <li key={factory.slug}>
-                    <Link href={`/factories/${factory.slug}`} className="group flex items-center justify-between gap-4 bg-bw-night/70 p-5 hover:bg-bw-night">
+                    <Link href={`/factories/${factory.slug}`} className="block bg-bw-night/70 p-5 transition-colors hover:bg-bw-night">
                       <span className="min-w-0">
-                        <span className="bw-mono block text-[0.68rem] uppercase tracking-[0.14em] text-bw-cyan">
+                        <span className="bw-mono block text-[0.68rem] uppercase tracking-[0.06em] text-bw-cyan">
                           {factory.city?.name ?? "China"} · {FACTORY_LISTING_LABEL[factory.listing]}
                         </span>
                         <span className="mt-1 block font-bw-display text-2xl font-semibold uppercase">{factory.name}</span>
                         {factory.industry ? <span className="block text-sm text-white/65">{factory.industry}</span> : null}
                       </span>
-                      <ArrowRight className="size-4 shrink-0 text-bw-coral-bright transition-transform group-hover:translate-x-1" />
                     </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="bw-glass rounded-[4px] p-6">
-                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-white/60">Factory directory</p>
+              <div className="rounded-[4px] border border-white/10 bg-bw-night/80 p-6">
+                <p className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/60">Factory directory</p>
                 <p className="mt-3 text-lg">
                   Factory listings are added by the BlueWave team as each one is confirmed. Tell us what you need made and we
                   will look for the factory.
@@ -408,10 +409,14 @@ export default async function HomePage() {
               <Action href="/sourcing" tone="ink" size="lg">
                 Start sourcing
               </Action>
-              <Action href="/register" tone="line" size="lg">
-                Open an account
-              </Action>
             </div>
+            {/* Two actions; the third is a quiet link under them. */}
+            <Link
+              href="/register"
+              className="bw-mono mt-6 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
+            >
+              Open an account
+            </Link>
           </div>
           <div className="rounded-[3px] border border-bw-line bg-bw-panel p-6 lg:col-span-4 lg:col-start-9">
             <p className="bw-label text-bw-muted">Talk to the office</p>
@@ -426,7 +431,7 @@ export default async function HomePage() {
                 href={company.whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bw-mono mt-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                className="bw-mono mt-5 inline-flex items-center gap-2 text-xs uppercase tracking-[0.06em] text-bw-coral transition-colors hover:text-bw-coral-dark"
               >
                 WhatsApp us <ArrowUpRight className="size-3.5" />
               </a>
@@ -466,8 +471,11 @@ function ChapterHead({
       <div className="lg:col-span-4 lg:col-start-9">
         <p className="text-lg leading-relaxed text-bw-muted">{lead}</p>
         {href && action ? (
-          <Link href={href} className="bw-mono mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark">
-            {action} <ArrowRight className="size-3.5" />
+          <Link
+            href={href}
+            className="bw-mono mt-4 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
+          >
+            {action}
           </Link>
         ) : null}
       </div>
@@ -495,14 +503,14 @@ function FeatureCard({
         alt={photo.alt}
         fill
         sizes="(min-width: 1024px) 50vw, 100vw"
-        className="bw-photo -z-20 object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+        className="bw-photo -z-20 object-cover"
       />
       <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-bw-night via-bw-night/50 to-transparent" />
-      <span className="bw-mono mb-4 self-start border border-white/40 px-2 py-1 text-xs uppercase tracking-[0.2em]">{code}</span>
+      <span className="bw-mono mb-3 text-xs uppercase tracking-[0.06em] text-white/70">{code}</span>
       <h3 className="bw-display text-5xl uppercase sm:text-6xl">{title}</h3>
       <p className="mt-3 max-w-md text-white/80">{body}</p>
-      <span className="bw-mono mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-bw-coral-bright">
-        Start <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
+      <span className="bw-mono mt-6 text-xs uppercase tracking-[0.06em] text-bw-coral-bright underline-offset-4 group-hover:underline">
+        Start
       </span>
     </Link>
   );

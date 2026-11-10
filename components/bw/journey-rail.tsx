@@ -13,7 +13,7 @@ export type RailStep = {
  * THE SHIPMENT'S PROGRESS, AS A TRACK.
  *
  * Square stations on one line: filled where the cargo has been, a coral block
- * with a live pulse where it is now, hollow ahead. Across the page on a wide
+ * inside the square where it is now, hollow ahead. Across the page on a wide
  * screen — the way a route is read — and down it on a phone.
  *
  * It draws what it is given. Which stages exist, which are done and every date
@@ -104,9 +104,6 @@ export function JourneyRail({ steps, dark = false }: { steps: RailStep[]; dark?:
 function Marker({ state, dark }: { state: RailStep["state"]; dark: boolean }) {
   return (
     <span className="relative grid size-6 shrink-0 place-items-center">
-      {state === "current" ? (
-        <span aria-hidden className="absolute inset-0 animate-ping bg-bw-coral/50 motion-reduce:animate-none" />
-      ) : null}
       <span
         className={cn(
           "relative block size-6 border-[3px]",

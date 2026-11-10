@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { bwCompany } from "@/components/bw/data";
 import { SupplierPlate } from "@/components/bw/info-supplier";
@@ -48,7 +48,7 @@ export default async function ContactPage() {
               href={company.phoneHref}
               className="inline-flex h-14 items-center gap-3 rounded-[2px] bg-bw-coral px-6 font-bw-display text-xl font-semibold uppercase tracking-[0.04em] text-white transition-colors hover:bg-bw-coral-dark"
             >
-              <span className="bw-mono text-[0.68rem] tracking-[0.16em] text-white/80">Call</span>
+              <span className="bw-mono text-[0.68rem] tracking-[0.06em] text-white/80">Call</span>
               {company.phone}
             </a>
           ) : null}
@@ -59,9 +59,9 @@ export default async function ContactPage() {
           ) : null}
           <Link
             href="/track"
-            className="bw-mono ml-1 inline-flex h-14 items-center gap-2 px-2 text-xs uppercase tracking-[0.16em] text-white/70 hover:text-white"
+            className="bw-mono ml-1 inline-flex h-14 items-center px-2 text-xs uppercase tracking-[0.06em] text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
           >
-            Already shipping? Track cargo <ArrowRight className="size-3.5" aria-hidden />
+            Already shipping? Track cargo
           </Link>
         </div>
       </PageBanner>
@@ -78,7 +78,7 @@ export default async function ContactPage() {
 
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {/* Dar es Salaam: the office customers visit. */}
-            <article aria-labelledby="plate-dar" className="flex min-w-0 flex-col overflow-hidden rounded-[3px] border border-bw-fg bg-bw-panel">
+            <article aria-labelledby="plate-dar" className="flex min-w-0 flex-col overflow-hidden rounded-[3px] border border-bw-line bg-bw-panel">
               <PlateHead code="TZ" place="Dar es Salaam" role="Office · pickup warehouse" id="plate-dar" />
               <dl className="flex-1 divide-y divide-bw-line">
                 {company.darAddress ? (
@@ -193,8 +193,8 @@ export default async function ContactPage() {
                 "Ask the supplier to write the mark on every carton and to phone the warehouse before delivering.",
               ].map((text, i) => (
                 <li key={text} className="flex gap-4">
-                  <span className="bw-mono flex size-7 shrink-0 items-center justify-center bg-bw-ink text-xs text-white">{i + 1}</span>
-                  <span className="pt-0.5 leading-relaxed text-bw-fg">{text}</span>
+                  <span className="bw-mono w-5 shrink-0 pt-0.5 text-sm text-bw-muted">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="leading-relaxed text-bw-fg">{text}</span>
                 </li>
               ))}
             </ol>
@@ -235,15 +235,14 @@ export default async function ContactPage() {
             <ul className="mt-5 divide-y divide-bw-line border-y border-bw-line">
               {["What the goods are", "Roughly how many cartons or CBM", "Loose cargo or a full container", "Where in China the goods are"].map(
                 (item) => (
-                  <li key={item} className="flex gap-3 py-3 text-bw-fg">
-                    <span aria-hidden className="mt-2.5 h-px w-3 shrink-0 bg-bw-coral" />
+                  <li key={item} className="py-3 text-bw-fg">
                     {item}
                   </li>
                 )
               )}
             </ul>
             <nav aria-label="Other requests" className="mt-8">
-              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">Something else?</p>
+              <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">Something else?</p>
               <ul className="mt-3 space-y-2">
                 {[
                   ["/pickup", "Request a China pickup"],
@@ -251,9 +250,8 @@ export default async function ContactPage() {
                   ["/calculator", "Price it yourself"],
                 ].map(([href, label]) => (
                   <li key={href}>
-                    <Link href={href} className="group inline-flex items-center gap-2 font-semibold text-bw-fg hover:text-bw-coral">
+                    <Link href={href} className="font-semibold text-bw-fg underline-offset-4 transition-colors hover:text-bw-coral hover:underline">
                       {label}
-                      <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
                     </Link>
                   </li>
                 ))}
@@ -261,10 +259,17 @@ export default async function ContactPage() {
             </nav>
           </div>
           <div className="min-w-0 lg:col-span-7 lg:col-start-6">
-            <div className="rounded-[3px] border border-bw-line bg-bw-ground p-2 sm:p-3">
-              <div className="rounded-[2px] bg-bw-panel p-5 sm:p-8">
-                <QuoteForm />
-              </div>
+            {/* One hairline sheet; the shared form's own card is flattened into it, as on the request pages. */}
+            <div
+              className={cn(
+                "rounded-[2px] border border-bw-line bg-bw-ground p-5 sm:p-8",
+                "[&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent [&>div]:p-0 [&>div]:shadow-none",
+                "[&_button]:rounded-[2px] [&_input]:rounded-[2px] [&_textarea]:rounded-[2px]",
+                /* The "sent" note keeps a frame of its own, as in ReqLayout. */
+                "[&>div[role=status]]:border [&>div[role=status]]:border-bw-line [&>div[role=status]]:p-7"
+              )}
+            >
+              <QuoteForm />
             </div>
           </div>
         </Frame>
@@ -275,7 +280,7 @@ export default async function ContactPage() {
 
 function PlateHead({ code, place, role, id, dark = false }: { code: string; place: string; role: string; id: string; dark?: boolean }) {
   return (
-    <header className={cn("flex items-stretch", dark ? "border-b border-white/10" : "border-b border-bw-fg")}>
+    <header className={cn("flex items-stretch", dark ? "border-b border-white/10" : "border-b border-bw-line")}>
       <span
         className={cn(
           "bw-display flex w-16 shrink-0 items-center justify-center text-3xl sm:w-20 sm:text-4xl",
@@ -288,7 +293,7 @@ function PlateHead({ code, place, role, id, dark = false }: { code: string; plac
         <h3 id={id} className="bw-display text-3xl uppercase sm:text-4xl">
           {place}
         </h3>
-        <p className={cn("bw-mono mt-1 text-[0.66rem] uppercase tracking-[0.16em]", dark ? "text-white/55" : "text-bw-muted")}>{role}</p>
+        <p className={cn("bw-mono mt-1 text-[0.66rem] uppercase tracking-[0.06em]", dark ? "text-white/55" : "text-bw-muted")}>{role}</p>
       </div>
     </header>
   );
@@ -297,7 +302,7 @@ function PlateHead({ code, place, role, id, dark = false }: { code: string; plac
 function PlateRow({ term, children, dark = false }: { term: string; children: React.ReactNode; dark?: boolean }) {
   return (
     <div className="grid gap-2 px-5 py-4 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:px-6">
-      <dt className={cn("bw-mono pt-1 text-[0.66rem] uppercase tracking-[0.14em]", dark ? "text-white/50" : "text-bw-muted")}>{term}</dt>
+      <dt className={cn("bw-mono pt-1 text-[0.66rem] uppercase tracking-[0.06em]", dark ? "text-white/50" : "text-bw-muted")}>{term}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
   );

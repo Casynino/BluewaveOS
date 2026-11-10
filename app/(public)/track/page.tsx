@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { MessageCircle } from "lucide-react";
 
 import { bwCompany, bwSailings } from "@/components/bw/data";
 import { JourneyRail } from "@/components/bw/journey-rail";
@@ -148,9 +147,9 @@ export default async function TrackPage() {
                   href={company.whatsapp}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bw-mono mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                  className="bw-mono mt-4 inline-block text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
                 >
-                  <MessageCircle className="size-4" /> Ask on WhatsApp
+                  Ask on WhatsApp
                 </a>
               ) : null}
             </div>

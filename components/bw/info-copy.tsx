@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -25,11 +24,10 @@ export function CopyText({ text, className }: { text: string; className?: string
         }
       }}
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-bw-coral-dark",
+        "inline-flex h-10 shrink-0 items-center rounded-[2px] bg-bw-coral px-4 font-bw-display text-sm font-semibold uppercase tracking-[0.06em] text-white transition-colors hover:bg-bw-coral-dark",
         className
       )}
     >
-      {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
       <span aria-live="polite">{copied ? "Copied · 已复制" : "Copy for supplier"}</span>
     </button>
   );

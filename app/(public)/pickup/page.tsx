@@ -68,14 +68,14 @@ export default async function Page() {
                 <dl lang="zh-CN" className="mt-4 divide-y divide-bw-line border-y border-bw-line">
                   {address.lines.map((line) => (
                     <div key={line.label} className="grid gap-1 py-2.5">
-                      <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.14em] text-bw-muted">{line.label}</dt>
+                      <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">{line.label}</dt>
                       <dd className="break-words text-bw-fg">{line.value}</dd>
                     </div>
                   ))}
                 </dl>
                 {address.english ? (
                   <p className="mt-3 break-words text-sm text-bw-muted">
-                    <span className="bw-mono text-[0.66rem] uppercase tracking-[0.14em]">In English · </span>
+                    <span className="bw-mono text-[0.66rem] uppercase tracking-[0.06em]">In English · </span>
                     {address.english}
                   </p>
                 ) : null}

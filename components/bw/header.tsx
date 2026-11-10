@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, ChevronDown, Menu, PackageSearch, Phone, X } from "lucide-react";
+import { ChevronDown, Menu, PackageSearch, X } from "lucide-react";
 
 import { Lockup } from "@/components/bw/lockup";
 import { TrackField } from "@/components/bw/track-field";
@@ -244,12 +244,9 @@ export function BwHeader({ contact }: { contact: Contact }) {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="group flex h-full flex-col bg-bw-panel p-5 transition-colors hover:bg-bw-ground"
+                    className="flex h-full flex-col bg-bw-panel p-5 transition-colors hover:bg-bw-ground"
                   >
-                    <span className="flex items-center justify-between gap-3 font-semibold text-bw-fg">
-                      {link.label}
-                      <ArrowRight className="size-4 text-bw-coral transition-transform group-hover:translate-x-1" aria-hidden />
-                    </span>
+                    <span className="font-semibold text-bw-fg">{link.label}</span>
                     <span className="mt-1.5 text-sm text-bw-muted">{link.note}</span>
                   </Link>
                 </li>
@@ -291,10 +288,9 @@ export function BwHeader({ contact }: { contact: Contact }) {
                       <li key={link.href}>
                         <Link
                           href={link.href}
-                          className="flex items-center justify-between border-b border-white/10 py-3.5 text-lg font-medium hover:text-bw-coral-bright"
+                          className="block border-b border-white/10 py-3 text-lg font-medium transition-colors hover:text-bw-coral-bright"
                         >
                           {link.label}
-                          <ArrowRight className="size-4 text-white/40" aria-hidden />
                         </Link>
                       </li>
                     ))}
@@ -312,9 +308,8 @@ export function BwHeader({ contact }: { contact: Contact }) {
               {contact.dar && contact.darHref ? (
                 <a
                   href={contact.darHref}
-                  className="bw-mono inline-flex h-11 items-center gap-2.5 rounded-[2px] border border-white/20 px-4 text-sm"
+                  className="bw-mono inline-flex h-11 items-center rounded-[2px] border border-white/20 px-4 text-sm transition-colors hover:border-white"
                 >
-                  <Phone className="size-4 text-bw-coral-bright" />
                   {contact.dar}
                 </a>
               ) : null}

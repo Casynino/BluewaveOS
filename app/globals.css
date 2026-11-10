@@ -991,26 +991,17 @@
     text-wrap: balance;
   }
 
-  /* The label voice: mono capitals with a coral square — a manifest line. */
+  /* The label voice: mono capitals, lightly tracked — a manifest line. No
+     square or dot in front of it (owner, 10 Nov 2026). */
   .bw-label {
     font-family: var(--font-bw-mono), ui-monospace, monospace;
     font-size: 0.72rem;
     font-weight: 500;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
-  }
-  .bw-label::before {
-    content: "";
-    width: 0.5rem;
-    height: 0.5rem;
-    flex: none;
-    background: theme("colors.bw.coral");
-  }
-  .bw-label[data-plain]::before {
-    display: none;
+    gap: 0.5rem;
   }
 
   .bw-mono {
@@ -1087,36 +1078,20 @@
     }
   }
 
-  /* A position pulsing on a map. */
-  .bw-ping {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: bw-ping 2.2s ease-out infinite;
-  }
-  @keyframes bw-ping {
-    0% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-    100% {
-      transform: scale(3.2);
-      opacity: 0;
-    }
-  }
-
+  /* The one entrance: a short fade and rise for a page's opening content.
+     Nothing on the chrome loops — no pings, pulses or breathing glows. */
   .bw-rise {
-    animation: bw-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: bw-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   @keyframes bw-rise {
     from {
       opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(10px);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .bw-flow,
-    .bw-ping,
     .bw-rise {
       animation: none;
     }
@@ -1130,7 +1105,7 @@
 /* THE SKY SHOWS THROUGH. Page-wide bands are laid over the fixed sky
    (components/bw/sky.tsx) translucent rather than painted solid, so the whole
    site reads as one night rather than a stack of flat colours. Cards and
-   panels inside them stay opaque — text never sits on moving lines. The dark
+   panels inside them stay opaque, so text never sits on the stars. The dark
    bands keep more of their colour in the light theme, where the sky beneath
    them is pale. */
 @layer utilities {
@@ -1160,17 +1135,6 @@
   }
   .dark .bw section.bg-bw-ink {
     background-color: rgb(10 34 54 / 0.55);
-  }
-
-  .bw-glow {
-    animation: bw-glow 26s ease-in-out infinite;
-  }
-  @keyframes bw-glow {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.8; }
-    50% { transform: translate3d(6%, 4%, 0) scale(1.12); opacity: 1; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .bw-glow { animation: none; }
   }
 }
 
@@ -1205,15 +1169,14 @@
   font-family: var(--font-bw-display), system-ui, sans-serif;
   font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  background-image: linear-gradient(180deg, #f0566a 0%, #d63c50 55%, #b42e41 100%);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    0 12px 24px -12px rgba(214, 60, 80, 0.8);
+  /* A plain coral slab: no gradient, no coloured shadow. */
+  background: #d63c50;
+  box-shadow: none;
 }
 .bw-auth-card button[type="submit"]:hover {
-  filter: brightness(1.08);
+  background: #b42e41;
 }
 
 /* ───────── The floating glass menu: a tall, very round, frosted

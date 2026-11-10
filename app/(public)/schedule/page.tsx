@@ -75,7 +75,7 @@ export default async function SchedulePage() {
               ["ETA Dar es Salaam", `≈ ${DAY_MONTH.format(next.estimatedArrival)}`, "text-white"],
             ].map(([term, value, tone]) => (
               <div key={term} className="p-4 sm:p-5">
-                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">
+                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">
                   {term}
                 </dt>
                 <dd className={`bw-display mt-2 text-3xl uppercase ${tone}`}>{value}</dd>
@@ -126,7 +126,7 @@ export default async function SchedulePage() {
               <dl className="mt-5 grid gap-px overflow-hidden rounded-[2px] bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
                 {statuses.map((status) => (
                   <div key={status} className="bg-bw-ink p-4">
-                    <dt className="bw-mono text-xs uppercase tracking-[0.14em] text-white">
+                    <dt className="bw-mono text-xs uppercase tracking-[0.06em] text-white">
                       {SAILING_STATUS_LABEL[status] ?? status}
                     </dt>
                     <dd className="mt-1.5 text-sm text-white/65">{STATUS_MEANING[status]}</dd>
@@ -174,7 +174,7 @@ export default async function SchedulePage() {
             />
           </ol>
 
-          <div className="mt-8 grid gap-6 border-l-[3px] border-bw-coral bg-bw-ground p-5 sm:p-6 lg:grid-cols-12 lg:items-center">
+          <div className="mt-8 grid gap-6 rounded-[3px] border border-bw-line bg-bw-ground p-5 sm:p-6 lg:grid-cols-12 lg:items-center">
             <p className="font-bw-display text-2xl font-semibold uppercase leading-tight text-bw-fg lg:col-span-5">
               {ARRIVAL_CAVEAT}
             </p>
@@ -209,7 +209,7 @@ export default async function SchedulePage() {
               </Action>
             </div>
           </div>
-          <div className="bw-glass rounded-[4px] p-6 lg:col-span-4 lg:col-start-9">
+          <div className="rounded-[4px] border border-white/10 bg-bw-night/80 p-6 lg:col-span-4 lg:col-start-9">
             <Label className="text-white/70">Ask about a sailing</Label>
             {company.phone && company.phoneHref ? (
               <a href={company.phoneHref} className="bw-display mt-4 block text-4xl hover:text-bw-coral-bright">
@@ -251,7 +251,7 @@ function Step({
       <h3 className="mt-2 font-bw-display text-3xl font-semibold uppercase text-bw-fg">{title}</h3>
       <p className="mt-3 flex-1 text-bw-muted">{body}</p>
       {example ? (
-        <p className="bw-mono mt-6 border-t border-bw-line pt-4 text-xs uppercase tracking-[0.14em] text-bw-muted">
+        <p className="bw-mono mt-6 border-t border-bw-line pt-4 text-xs uppercase tracking-[0.06em] text-bw-muted">
           Next sailing ·{" "}
           <span className={accent ? "text-bw-coral" : "text-bw-fg"}>{example}</span>
         </p>

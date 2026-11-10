@@ -1,4 +1,4 @@
-import { Anchor, Check, PackageCheck, Ship, Warehouse } from "lucide-react";
+import { Anchor, Check, Ship, Warehouse } from "lucide-react";
 
 import type { PublicTracking } from "@/lib/tracking";
 import { bluewaveStageOfCode, type BlueWaveStage, type StageCode, type StageKey } from "@/lib/tracking-stage";
@@ -128,12 +128,12 @@ export function RouteStage({ phase, eta, vessel }: { phase: Phase; eta: string |
         </svg>
         <div
           aria-hidden
-          className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 bg-bw-coral transition-[width] duration-700"
+          className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 bg-bw-coral"
           style={{ width: `${phase === "CANCELLED" ? 0 : at}%` }}
         />
         {phase !== "CANCELLED" ? (
           <div
-            className="absolute top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[3px] bg-bw-coral text-white shadow-[0_0_0_6px_rgb(214_60_80/0.25)]"
+            className="absolute top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[3px] bg-bw-coral text-white"
             style={{ left: `${at}%` }}
           >
             {phase === "SEA" ? <Ship className="size-5" /> : phase === "CHINA" ? <Warehouse className="size-5" /> : <Anchor className="size-5" />}
@@ -173,10 +173,10 @@ function RoutePoint({
 
 /* ------------------------------------------------------------ the timeline */
 
-const GROUPS: { key: "CHINA" | "SEA" | "DAR"; title: string; icon: typeof Warehouse }[] = [
-  { key: "CHINA", title: "China", icon: Warehouse },
-  { key: "SEA", title: "In transit", icon: Ship },
-  { key: "DAR", title: "Dar es Salaam", icon: Anchor },
+const GROUPS: { key: "CHINA" | "SEA" | "DAR"; title: string }[] = [
+  { key: "CHINA", title: "China" },
+  { key: "SEA", title: "In transit" },
+  { key: "DAR", title: "Dar es Salaam" },
 ];
 
 /** The steps, gathered under the three places they happen. */
@@ -191,23 +191,21 @@ export function JourneyGroups({ steps, eta, etaPassed }: { steps: Step[]; eta: s
           : mine.every((s) => s.state === "done")
             ? "done"
             : "upcoming";
-        const Icon = group.icon;
         return (
           <li
             key={group.key}
             className={cn(
               "rounded-[3px] border p-5 sm:p-6",
-              state === "current" ? "border-bw-coral bg-bw-panel shadow-[inset_0_3px_0_0_rgb(214_60_80)]" : "border-bw-line bg-bw-panel"
+              state === "current" ? "border-bw-coral bg-bw-panel" : "border-bw-line bg-bw-panel"
             )}
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="flex items-center gap-2.5 font-bw-display text-xl font-semibold uppercase text-bw-fg">
-                <Icon className={cn("size-5", state === "upcoming" ? "text-bw-muted" : "text-bw-coral")} />
+              <p className="font-bw-display text-xl font-semibold uppercase text-bw-fg">
                 {group.title}
               </p>
               <span
                 className={cn(
-                  "bw-mono text-[0.68rem] uppercase tracking-[0.14em]",
+                  "bw-mono text-[0.68rem] uppercase tracking-[0.06em]",
                   state === "current" ? "text-bw-coral" : state === "done" ? "text-emerald-600 dark:text-emerald-400" : "text-bw-muted"
                 )}
               >
@@ -266,8 +264,7 @@ export function WhatNext({ steps, done }: { steps: Step[]; done: boolean }) {
   const sequence = [current, ...ahead].filter(Boolean) as Step[];
   if (done || sequence.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-[3px] border border-bw-line bg-bw-panel p-5 text-bw-fg">
-        <PackageCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="rounded-[3px] border border-bw-line bg-bw-panel p-5 text-bw-fg">
         Nothing more to do — this journey is complete.
       </div>
     );
@@ -281,7 +278,7 @@ export function WhatNext({ steps, done }: { steps: Step[]; done: boolean }) {
     >
       {sequence.map((step, i) => (
         <li key={step.key} className={cn("p-5", i === 0 ? "bg-bw-ink text-white" : "bg-bw-panel")}>
-          <p className={cn("bw-mono text-[0.68rem] uppercase tracking-[0.16em]", i === 0 ? "text-bw-coral-bright" : "text-bw-muted")}>
+          <p className={cn("bw-mono text-[0.68rem] uppercase tracking-[0.06em]", i === 0 ? "text-bw-coral-bright" : "text-bw-muted")}>
             {NEXT_LABELS[i]}
           </p>
           <p className={cn("mt-2 font-bw-display text-xl font-semibold uppercase leading-tight", i === 0 ? "text-white" : "text-bw-fg")}>

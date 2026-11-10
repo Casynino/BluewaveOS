@@ -82,7 +82,7 @@ export function Corridor({ stations, dark = false }: { stations: Station[]; dark
                   <text
                     textAnchor="middle"
                     fontSize={15}
-                    letterSpacing={2.4}
+                    letterSpacing={0.9}
                     fill="currentColor"
                     className={cn("bw-mono", dark ? "text-white/60" : "text-bw-muted")}
                   >
@@ -104,9 +104,9 @@ export function Corridor({ stations, dark = false }: { stations: Station[]; dark
             );
           })}
         </svg>
-        <ol className="mt-6 grid grid-cols-7 gap-4">
+        <ol className="mt-6 grid grid-cols-6 gap-4">
           {stations.map((station) => (
-            <li key={station.title} className={cn("text-sm leading-snug", dark ? "text-white/65" : "text-bw-muted")}>
+            <li key={station.title} className={cn("text-center text-sm leading-snug", dark ? "text-white/65" : "text-bw-muted")}>
               {station.body}
             </li>
           ))}
@@ -124,7 +124,7 @@ export function Corridor({ stations, dark = false }: { stations: Station[]; dark
               <StationObject kind={station.kind} scale={80} ox={0} oy={-40} />
             </svg>
             <div className="min-w-0 pt-2">
-              <p className={cn("bw-mono text-[0.68rem] uppercase tracking-[0.16em]", dark ? "text-bw-cyan" : "text-bw-harbour")}>
+              <p className={cn("bw-mono text-[0.68rem] uppercase tracking-[0.06em]", dark ? "text-bw-cyan" : "text-bw-harbour")}>
                 {String(i + 1).padStart(2, "0")} · {station.place}
               </p>
               <p className={cn("mt-1 font-bw-display text-2xl font-semibold uppercase", dark ? "text-white" : "text-bw-fg")}>

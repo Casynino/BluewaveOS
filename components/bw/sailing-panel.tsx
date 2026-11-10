@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Ship } from "lucide-react";
+import { ArrowRight, Ship } from "lucide-react";
 
 import { bookHref } from "@/components/bw/departure-board";
 import { SAILING_STATUS_LABEL } from "@/lib/constants";
@@ -25,8 +25,8 @@ export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing
   const next = sailings.find((s) => s.bookingOpen) ?? sailings[0];
   if (!next) {
     return (
-      <div className="w-full max-w-md rounded-[6px] bg-white p-5 text-bw-ink shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] lg:ml-auto">
-        <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-steel">Next ship</p>
+      <div className="w-full max-w-md rounded-[4px] bg-white p-5 text-bw-ink shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] lg:ml-auto">
+        <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-steel">Next ship</p>
         <p className="mt-2">The office will confirm the next sailing — call or WhatsApp us.</p>
       </div>
     );
@@ -36,14 +36,12 @@ export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing
   const daysLeft = Math.ceil((next.cargoDeadline.getTime() + DAY_MS - now.getTime()) / DAY_MS);
 
   return (
-    <div className="relative w-full max-w-md overflow-hidden rounded-[6px] bg-white/95 text-bw-ink shadow-[0_40px_80px_-30px_rgb(0_0_0/0.75)] ring-1 ring-white/40 backdrop-blur lg:ml-auto">
-      <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-bw-coral via-bw-coral-bright to-bw-cyan" />
-
+    <div className="relative w-full max-w-md overflow-hidden rounded-[4px] bg-white/95 text-bw-ink shadow-[0_40px_80px_-30px_rgb(0_0_0/0.75)] ring-1 ring-white/40 backdrop-blur lg:ml-auto">
       <div className="px-5 pb-4 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-steel">Next ship · Foshan → Dar</p>
-          <span className="bw-mono inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.1em] text-emerald-700">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500 motion-reduce:animate-none" aria-hidden />
+          <p className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-steel">Next ship · Foshan → Dar</p>
+          <span className="bw-mono inline-flex items-center gap-1.5 whitespace-nowrap text-[0.66rem] uppercase tracking-[0.06em] text-emerald-700">
+            <span className="size-1.5 bg-current" aria-hidden />
             {next.bookingOpen ? "Open" : (SAILING_STATUS_LABEL[next.status] ?? "Open")}
           </span>
         </div>
@@ -56,9 +54,9 @@ export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing
           </div>
           <div aria-hidden className="relative h-8">
             <span className="absolute inset-x-0 top-1/2 border-t border-dashed border-bw-rule" />
-            <span className="absolute left-0 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-bw-coral" />
-            <span className="absolute right-0 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-white ring-1 ring-bw-coral" />
-            <span className="absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-bw-ink text-white">
+            <span className="absolute left-0 top-1/2 size-1.5 -translate-y-1/2 bg-bw-coral" />
+            <span className="absolute right-0 top-1/2 size-1.5 -translate-y-1/2 border border-bw-coral bg-white" />
+            <span className="absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[2px] bg-bw-ink text-white">
               <Ship className="size-3.5" />
             </span>
             <span className="bw-mono absolute left-1/2 top-full -translate-x-1/2 whitespace-nowrap text-[0.62rem] text-bw-steel">
@@ -80,7 +78,7 @@ export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing
             </span>
           </p>
           {daysLeft > 0 ? (
-            <p className="bw-mono shrink-0 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-bw-coral-dark">
+            <p className="bw-mono shrink-0 text-[0.66rem] font-semibold uppercase tracking-[0.06em] text-bw-coral-dark">
               {daysLeft} {daysLeft === 1 ? "day" : "days"} left
             </p>
           ) : null}
@@ -110,9 +108,9 @@ export function SailingPanel({ sailings, now = new Date() }: { sailings: Sailing
         </Link>
         <Link
           href="/schedule"
-          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 font-bw-display text-sm font-semibold uppercase tracking-[0.08em] text-bw-ink transition-colors hover:bg-bw-concrete"
+          className="inline-flex h-11 flex-1 items-center justify-center font-bw-display text-sm font-semibold uppercase tracking-[0.08em] text-bw-ink transition-colors hover:bg-bw-concrete"
         >
-          Schedule <ArrowUpRight className="size-3.5" />
+          Schedule
         </Link>
       </div>
     </div>

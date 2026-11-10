@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 
 import { Corridor, corridorStations } from "@/components/bw/corridor";
 import { bwExchangeRate, bwSailings } from "@/components/bw/data";
@@ -203,15 +202,15 @@ export default async function HowItWorksPage() {
       >
         <dl className="grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-[2px] bg-white/10 sm:grid-cols-3">
           <div className="bg-bw-night/60 p-4">
-            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">Sailings</dt>
+            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">Sailings</dt>
             <dd className="bw-display mt-1 text-3xl">Weekly</dd>
           </div>
           <div className="bg-bw-night/60 p-4">
-            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">At sea</dt>
+            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">At sea</dt>
             <dd className="bw-display mt-1 text-3xl">≈ {days} days</dd>
           </div>
           <div className="col-span-2 bg-bw-night/60 p-4 sm:col-span-1">
-            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.16em] text-white/55">Next receiving closes</dt>
+            <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">Next receiving closes</dt>
             <dd className="bw-display mt-1 text-3xl">{next ? DAY_MONTH.format(next.cargoDeadline) : "Ask the office"}</dd>
           </div>
         </dl>
@@ -246,7 +245,7 @@ export default async function HowItWorksPage() {
             {phases.map((phase) => (
               <div key={phase.code}>
                 <div className="flex items-center gap-4 border-b-2 border-bw-fg pb-3">
-                  <span className="bw-mono bg-bw-ink px-2 py-1 text-xs tracking-[0.2em] text-white">{phase.code}</span>
+                  <span className="bw-mono text-xs tracking-[0.06em] text-bw-muted">{phase.code}</span>
                   <h3 className="font-bw-display text-3xl font-semibold uppercase text-bw-fg">{phase.name}</h3>
                 </div>
                 <ol>
@@ -305,8 +304,7 @@ export default async function HowItWorksPage() {
                 <p className="bw-display text-5xl uppercase text-bw-cyan">{stage.when}</p>
                 <ul className="mt-6 space-y-3">
                   {stage.items.map((item) => (
-                    <li key={item} className="flex gap-3 leading-snug text-white/85">
-                      <span aria-hidden className="mt-1.5 size-3 shrink-0 border border-white/50" />
+                    <li key={item} className="leading-snug text-white/85">
                       {item}
                     </li>
                   ))}
@@ -335,7 +333,6 @@ export default async function HowItWorksPage() {
               <Link key={href} href={href} className="group bg-bw-night/70 p-6 transition-colors hover:bg-bw-coral">
                 <p className="font-bw-display text-3xl font-semibold uppercase">{title}</p>
                 <p className="mt-1 text-sm text-white/70 group-hover:text-white">{body}</p>
-                <ArrowRight className="mt-5 size-5 transition-transform group-hover:translate-x-1" aria-hidden />
               </Link>
             ))}
           </div>
@@ -353,7 +350,7 @@ function StepRow({ step, index }: { step: Step; index: number }) {
           {step.kind ? <StationTile kind={step.kind} /> : <PaperGlyph word={step.paper ?? ""} />}
         </div>
         <div className="min-w-0">
-          <p className="bw-mono text-xs uppercase tracking-[0.16em] text-bw-harbour">
+          <p className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-harbour">
             {String(index).padStart(2, "0")} · {step.place}
           </p>
           <h4 className="mt-2 font-bw-display text-3xl font-semibold uppercase leading-none text-bw-fg sm:text-4xl">
@@ -374,14 +371,13 @@ function StepRow({ step, index }: { step: Step; index: number }) {
 function Side({ who, items, links, you = false }: { who: string; items: React.ReactNode[]; links?: [string, string][]; you?: boolean }) {
   return (
     <div className={cn("min-w-0 p-5 sm:p-6", you ? "bg-bw-ground" : "bg-bw-panel")}>
-      <p className={cn("bw-label", you ? "text-bw-coral" : "text-bw-muted")} data-plain={you ? undefined : ""}>
+      <p className={cn("bw-label", you ? "text-bw-coral" : "text-bw-muted")} data-plain="">
         {who}
       </p>
-      <ul className="mt-4 space-y-2.5">
+      <ul className="mt-4 space-y-3">
         {items.map((item, i) => (
-          <li key={i} className="flex gap-3 leading-relaxed text-bw-fg">
-            <span aria-hidden className={cn("mt-2.5 h-px w-3 shrink-0", you ? "bg-bw-coral" : "bg-bw-muted")} />
-            <span className="min-w-0">{item}</span>
+          <li key={i} className="min-w-0 leading-relaxed text-bw-fg">
+            {item}
           </li>
         ))}
       </ul>
@@ -391,9 +387,9 @@ function Side({ who, items, links, you = false }: { who: string; items: React.Re
             <li key={href}>
               <Link
                 href={href}
-                className="bw-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-bw-coral hover:text-bw-coral-dark"
+                className="bw-mono text-xs uppercase tracking-[0.06em] text-bw-coral underline-offset-4 transition-colors hover:text-bw-coral-dark hover:underline"
               >
-                {label} <ArrowRight className="size-3.5" aria-hidden />
+                {label}
               </Link>
             </li>
           ))}

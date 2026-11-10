@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, ArrowUpRight, Check, MapPin } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { MarketCard } from "@/components/bw/ex-cards";
 import { BlockTitle, FALLBACK, Gallery, JourneyStrip, PhotoHero, Tags, mapHref, photoOr } from "@/components/bw/ex-kit";
@@ -69,12 +69,7 @@ export default async function FactoryPage({ params }: Props) {
         image={photoOr(factory.heroImage, FALLBACK.factory)}
         alt={illustrative ? `Illustration of a ${factory.industry ?? "factory"} — not ${factory.name}` : factory.name}
         crumbs={[["Explore China", "/explore"], ["Factories", "/factories"], [factory.name]]}
-        label={
-          <>
-            <MapPin className="size-3.5 text-bw-coral-bright" aria-hidden />
-            {[factory.district, where].filter(Boolean).join(" · ") || "China"}
-          </>
-        }
+        label={[factory.district, where].filter(Boolean).join(" · ") || "China"}
         title={factory.name}
         lead={factory.summary}
         illustrative={illustrative}
@@ -82,7 +77,7 @@ export default async function FactoryPage({ params }: Props) {
           <div className="bw-glass rounded-[4px] p-5 sm:p-6">
             <p
               className={cn(
-                "bw-mono inline-block px-2 py-1 text-[0.66rem] uppercase tracking-[0.14em]",
+                "bw-mono inline-block px-2 py-1 text-[0.66rem] uppercase tracking-[0.06em]",
                 partner ? "bg-bw-coral text-white" : "border border-white/30 text-white"
               )}
             >
@@ -90,11 +85,11 @@ export default async function FactoryPage({ params }: Props) {
             </p>
             <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
               <div className="min-w-0">
-                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-white/55">Industry</dt>
+                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">Industry</dt>
                 <dd className="mt-1 break-words text-white/90">{factory.industry ?? "—"}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-white/55">MOQ</dt>
+                <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-white/55">MOQ</dt>
                 <dd className="mt-1 break-words text-white/90">{factory.moq ?? "Ask us"}</dd>
               </div>
             </dl>
@@ -140,9 +135,8 @@ export default async function FactoryPage({ params }: Props) {
               </Label>
               <ul className="mt-6 border-t border-bw-line">
                 {factory.products.map((product) => (
-                  <li key={product} className="flex items-start gap-3 border-b border-bw-line py-3">
-                    <Check className="mt-1 size-4 shrink-0 text-bw-coral" aria-hidden />
-                    <span className="min-w-0 break-words font-bw-display text-xl font-semibold uppercase text-bw-fg">{product}</span>
+                  <li key={product} className="break-words border-b border-bw-line py-3 font-bw-display text-xl font-semibold uppercase text-bw-fg">
+                    {product}
                   </li>
                 ))}
               </ul>
@@ -198,7 +192,7 @@ export default async function FactoryPage({ params }: Props) {
             <dl className="mt-8 grid border-l border-t border-bw-line sm:grid-cols-2">
               {business.map(([label, value]) => (
                 <div key={label} className="min-w-0 border-b border-r border-bw-line p-4 sm:p-5">
-                  <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.14em] text-bw-muted">{label}</dt>
+                  <dt className="bw-mono text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">{label}</dt>
                   <dd className="mt-1.5 break-words text-bw-fg">{value}</dd>
                 </div>
               ))}
@@ -270,9 +264,9 @@ export default async function FactoryPage({ params }: Props) {
           <JourneyStrip dark current="Source" className="mt-14" />
           <Link
             href="/factories"
-            className="bw-mono mt-10 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/65 hover:text-white"
+            className="bw-mono mt-10 inline-block text-xs uppercase tracking-[0.06em] text-white/65 underline-offset-4 hover:text-white hover:underline"
           >
-            <ArrowRight className="size-3.5 rotate-180" aria-hidden /> Factory directory
+            Factory directory
           </Link>
         </Frame>
       </section>

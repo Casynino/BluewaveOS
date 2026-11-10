@@ -24,7 +24,10 @@ export function Frame({
   return <Tag className={cn("mx-auto w-full max-w-[1320px] safe-px sm:[--safe-px:1.5rem] lg:[--safe-px:2.5rem]", className)}>{children}</Tag>;
 }
 
-/** A manifest line: mono capitals behind a coral square. */
+/**
+ * A manifest line: mono capitals, lightly tracked, nothing in front of them.
+ * `plain` is kept for older call sites; there is no ornament left to drop.
+ */
 export function Label({
   children,
   className,
@@ -54,9 +57,20 @@ const TONE: Record<ActionTone, string> = {
   "ghost-light": "border border-white/30 text-white hover:border-white hover:bg-white/10",
 };
 
+/** The slab look of `Action`, for the odd real <button> or <a> that needs it. */
+export function actionClass(tone: ActionTone = "coral", size: "md" | "lg" = "md", className?: string) {
+  return cn(
+    "group inline-flex items-center justify-between gap-4 rounded-[2px] font-bw-display font-semibold uppercase tracking-[0.06em] transition-colors",
+    size === "lg" ? "h-14 px-6 text-lg" : "h-12 px-5 text-base",
+    TONE[tone],
+    className
+  );
+}
+
 /**
- * A slab button. Condensed capitals and an arrow that travels on hover —
- * the only motion a button needs.
+ * A slab button in condensed capitals. Only the primary (coral) carries an
+ * arrow, and a link that leaves the site carries the up-right one; the rest of
+ * a group is words alone (owner, 10 Nov 2026). `arrow` overrides either way.
  */
 export function Action({
   href,
@@ -64,6 +78,7 @@ export function Action({
   tone = "coral",
   size = "md",
   external = false,
+  arrow,
   className,
 }: {
   href: string;
@@ -71,19 +86,18 @@ export function Action({
   tone?: ActionTone;
   size?: "md" | "lg";
   external?: boolean;
+  arrow?: boolean;
   className?: string;
 }) {
   const Icon = external ? ArrowUpRight : ArrowRight;
-  const cls = cn(
-    "group inline-flex items-center justify-between gap-4 rounded-[2px] font-bw-display font-semibold uppercase tracking-[0.06em] transition-colors",
-    size === "lg" ? "h-14 px-6 text-lg" : "h-12 px-5 text-base",
-    TONE[tone],
-    className
-  );
+  const showArrow = arrow ?? (external || tone === "coral");
+  const cls = actionClass(tone, size, className);
   const body = (
     <>
       <span>{children}</span>
-      <Icon className="size-4 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
+      {showArrow ? (
+        <Icon className="size-4 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
+      ) : null}
     </>
   );
   return external ? (
@@ -167,10 +181,6 @@ export function PageBanner({
   return (
     <section className={cn("bw-top relative isolate overflow-hidden bg-bw-night text-white", className)}>
       <div aria-hidden className="bw-ribs absolute inset-0 -z-10" />
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_85%_0%,rgb(42_154_212/0.28),transparent_55%)]"
-      />
       <Frame className="py-14 sm:py-20">
         <Label className="text-white/70">{label}</Label>
         <h1 className="bw-display mt-5 max-w-4xl text-[clamp(2.8rem,7vw,6rem)] uppercase">{title}</h1>

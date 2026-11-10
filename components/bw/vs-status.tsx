@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Action, Frame, Label } from "@/components/bw/ui";
 import { cn } from "@/lib/utils";
@@ -36,11 +36,8 @@ export function VsProgress({
   return (
     <div>
       {cancelled ? (
-        <p className="mb-5 flex items-center gap-3 rounded-[2px] border border-bw-coral/50 bg-bw-coral/[0.07] px-4 py-3">
-          <span className="grid size-7 shrink-0 place-items-center rounded-[2px] bg-bw-coral text-white">
-            <X className="size-4" aria-hidden />
-          </span>
-          <span className="bw-display text-2xl uppercase text-bw-fg">Cancelled</span>
+        <p className="bw-display mb-5 rounded-[2px] border border-bw-coral/50 bg-bw-coral/[0.07] px-4 py-3 text-2xl uppercase text-bw-fg">
+          Cancelled
         </p>
       ) : null}
       <ol
@@ -79,7 +76,6 @@ export function VsProgress({
                 ) : (
                   <span className="bw-mono text-[0.7rem]">{String(i + 1).padStart(2, "0")}</span>
                 )}
-                {here ? <span aria-hidden className="absolute inset-0 animate-ping rounded-[2px] bg-bw-coral/40 motion-reduce:hidden" /> : null}
               </span>
               <div className="min-w-0 pt-1 sm:mt-3 sm:pt-0">
                 <p
@@ -90,7 +86,7 @@ export function VsProgress({
                 >
                   {here && currentLabel ? currentLabel : step.label}
                 </p>
-                {here ? <p className="bw-mono mt-0.5 text-[0.68rem] uppercase tracking-[0.16em] text-bw-muted">Now</p> : null}
+                {here ? <p className="bw-mono mt-0.5 text-[0.68rem] uppercase tracking-[0.06em] text-bw-muted">Now</p> : null}
               </div>
             </li>
           );
@@ -108,7 +104,7 @@ export function VsFacts({ items }: { items: [string, React.ReactNode][] }) {
     <dl className="grid border-l border-t border-bw-line sm:grid-cols-2">
       {shown.map(([label, value]) => (
         <div key={label} className="min-w-0 border-b border-r border-bw-line p-4">
-          <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.16em] text-bw-muted">{label}</dt>
+          <dt className="bw-mono text-[0.66rem] uppercase tracking-[0.06em] text-bw-muted">{label}</dt>
           <dd className="mt-1.5 break-words text-bw-fg">{value}</dd>
         </div>
       ))}

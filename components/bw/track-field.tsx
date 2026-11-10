@@ -61,7 +61,7 @@ export function TrackField({
         <span
           aria-hidden
           className={cn(
-            "bw-mono hidden shrink-0 items-center border-r pl-4 pr-3 text-[0.65rem] uppercase tracking-[0.18em] sm:flex",
+            "bw-mono hidden shrink-0 items-center border-r pl-4 pr-3 text-[0.65rem] uppercase tracking-[0.06em] sm:flex",
             dark ? "border-white/15 text-white/50" : "border-bw-line text-bw-muted"
           )}
         >
