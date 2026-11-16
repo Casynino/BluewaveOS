@@ -1,8 +1,8 @@
 /*
   THE OWNER'S HOME: THE WHOLE BUSINESS ON ONE SCREEN.
 
-  The banner, the owner's own pages as pills, only what waits on a decision of
-  theirs, then the money: where it sits and today since midnight, this month
+  The greeting, only what waits on a decision of theirs (one line each), then
+  the money: where it sits, today since midnight in four short cards, this month
   against last, a year of billing against costs, how healthy the month reads,
   what each container is making, who and what the money comes from and goes to,
   the debts by age, where the cargo is, and what the business carries.
@@ -12,31 +12,22 @@
   nothing of its own, so it can never disagree with the Profit & loss page.
 */
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   Anchor,
+  ArrowDownLeft,
+  ArrowUpRight,
   BadgePercent,
   Banknote,
   Boxes,
   CalendarClock,
-  ChartNoAxesCombined,
   HandCoins,
-  Landmark,
   Package,
   Receipt,
-  Scale,
-  ShieldCheck,
-  Ship,
-  Trash2,
-  TrendingUp,
   UserCog,
   Users,
-  Wallet,
   Warehouse,
 } from "lucide-react";
 
-import { PHONE_ICON, PHONE_TILE, PHONE_WORD, PILL } from "@/components/app/action-pills";
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { AttentionCenter, type AttentionItem } from "@/components/app/attention-center";
 import { CargoMix } from "@/components/app/cargo-mix";
@@ -45,6 +36,7 @@ import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { KpiCard } from "@/components/app/kpi-card";
 import { SectionLabel } from "@/components/app/section-label";
+import { StatTile } from "@/components/app/stat-tile";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut, DonutLegend, SWATCHES, type DonutSlice } from "@/components/charts/donut";
@@ -64,9 +56,6 @@ import { viewerLocale } from "@/lib/viewer-locale";
 
 const DAY = 86_400_000;
 
-/* The owner's own pages, straight under the banner: one calm pill each, the
-   colour on the icon only. */
-type Pill = { href: string; label: string; icon: LucideIcon; show: boolean };
 
 export async function ExecutiveHome({ user }: { user: SessionUser }) {
   const locale = await viewerLocale();
@@ -365,33 +354,6 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
     </section>
   );
 
-  const pills: Pill[] = [
-    { href: "/app/finance/ledger", label: "The ledger", icon: Landmark, show: can(role, "accounting.view") },
-    { href: "/app/finance/accounts", label: "Accounts", icon: Wallet, show: can(role, "accounting.view") },
-    { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingUp, show: can(role, "profit.view") },
-    { href: "/app/manager/approvals", label: "Approvals", icon: ShieldCheck, show: can(role, "record.review") },
-    { href: "/app/exceptions", label: "Issues & claims", icon: AlertTriangle, show: can(role, "exception.view") },
-    { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, show: can(role, "records.viewDeleted") },
-  ];
-  const shown = pills.filter((p) => p.show);
-  const CHIP: Record<string, string> = {
-    "The ledger": PHONE_ICON.signal,
-    Accounts: PHONE_ICON.brand,
-    "Profit & loss": PHONE_ICON.success,
-    Approvals: PHONE_ICON.marine,
-    "Issues & claims": PHONE_ICON.warning,
-    "Deleted records": PHONE_ICON.violet,
-  };
-  /* One word under each icon on a phone. */
-  const WORD: Record<string, string> = {
-    "The ledger": "Ledger",
-    Accounts: "Accounts",
-    "Profit & loss": "Profit",
-    Approvals: "Approvals",
-    "Issues & claims": "Issues",
-    "Deleted records": "Deleted",
-  };
-
   return (
     <div className="space-y-6">
       {/* 1. The banner every desk opens on: the name, the title, the day. */}
@@ -404,162 +366,156 @@ export async function ExecutiveHome({ user }: { user: SessionUser }) {
         search={false}
       />
 
-      {/* 2. The owner's own pages. On a phone, tiles three across. */}
-      <nav aria-label={tr("Quick actions")} className="grid grid-cols-6 gap-0 sm:flex sm:flex-wrap sm:gap-2">
-        {shown.map((pill) => (
-          <span key={pill.href} className="contents">
-            <Link
-              href={pill.href}
-              className={cn(PHONE_TILE, "sm:hidden")}
-            >
-              <pill.icon className={cn("size-6", CHIP[pill.label])} strokeWidth={1.7} />
-              <span className={PHONE_WORD}>{tr(WORD[pill.label] ?? pill.label)}</span>
-            </Link>
-            <Link href={pill.href} className={cn(PILL, "hidden sm:inline-flex")}>
-              <pill.icon className={cn("size-4", CHIP[pill.label])} strokeWidth={1.75} />
-              {tr(pill.label)}
-            </Link>
-          </span>
-        ))}
-      </nav>
+      {/* 2. Only what waits on a decision of the owner's: one small box, one
+          line each, as on the owner's ZELab system (16 Nov 2026). No row of
+          shortcut icons above it — the bottom bar and the menu are the same
+          doors — and no heading over it. */}
+      <AttentionCenter items={attention} />
 
-      {/* 3. Only what waits on a decision of the owner's. */}
-      <section>
-        <SectionLabel count={attention.length} action={{ href: "/app/manager/approvals", label: tr("Every decision") }}>
-          {tr("Needs your attention")}
-        </SectionLabel>
-        {attention.length === 0 ? (
-          <div className="flex items-center gap-2.5 rounded-xl border bg-card px-4 py-3 text-[13px] shadow-soft">
-            <span aria-hidden className="h-7 w-0.5 shrink-0 rounded-full bg-success" />
-            {tr("Nothing needs your decision. Every desk is clear.")}
-          </div>
+      {/* 3. The money: how much is in the accounts, and which account holds it. */}
+      <section className="min-w-0 overflow-hidden rounded-xl border bg-card p-4 shadow-soft sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{tr("In the accounts")}</p>
+          <Link href="/app/finance/accounts" className="whitespace-nowrap text-xs font-semibold text-brand hover:underline">
+            {tr("Open accounts")} →
+          </Link>
+        </div>
+        <p className="tnum mt-1 whitespace-nowrap text-[26px] font-bold leading-none tracking-tight sm:text-[32px]">{money(held)}</p>
+        {overview.heldUnconvertedUsd > 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            + {formatCurrency(overview.heldUnconvertedUsd, "USD")} {tr("with no rate to convert it")}
+          </p>
+        ) : null}
+        <span
+          className={cn(
+            "mt-2 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold",
+            Math.round(netToday) === 0
+              ? "bg-muted text-muted-foreground"
+              : netToday > 0
+                ? "bg-success/15 text-success"
+                : "bg-destructive/15 text-destructive"
+          )}
+        >
+          {Math.round(netToday) === 0 ? null : netToday > 0 ? <ArrowDownLeft className="size-3" /> : <ArrowUpRight className="size-3" />}
+          {Math.round(netToday) === 0
+            ? tr("No change today")
+            : `${money(Math.abs(netToday))} ${netToday > 0 ? tr("up today") : tr("down today")}`}
+        </span>
+        {moneySlices.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">{tr("No account holds any money yet.")}</p>
         ) : (
-          <AttentionCenter items={attention} />
+          <>
+            {/* The bar carries the proportions, so each account only names itself. */}
+            <div className="mt-4 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              {moneySlices.map((slice) => (
+                <div
+                  key={slice.label}
+                  className={SWATCHES[slice.tone]}
+                  style={{ width: `${shownHeld > 0 ? (slice.value / shownHeld) * 100 : 0}%` }}
+                />
+              ))}
+            </div>
+            <ul className="mt-2.5 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+              {moneySlices.map((slice) => {
+                const share = shownHeld > 0 ? (slice.value / shownHeld) * 100 : 0;
+                return (
+                  <li key={slice.label}>
+                    <Link href="/app/finance/accounts" className="flex min-w-0 items-center gap-2 hover:opacity-80">
+                      <span className={cn("size-2 shrink-0 rounded-full", SWATCHES[slice.tone])} />
+                      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{slice.label}</span>
+                      <span className="tnum shrink-0 text-[13px] font-bold">{money(slice.value)}</span>
+                      <span className="tnum w-9 shrink-0 text-right text-[11px] text-muted-foreground">
+                        {share > 0 && share < 1 ? "<1%" : `${Math.round(share)}%`}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 
-      {/* 4. The money: where it sits, as a ring, and today since midnight — one card. */}
-      <section className="min-w-0 overflow-hidden rounded-xl border bg-card shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b px-5 py-3">
-          <h2 className="font-semibold">{tr("The money")}</h2>
-          <div className="flex items-center gap-3">
-            <span
-              className={cn(
-                "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                Math.round(netToday) === 0
-                  ? "bg-muted text-muted-foreground"
-                  : netToday > 0
-                    ? "bg-success/15 text-success"
-                    : "bg-destructive/15 text-destructive"
-              )}
-            >
-              {Math.round(netToday) === 0
-                ? tr("No change today")
-                : `${money(Math.abs(netToday))} ${netToday > 0 ? tr("up today") : tr("down today")}`}
-            </span>
-            <Link href="/app/finance/accounts" className="whitespace-nowrap text-xs font-semibold text-brand hover:underline">
-              {tr("Open accounts")}
-            </Link>
-          </div>
+      {/* 4. Today since midnight: four short cards, two to a row on a phone. */}
+      <section>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{tr("Today's business")}</h2>
+          <p className="text-xs text-muted-foreground">{tr("Money in and out since midnight, straight from Finance.")}</p>
         </div>
-        <div className="grid grid-cols-1 divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-          <div className="min-w-0 px-5 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("In the accounts")}</p>
-            <p className="tnum mt-1 whitespace-nowrap text-2xl font-bold sm:text-[26px]">{money(held)}</p>
-            {overview.heldUnconvertedUsd > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                + {formatCurrency(overview.heldUnconvertedUsd, "USD")} {tr("with no rate to convert it")}
-              </p>
-            ) : null}
-            {moneySlices.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">{tr("No account holds any money yet.")}</p>
-            ) : (
-              <div className="mt-3 flex items-center gap-5">
-                <Donut size={92} stroke={14} slices={moneySlices} className="shrink-0" />
-                <ul className="min-w-0 flex-1 space-y-2">
-                  {moneySlices.map((slice) => {
-                    const share = shownHeld > 0 ? (slice.value / shownHeld) * 100 : 0;
-                    return (
-                      <li key={slice.label} className="min-w-0">
-                        <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                          <span className={cn("size-2 shrink-0 rounded-full", SWATCHES[slice.tone])} />
-                          <span className="min-w-0 flex-1 truncate">{slice.label}</span>
-                          <span className="tnum shrink-0">{share > 0 && share < 1 ? "<1%" : `${Math.round(share)}%`}</span>
-                        </p>
-                        <p className="tnum whitespace-nowrap pl-4 text-sm font-semibold">{money(slice.value)}</p>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 px-5 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{tr("Today")}</p>
-            <dl className="mt-1 divide-y">
-              {[
-                { k: tr("Billed today"), v: money(overview.money.billedToday.tzs), cls: "text-foreground", href: "/app/finance/invoices" },
-                { k: tr("Collected today"), v: money(collectedToday), cls: "text-success", href: "/app/finance/income" },
-                { k: tr("Spent today"), v: money(spentToday), cls: spentToday > 0 ? "text-warning" : "text-foreground", href: "/app/finance/expenses" },
-                { k: tr("Net cash today"), v: `${netToday < 0 ? "−" : ""}${money(Math.abs(netToday))}`, cls: netToday < 0 ? "text-destructive" : "text-success", href: "/app/finance/ledger" },
-              ].map((row) => (
-                <Link key={row.k} href={row.href} className="flex items-baseline justify-between gap-3 py-2 hover:opacity-80">
-                  <dt className="min-w-0 truncate text-sm text-muted-foreground">{row.k}</dt>
-                  <dd className={cn("tnum shrink-0 whitespace-nowrap text-base font-bold", row.cls)}>{row.v}</dd>
-                </Link>
-              ))}
-            </dl>
-          </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile label={tr("Billed today")} value={money(overview.money.billedToday.tzs)} icon={Receipt} tone="sky" href="/app/finance/invoices" />
+          <StatTile label={tr("Collected today")} value={money(collectedToday)} icon={HandCoins} tone="emerald" href="/app/finance/income" />
+          <StatTile label={tr("Spent today")} value={money(spentToday)} icon={Banknote} tone="amber" href="/app/finance/expenses" />
+          <StatTile
+            label={tr("Net cash today")}
+            value={`${netToday < 0 ? "−" : ""}${money(Math.abs(netToday))}`}
+            icon={netToday < 0 ? ArrowUpRight : ArrowDownLeft}
+            tone={netToday < 0 ? "rose" : "emerald"}
+            href="/app/finance/ledger"
+          />
         </div>
       </section>
 
-      {/* 5. The month against the last. Two to a row on a phone. */}
+      {/* 5. The month against the last: one short line each, not a wall of
+          tinted boxes — the label and last month on the left, the figure on
+          the right. */}
       <div>
         <SectionLabel action={{ href: "/app/finance/reports", label: tr("Profit & loss") }}>
           {`${tr("This month")} · ${tr("against last month")}`}
         </SectionLabel>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          <KpiCard index={0} label={tr("Billed")} value={money(now.billed.tzs)} delta={change(now.billed, before.billed)} hint={lastMonth(before.billed)} icon={Receipt} tone="brand" href="/app/finance/reports" />
-          <KpiCard index={1} label={tr("Collected|money")} value={money(now.collected.tzs)} delta={change(now.collected, before.collected)} hint={lastMonth(before.collected)} icon={HandCoins} tone="success" href="/app/finance/income" />
-          <KpiCard index={2} label={tr("Costs")} value={money(now.expenses.tzs)} delta={change(now.expenses, before.expenses)} deltaGood={false} hint={lastMonth(before.expenses)} icon={Banknote} tone="warning" href="/app/finance/expenses" />
-          <KpiCard
-            index={3}
-            label={tr("Billed less costs")}
-            value={money(now.profit.tzs)}
-            delta={change(now.profit, before.profit)}
-            hint={now.margin === null ? tr("nothing billed this month yet") : `${Math.round(now.margin)}% ${tr("margin")}`}
-            ring={now.margin === null ? undefined : { value: Math.max(0, Math.min(100, now.margin)), total: 100 }}
-            icon={ChartNoAxesCombined}
-            tone={now.profit.tzs < 0 ? "warning" : (now.margin ?? 0) >= 20 ? "success" : "brand"}
-            href="/app/finance/reports"
-          />
-          <KpiCard index={4} label={tr("Owed to us")} value={money(overview.money.owedTzs)} hint={tr("Owed on every unpaid bill, not just this month")} icon={Wallet} tone={overview.money.owedTzs > 0 ? "warning" : "success"} href="/app/finance/collections" />
-          <KpiCard
-            index={5}
-            label={tr("Collected of what was billed")}
-            value={now.collectionRate === null ? "—" : `${Math.round(now.collectionRate)}%`}
-            hint={`${money(Math.max(0, now.billed.tzs - now.outstanding.tzs))} ${tr("of")} ${money(now.billed.tzs)}`}
-            icon={Scale}
-            tone={(now.collectionRate ?? 0) >= 80 ? "success" : "marine"}
-          />
-          <KpiCard
-            index={6}
-            label={tr("Cargo this month")}
-            value={`${now.cbmReceived.toFixed(2)} CBM`}
-            hint={`${now.packages} ${tr("packages")} · ${now.customers} ${tr("customers billed")}`}
-            icon={Package}
-            tone="marine"
-            href="/app/inventory"
-          />
-          <KpiCard
-            index={7}
-            label={tr("Containers landed")}
-            value={String(now.arrived)}
-            hint={`${now.closed} ${tr("closed this month")} · ${now.cbmLanded.toFixed(2)} CBM ${tr("landed")}`}
-            icon={Ship}
-            tone="brand"
-            href="/app/containers/arrived"
-          />
+        <div className="grid gap-px overflow-hidden rounded-xl border bg-border shadow-soft sm:grid-cols-2 xl:grid-cols-4">
+          {(
+            [
+              { key: "billed", label: tr("Billed"), value: money(now.billed.tzs), sub: lastMonth(before.billed), delta: change(now.billed, before.billed), href: "/app/finance/reports" },
+              { key: "collected", label: tr("Collected|money"), value: money(now.collected.tzs), sub: lastMonth(before.collected), delta: change(now.collected, before.collected), cls: "text-success", href: "/app/finance/income" },
+              { key: "costs", label: tr("Costs"), value: money(now.expenses.tzs), sub: lastMonth(before.expenses), delta: change(now.expenses, before.expenses), goodWhenDown: true, href: "/app/finance/expenses" },
+              {
+                key: "left",
+                label: tr("Billed less costs"),
+                value: money(now.profit.tzs),
+                sub: now.margin === null ? tr("nothing billed this month yet") : `${Math.round(now.margin)}% ${tr("margin")}`,
+                delta: change(now.profit, before.profit),
+                cls: now.profit.tzs < 0 ? "text-destructive" : "text-success",
+                href: "/app/finance/reports",
+              },
+              { key: "owed", label: tr("Owed to us"), value: money(overview.money.owedTzs), sub: tr("Owed on every unpaid bill, not just this month"), cls: overview.money.owedTzs > 0 ? "text-warning" : undefined, href: "/app/finance/collections" },
+              {
+                key: "rate",
+                label: tr("Collected of what was billed"),
+                value: now.collectionRate === null ? "—" : `${Math.round(now.collectionRate)}%`,
+                sub: `${money(Math.max(0, now.billed.tzs - now.outstanding.tzs))} ${tr("of")} ${money(now.billed.tzs)}`,
+              },
+              { key: "cargo", label: tr("Cargo this month"), value: `${now.cbmReceived.toFixed(2)} CBM`, sub: `${now.packages} ${tr("packages")} · ${now.customers} ${tr("customers billed")}`, href: "/app/inventory" },
+              { key: "landed", label: tr("Containers landed"), value: String(now.arrived), sub: `${now.closed} ${tr("closed this month")} · ${now.cbmLanded.toFixed(2)} CBM ${tr("landed")}`, href: "/app/containers/arrived" },
+            ] as { key: string; label: string; value: string; sub: string; delta?: number; goodWhenDown?: boolean; cls?: string; href?: string }[]
+          ).map((row) => {
+            const inner = (
+              <>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{row.label}</p>
+                  <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                    {row.sub}
+                    {row.delta !== undefined ? (
+                      <span className={cn("ml-1.5 whitespace-nowrap font-semibold", (row.goodWhenDown ? row.delta <= 0 : row.delta >= 0) ? "text-success" : "text-destructive")}>
+                        {row.delta >= 0 ? "▲" : "▼"} {Math.abs(Math.round(row.delta))}%
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+                <p className={cn("tnum shrink-0 whitespace-nowrap text-base font-bold", row.cls)}>{row.value}</p>
+              </>
+            );
+            const line = "flex items-center justify-between gap-3 bg-card px-4 py-2.5";
+            return row.href ? (
+              <Link key={row.key} href={row.href} className={cn(line, "transition-colors hover:bg-secondary/40")}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={row.key} className={line}>
+                {inner}
+              </div>
+            );
+          })}
         </div>
         <p className="mt-2 text-xs leading-snug text-muted-foreground">
           {tr("Billed less costs is what was invoiced this month, not money received. What has not been paid is under Owed to us.")}

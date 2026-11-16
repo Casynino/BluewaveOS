@@ -188,12 +188,7 @@ export async function CommandCentre({ user }: { user: SessionUser }) {
       <ActionPills pills={pillsFor(user.role)} />
 
       <section>
-        <SectionLabel
-          count={overview.attention.filter((a) => a.tone === "bad").length}
-          action={{ href: "/app/manager/control", label: t(locale, "Control room") }}
-        >
-          {t(locale, "Needs your attention")}
-        </SectionLabel>
+        {/* No heading over the list (owner, 16 Nov 2026, as on ZELab): the box speaks for itself. */}
         <AttentionCenter items={overview.attention} />
       </section>
 
@@ -271,20 +266,7 @@ export async function CommandCentre({ user }: { user: SessionUser }) {
               is the single figure that says whether any of the rest was worth
               doing. */}
           <BentoCard tone="ink" href="/app/finance/reports">
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-[0.07]"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-                backgroundSize: "44px 44px",
-              }}
-            />
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_110%_at_100%_0%,hsl(var(--signal)/0.22),transparent_58%)]"
-            />
-
+            {/* No grid lines and no red glow (owner, 16 Nov 2026: clean, as on ZELab). */}
             <div className="relative flex flex-1 flex-col">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-signal"><Tx>{month.label}</Tx></p>
@@ -295,7 +277,7 @@ export async function CommandCentre({ user }: { user: SessionUser }) {
 
               {/* The words carry the direction; the colour only agrees with them. */}
               <p className="mt-4 text-sm text-white/70">{t(locale, verdict.lead)}</p>
-              <p className={cn("tnum mt-1.5 text-[40px] font-bold leading-none tracking-tight sm:text-[46px]", verdict.colour)}>
+              <p className={cn("tnum mt-1.5 text-[28px] font-bold leading-none tracking-tight sm:text-[34px]", verdict.colour)}>
                 {verdict.figure}
               </p>
 

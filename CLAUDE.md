@@ -208,6 +208,13 @@ deleted.
   ignores its home-screen tags. iPhone launch pictures: `scripts/make-splash.mjs`.
 - Fields are 16px on a phone so an iPhone never zooms into them; bottom tabs
   carry one word each.
+- Homes look like the owner's ZELab system (owner, 16 Nov 2026): "Mambo vipi?"
+  greeting banner (`components/app/greeting-banner.tsx`), the attention list as
+  one line per item with a dot (`attention-center.tsx`, no heading over it),
+  short plain cards (`kpi-card.tsx`, `money-tile.tsx`, `stat-tile.tsx`: no
+  tinted wash, colour on the small round icon only), no shortcut icon row on a
+  phone. The bottom bar has five real pages per desk and no "Menu" tab — the ☰
+  in the top bar opens the menu (`mobile-tabbar.tsx`).
 
 ## Developed by Nino (owner, 9 Nov 2026)
 

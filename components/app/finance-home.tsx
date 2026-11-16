@@ -175,14 +175,13 @@ export async function FinanceHome() {
     .sort((a, b) => a.since.getTime() - b.since.getTime())
     .slice(0, 8);
 
-  const card = "flex flex-col rounded-xl border bg-card bg-gradient-to-br to-transparent p-5";
+  /* Plain cards (owner, 16 Nov 2026, as on ZELab): no wash of colour; the colour of the kind of money is on the small round icon. */
+  const card = "flex flex-col rounded-xl border bg-card p-4 shadow-soft";
 
   return (
     <div className="space-y-8">
       <section>
-        <SectionLabel count={items.filter((i) => i.tone !== "neutral").length} action={{ href: "/app/finance/collections", label: "The call list" }}>
-          {T("Needs your attention")}
-        </SectionLabel>
+        {/* No heading over the list (owner, 16 Nov 2026, as on ZELab): the box speaks for itself. */}
         <AttentionCenter items={items} />
       </section>
 
@@ -237,17 +236,17 @@ export async function FinanceHome() {
             { title: "Collected of billed", icon: TrendingUp, tone: "text-brand", wash: "from-brand/[0.08]", lead: collected.tzs, usd: collected.usd, foot: `${billed.usd > 0 ? Math.round((collected.usd / billed.usd) * 100) : 0}% of what was billed`, note: "Money actually in, against everything ever billed. A bill raised is not a bill paid — the gap is what Collections is for.", href: "/app/finance/reports" },
             { title: "Spent this month", icon: TrendingDown, tone: "text-destructive", wash: "from-destructive/[0.08]", lead: spent.tzs, usd: spent.usd, foot: `${spentRows.length} payment${spentRows.length === 1 ? "" : "s"} out`, note: "Freight, clearing, rent, supplies — everything that has actually left an account since the 1st. Money moved between our own accounts is not spending and is not counted.", href: "/app/finance/expenses" },
           ].map((c) => (
-            <Link key={c.title} href={c.href} className={cn(card, c.wash, "transition-colors hover:border-foreground/20")}>
+            <Link key={c.title} href={c.href} className={cn(card, "transition-colors hover:bg-secondary/40")}>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground"><Tx>{c.title}</Tx></p>
-                <span className={cn("grid size-7 place-items-center rounded-md bg-secondary", c.tone)}><c.icon className="size-4" /></span>
+                <p className="text-xs font-medium text-muted-foreground"><Tx>{c.title}</Tx></p>
+                <span className={cn("grid size-8 place-items-center rounded-full bg-secondary ring-1 ring-inset ring-border", c.tone)}><c.icon className="size-3.5" /></span>
               </div>
-              <p className={cn("tnum mt-3 text-2xl font-bold", c.tone)}>{tzs(c.lead)}</p>
-              <p className="tnum mt-2 w-fit rounded-md bg-background/60 px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <p className="tnum mt-1.5 text-xl font-bold leading-tight tracking-tight sm:text-2xl">{tzs(c.lead)}</p>
+              <p className="tnum mt-2 w-fit rounded-md bg-background/60 px-2 py-1 text-[11px] text-muted-foreground">
                 on the invoice <span className="text-foreground">{usd(c.usd)}</span>
               </p>
-              <p className="mt-auto pt-4 text-sm font-medium">{c.foot}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground"><Tx>{c.note}</Tx></p>
+              <p className="mt-auto pt-3 text-[13px] font-medium">{c.foot}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground max-sm:line-clamp-2"><Tx>{c.note}</Tx></p>
             </Link>
           ))}
         </div>

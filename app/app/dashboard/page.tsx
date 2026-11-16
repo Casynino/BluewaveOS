@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import * as Icons from "lucide-react";
-import { ArrowRight } from "lucide-react";
 
 import { ActionPills } from "@/components/app/action-pills";
 import { AttentionCenter } from "@/components/app/attention-center";
@@ -77,45 +76,32 @@ function Glyph({ name, className }: { name: string; className?: string }) {
  */
 function QueueCard({ card, index }: { card: ActionCard; index: number }) {
   const loud = card.urgent && card.count > 0;
+  void index;
 
+  /* A short card, as on ZELab (owner, 16 Nov 2026): the words small at the
+     top, a small round icon, the count, one quiet line — no stripe, no lift. */
   return (
-    <Link href={card.href} className="focus-ring group block rounded-xl">
-      <div
-        className={cn(
-          "animate-in-up relative h-full overflow-hidden rounded-xl border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-raised",
-          loud && "border-signal/35"
-        )}
-        style={{ animationDelay: `${index * 45}ms` }}
-      >
-        {loud ? (
-          <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-signal" />
-        ) : null}
-
-        <div className="flex items-start justify-between gap-3">
-          <span
-            className={cn(
-              "grid size-9 place-items-center rounded-lg",
-              loud ? "bg-signal/12 text-signal" : "bg-brand/10 text-brand"
-            )}
-          >
-            <Glyph name={card.icon} className="size-4" />
-          </span>
-          <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-        </div>
-
-        <p
+    <Link
+      href={card.href}
+      className="focus-ring block min-w-0 rounded-xl border bg-card p-3 shadow-soft transition-colors hover:bg-secondary/40 sm:p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-xs font-medium text-muted-foreground"><Tx>{card.label}</Tx></p>
+        <span
           className={cn(
-            "tnum mt-4 text-[30px] font-semibold leading-none tracking-tight",
-            loud ? "text-signal" : "text-foreground"
+            "grid size-8 shrink-0 place-items-center rounded-full ring-1 ring-inset",
+            loud ? "bg-signal/15 text-signal ring-signal/30" : "bg-brand/15 text-brand ring-brand/30"
           )}
         >
-          {card.count}
-        </p>
-        <p className="mt-1.5 text-sm font-medium"><Tx>{card.label}</Tx></p>
-        {card.hint ? (
-          <p className="mt-1 text-xs text-muted-foreground"><Tx>{card.hint}</Tx></p>
-        ) : null}
+          <Glyph name={card.icon} className="size-3.5" />
+        </span>
       </div>
+      <p className={cn("tnum mt-1.5 text-xl font-bold leading-tight tracking-tight sm:text-2xl", loud ? "text-signal" : "text-foreground")}>
+        {card.count}
+      </p>
+      {card.hint ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground"><Tx>{card.hint}</Tx></p>
+      ) : null}
     </Link>
   );
 }
@@ -134,12 +120,14 @@ function TodayBox({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3 shadow-soft">
-      <p className="flex items-center gap-2 truncate text-sm text-muted-foreground">
-        <Icon className="size-4 shrink-0" />
-        {label}
-      </p>
-      <p className="tnum mt-1 text-2xl font-bold tracking-tight">{value}</p>
+    <div className="min-w-0 rounded-xl border bg-card p-3 shadow-soft sm:p-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 truncate text-xs font-medium text-muted-foreground">{label}</p>
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand/15 text-brand ring-1 ring-inset ring-brand/30">
+          <Icon className="size-3.5" />
+        </span>
+      </div>
+      <p className="tnum mt-1.5 text-xl font-bold leading-tight tracking-tight sm:text-2xl">{value}</p>
     </div>
   );
 }
@@ -287,16 +275,7 @@ export default async function DashboardPage() {
       {/* Always on the page, as on the air side: an empty panel is the good
           news, said where the desk looks first. */}
       <section>
-        <SectionLabel
-          count={attention.length}
-          action={
-            chinaHome
-              ? { href: "/app/inventory", label: t(locale, "All cargo") }
-              : { href: "/app/exceptions", label: "All issues" }
-          }
-        >
-          {t(locale, "Needs your attention")}
-        </SectionLabel>
+        {/* No heading over the list (owner, 16 Nov 2026, as on ZELab): the box speaks for itself. */}
         <AttentionCenter items={attention} />
 
         {/* The four "today" boxes sit under the worry list, as on the air
@@ -321,7 +300,7 @@ export default async function DashboardPage() {
       {cards.length > 0 && !chinaHome ? (
         <section>
           <SectionLabel>What needs you today</SectionLabel>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {cards.map((card, i) => (
               <QueueCard key={card.href + card.label} card={card} index={i} />
             ))}

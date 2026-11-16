@@ -22,9 +22,7 @@ export type ActionPill = {
  * who does the same job forty times a day finds the button by its colour long
  * before they read it.
  */
-/* A phone's shortcut, as the cleanest shopping apps draw them: the icon alone
-   in its own colour, thin-lined, one word under it — no square, no box, no
-   glow. */
+/* The colour of a shortcut's icon; the pill itself stays plain. */
 export const PHONE_ICON: Record<string, string> = {
   brand: "text-blue-600 dark:text-blue-400",
   marine: "text-cyan-600 dark:text-cyan-400",
@@ -35,9 +33,6 @@ export const PHONE_ICON: Record<string, string> = {
   violet: "text-violet-600 dark:text-violet-400",
   plain: "text-slate-500 dark:text-slate-300",
 };
-export const PHONE_TILE =
-  "focus-ring flex min-w-0 flex-col items-center gap-1.5 rounded-xl py-2 text-center transition-transform active:scale-95 active:bg-foreground/5";
-export const PHONE_WORD = "w-full truncate text-[10.5px] font-medium tracking-tight text-foreground/80";
 
 /* The pill on a computer: one calm style for every shortcut — a light
    surface, a fine neutral edge, plain text and the icon in its own colour. Solid
@@ -51,36 +46,12 @@ export async function ActionPills({ pills }: { pills: ActionPill[] }) {
   const t = (text: string) => tr(locale, text);
   if (pills.length === 0) return null;
 
-  const iconFor = (name: string) =>
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>>)[name];
 
   return (
     <>
-      {/* PHONE: up to six tiles in one row, edge to edge, each a small clean
-          icon over one word; a seventh is a swipe away — thumbs hit
-          tiles, not pills. */}
-      <div
-        className={cn(
-          "lg:hidden",
-          pills.length <= 6
-            ? cn("grid gap-0", ["", "grid-cols-1", "grid-cols-2", "grid-cols-3", "grid-cols-4", "grid-cols-5", "grid-cols-6"][pills.length])
-            : "-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[calc((100%-1.25rem)/6)] grid-flow-col gap-1 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        )}
-      >
-        {pills.map((pill) => {
-          const Icon = iconFor(pill.icon);
-          return (
-            <Link
-              key={`m-${pill.href}${pill.label}`}
-              href={pill.href}
-              className={cn(PHONE_TILE, "snap-start")}
-            >
-              {Icon ? <Icon className={cn("size-6", PHONE_ICON[pill.tone ?? "plain"])} strokeWidth={1.7} /> : null}
-              <span className={PHONE_WORD}>{t(pill.short ?? pill.label)}</span>
-            </Link>
-          );
-        })}
-      </div>
+      {/* PHONE: no shortcut icons (owner, 16 Nov 2026, as on ZELab: "the icons
+          are all done") — the bottom bar and the menu are the same doors. A
+          computer keeps one quiet row of pills. */}
     <div className="-mx-1 hidden flex-wrap gap-2 px-1 lg:flex">
       {pills.map((pill) => {
         const Icon = (

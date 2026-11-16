@@ -5,17 +5,20 @@ import { usePathname } from "next/navigation";
 import {
   Banknote,
   Boxes,
+  ClipboardCheck,
   Headset,
   LayoutDashboard,
-  Menu,
   MessageSquare,
   PackageCheck,
   PackagePlus,
+  ScanLine,
   Search,
   ShieldCheck,
   Ship,
   Truck,
+  Users,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
@@ -32,8 +35,10 @@ import { cn } from "@/lib/utils";
  * out was the hamburger, then finding the row. Home and the desk's own working
  * screens are always one press away from here, whatever page the reader is on.
  *
- * Four per desk and the fifth opens the whole menu. A fifth destination puts
- * every target under 60px on a 360px phone.
+ * Five per desk, every one a door of its own (owner, 16 Nov 2026, as on
+ * ZELab): there is no "Menu" tab, because the ☰ in the top bar already opens the
+ * whole menu and two of them was one too many. The fifth is the page the desk
+ * cannot do without. A sixth would put every target under 60px on a 360px phone.
  */
 type Tab = { href: string; icon: LucideIcon; exact?: boolean; label?: string };
 
@@ -43,12 +48,14 @@ const TABS: Partial<Record<Role, Tab[]>> = {
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/containers/loading", icon: Ship, label: "Loading" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
+    { href: "/app/manager/approvals", icon: ClipboardCheck, label: "Approvals" },
   ],
   MANAGER: [
     { href: "/app/manager", icon: LayoutDashboard, exact: true, label: "Home" },
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/manager/control", icon: ShieldCheck, label: "Control" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
+    { href: "/app/manager/approvals", icon: ClipboardCheck, label: "Approvals" },
   ],
   /* Foshan receives and loads; it never checks cargo in or releases it. */
   CHINA_WAREHOUSE: [
@@ -56,6 +63,7 @@ const TABS: Partial<Record<Role, Tab[]>> = {
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/receive/new", icon: PackagePlus, label: "Receive" },
     { href: "/app/containers/loading", icon: Boxes, label: "Loading" },
+    { href: "/app/inventory", icon: Warehouse, label: "Stock" },
   ],
   /* The Dar floor works a line: a box lands and is checked in, a customer
      arrives and it goes out. Those two screens are the shift. */
@@ -64,18 +72,21 @@ const TABS: Partial<Record<Role, Tab[]>> = {
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/receive/dar", icon: PackageCheck, label: "Check-in" },
     { href: "/app/release", icon: Truck, label: "Pickup" },
+    { href: "/app/scan", icon: ScanLine, label: "Scan" },
   ],
   FINANCE: [
     { href: "/app/dashboard", icon: LayoutDashboard, exact: true, label: "Home" },
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/finance/collections", icon: Banknote, label: "Collect" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
+    { href: "/app/finance/collections/verify", icon: ShieldCheck, label: "Verify" },
   ],
   CUSTOMER_SUPPORT: [
     { href: "/app/support", icon: Headset, exact: true, label: "Home" },
     { href: "/app/search", icon: Search, label: "Search" },
     { href: "/app/support/tickets", icon: MessageSquare, label: "Tickets" },
     { href: "/app/finance/collections", icon: Banknote, label: "Collect" },
+    { href: "/app/customers", icon: Users, label: "Customers" },
   ],
 };
 
@@ -94,6 +105,8 @@ export function MobileTabbar({
 }) {
   const pathname = usePathname() ?? "";
   const t = useT();
+  /* The whole menu is the ☰ in the top bar now; the shell still offers this. */
+  void onMore;
 
   /* Permissions come from the role's menu: a tab whose row is not in it is a
      door this desk cannot open. Each tab carries one word of its own, so the
@@ -151,17 +164,6 @@ export function MobileTabbar({
             </Link>
           );
         })}
-
-        <button
-          type="button"
-          onClick={onMore}
-          className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-muted-foreground transition-colors active:bg-secondary"
-        >
-          <Menu className="size-5 shrink-0" />
-          <span className="max-w-full truncate px-0.5 text-center text-[11px] font-medium leading-tight">
-            {t("Menu")}
-          </span>
-        </button>
       </div>
     </nav>
   );

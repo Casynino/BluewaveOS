@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Search, type LucideIcon } from "lucide-react";
 
 import { BannerTools } from "@/components/app/banner-tools";
-import { CleanBanner } from "@/components/app/clean-banner";
+import { GreetingBanner } from "@/components/app/greeting-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { t } from "@/lib/i18n";
@@ -68,18 +68,20 @@ export async function DeskHero({
   void action;
   const buttons = actions ?? [];
 
-  /* What Target's banner does: the page's own name, set wide, with only the
-     company and the day under it — and the search box on its own line below,
-     where the eye goes next. No greeting, no sentence, no row of buttons. */
+  /* The greeting every home opens on (owner, 16 Nov 2026, as on his ZELab
+     system): "Mambo vipi?", the first name and one line — the same for every
+     desk, no job title. The day is in the phone's top bar and on the computer's
+     bell side; the search box, when a desk has one, sits on its own line below. */
+  void greeting;
+  void kicker;
+  void department;
+  void today;
   return (
     <div className="space-y-4">
-      <CleanBanner
-        title={title ?? name}
-        kicker={tr(kicker ?? department)}
-        image="/photos/port-cranes.jpg"
-        line={today}
-        /* A phone's top bar already shows the day; the banner says it only on a computer. */
-        lineClassName="max-lg:hidden"
+      <GreetingBanner
+        hello={tr("Mambo vipi?")}
+        name={title ?? name}
+        line={tr("Keep the cargo moving.")}
         tools={<BannerTools />}
       />
       {/* One slim rounded field with a magnifier; Enter searches. */}
